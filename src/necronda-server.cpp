@@ -11,9 +11,13 @@
 #include <thread>
 #include <sys/time.h>
 #include <sys/stat.h>
+#include <bits/signum.h>
+#include <csignal>
 
 
 using namespace std;
+
+
 
 /**
  * Returns UNIX time in microseconds
@@ -47,6 +51,8 @@ string getMimeType(string path) {
 			type = "text/javascript";
 		}
 	}
+
+	magic_close(magic);
 
 	return type + "; charset=" + charset;
 }
@@ -115,9 +121,17 @@ string getWebRoot(string host) {
 long clientnum = 0;
 
 int main() {
+
+	SSL_load_error_strings();
+	SSL_library_init();
+	ERR_load_crypto_strings();
+	OpenSSL_add_all_algorithms();
+
+	signal(SIGPIPE, SIG_IGN);
+
 	cout << "Necronda Server 3.0" << endl << "by Lorenz Stechauner" << endl << endl;
 
-	unsigned short PORT = 8080;
+	unsigned short PORT = 443;
 
 	Socket *s;
 	try {

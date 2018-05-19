@@ -67,6 +67,7 @@ bool connection_handler(const char *prefix, Socket socket, long id, long num) {
 				FILE *file = path.openFile();
 
 				if (file == nullptr) {
+					req.setField("Cache-Control", "public, max-age=60");
 					req.respond(404);
 				} else {
 					string type = path.getFileType();
@@ -98,17 +99,50 @@ bool connection_handler(const char *prefix, Socket socket, long id, long num) {
 						if (invalidMethod) {
 							req.respond(405);
 						} else {
+
 							bool compress = type.find("text/") == 0 && req.isExistingField("Accept-Encoding") &&
 											req.getField("Accept-Encoding").find("deflate") != string::npos;
-							req.respond(200, file, compress);
+
+							if (req.isExistingField("Range")) {
+								string range = req.getField("Range");
+								if (range.find("bytes=") != 0 || !path.isStatic()) {
+									req.respond(416);
+								} else {
+									fseek(file, 0L, SEEK_END);
+									long len = ftell(file);
+									fseek(file, 0L, SEEK_SET);
+									long p = range.find('-');
+									if (p == string::npos) {
+										req.respond(416);
+									} else {
+										string part1 = range.substr(6, p - 6);
+										string part2 = range.substr(p + 1, range.length() - p - 1);
+										long num1 = stol(part1, nullptr, 10);
+										long num2 = len - 1;
+										if (!part2.empty()) {
+											num2 = stol(part2, nullptr, 10);
+										}
+										if (num1 < 0 || num1 >= len || num2 < 0 || num2 >= len) {
+											req.respond(416);
+										} else {
+											req.setField("Content-Range", (string) "bytes " + to_string(num1) + "-" + to_string(num2) + "/" + to_string(len));
+											req.respond(206, file, compress, num1, num2);
+										}
+									}
+								}
+							} else {
+								req.respond(200, file, compress);
+							}
 						}
 					}
+					fclose(file);
 				}
-
-				HttpStatusCode status = req.getStatusCode();
-				log(prefix, to_string(status.code) + " " + status.message + " (" + formatTime(req.getDuration()) + ")");
 			}
+			HttpStatusCode status = req.getStatusCode();
+			log(prefix, to_string(status.code) + " " + status.message + " (" + formatTime(req.getDuration()) + ")");
 		} catch (char *msg) {
+			HttpStatusCode status = req.getStatusCode();
+			log(prefix, to_string(status.code) + " " + status.message + " (" + formatTime(req.getDuration()) + ")");
 			try {
 				if (msg == "timeout") {
 					log(prefix, "Timeout!");
@@ -190,14 +224,23 @@ void client_handler(Socket *socket, long id) {
 		err = true;
 	}
 
+	try {
+		if (socket->getSocketPort() == 443) {
+			socket->sslHandshake("/home/lorenz/Documents/Projects/Necronda-Server/necronda-server-3.0/privkey.pem",
+								 "/home/lorenz/Documents/Projects/Necronda-Server/necronda-server-3.0/fullchain.pem");
+		}
+	} catch (char *msg) {
+		log(prefix, (string) "Unable to perform handhsake: " + msg);
+		err = true;
+	}
+
 	long reqnum = 0;
 	if (!err) {
 		while (connection_handler(prefix, *socket, id, ++reqnum));
 		reqnum--;
 	}
 
-	log(prefix,
-		"Connection terminated (#:" + to_string(reqnum) + ", R:, S:, T: " + formatTime(socket->getDuration()) + ")");
+	log(prefix, "Connection terminated (#:" + to_string(reqnum) + ", R:, S:, T: " + formatTime(socket->getDuration()) + ")");
 	socket->close();
 }
 
