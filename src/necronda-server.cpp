@@ -80,6 +80,26 @@ string getHttpDate(time_t time) {
 	return string(buffer);
 }
 
+std::string getTimestamp(string path) {
+	struct stat attrib;
+	stat(path.c_str(), &attrib);
+	return getTimestamp(attrib.st_ctime);
+}
+
+std::string getTimestamp(time_t time) {
+	char buffer[64];
+	struct tm *timeinfo = gmtime(&time);
+	strftime(buffer, sizeof(buffer), "%Y%m%d%H%M%S", timeinfo);
+	return string(buffer);
+}
+
+long getFileSize(string filename) {
+	struct stat stat_buf;
+	int rc = stat(filename.c_str(), &stat_buf);
+	return rc == 0 ? stat_buf.st_size : -1;
+}
+
+
 /**
  * Returns a formatted time string
  * @param micros Delta time to be formatted
@@ -101,6 +121,22 @@ std::string formatTime(long micros) {
 	return std::string(buffer);
 }
 
+std::string formatSize(unsigned long bytes) {
+	char buffer[64];
+	if (bytes > 0x10000000000) {
+		sprintf(buffer, "%.1f TiB", (double) bytes / 0x10000000000);
+	} else if (bytes > 0x40000000) {
+		sprintf(buffer, "%.1f GiB", (double) bytes / 0x40000000);
+	} else if (bytes > 0x100000) {
+		sprintf(buffer, "%.1f MiB", (double) bytes / 0x100000);
+	} else if (bytes > 0x400) {
+		sprintf(buffer, "%.1f KiB", (double) bytes / 0x400);
+	} else {
+		sprintf(buffer, "%ld B", bytes);
+	}
+	return std::string(buffer);
+}
+
 string getWebRoot(string host) {
 	return "/home/lorenz/Documents/Projects/Necronda-Server/necronda-server-3.0/webroot";
 }
@@ -108,7 +144,7 @@ string getWebRoot(string host) {
 
 #include "network/Address.cpp"
 #include "network/Socket.cpp"
-#include "Path.cpp"
+#include "URI.cpp"
 #include "network/http/HttpStatusCode.cpp"
 #include "network/http/HttpHeader.cpp"
 #include "network/http/HttpRequest.cpp"
@@ -121,54 +157,74 @@ string getWebRoot(string host) {
 long clientnum = 0;
 
 int main() {
+	cout << "Necronda Server 3.0" << endl << "by Lorenz Stechauner" << endl << endl;
+
+	signal(SIGPIPE, SIG_IGN);
 
 	SSL_load_error_strings();
 	SSL_library_init();
 	ERR_load_crypto_strings();
 	OpenSSL_add_all_algorithms();
 
-	signal(SIGPIPE, SIG_IGN);
+	int ret = system("mkdir -p /var/necronda /etc/necronda /tmp/necronda; touch /var/necronda/ETags");
 
-	cout << "Necronda Server 3.0" << endl << "by Lorenz Stechauner" << endl << endl;
-
-	unsigned short PORT = 443;
-
-	Socket *s;
-	try {
-		s = new Socket();
-	} catch (char *msg) {
-		cout << "Unable to create socket: " << msg << endl;
+	if (ret != 0) {
+		cout << "Unable to create server files" << endl;
 		exit(1);
 	}
 
-	try {
-		s->setReuseAddress(true);
-	} catch (char *msg) {
-		cout << "Unable to set socket option: " << msg << endl;
-		exit(1);
+	list<unsigned short> ports = {80, 443};
+
+	list<Socket> servers = {};
+	auto it = ports.begin();
+
+	for (int i = 0; i < ports.size(); i++) {
+		unsigned short port = *it;
+		advance(it, 1);
+		Socket server = Socket();
+		servers.push_back(server);
+
+		try {
+			server.setReuseAddress(true);
+			server.setReceiveTimeout(0);
+			server.setSendTimeout(0);
+		} catch (char *msg) {
+			cout << "Unable to set socket option: " << msg << endl;
+			exit(2);
+		}
+
+		try {
+			server.bind(port);
+		} catch (char *msg) {
+			cout << "Unable to bind socket to port " << port << ": " << msg << endl;
+			exit(3);
+		}
+
+		try {
+			server.listen(256);
+		} catch (char *msg) {
+			cout << "Unable to listen on socket: " << msg << endl;
+			exit(4);
+		}
+
 	}
 
-	try {
-		s->bind(PORT);
-	} catch (char *msg) {
-		cout << "Unable to bind socket to port " << PORT << ": " << msg << endl;
-		exit(2);
-	}
-
-	try {
-		s->listen(256);
-	} catch (char *msg) {
-		cout << "Unable to listen on socket: " << msg << endl;
-		exit(3);
-	}
+	cout << "Ready for connections" << endl;
 
 	while (true) {
 		try {
-			Socket *socket = s->accept();
-			clientnum++;
-			thread *t = new thread(client_handler, socket, clientnum);
+			Socket::select(servers, {});
+			for (Socket server : servers) {
+				try {
+					Socket *socket = server.accept();
+					clientnum++;
+					thread *t = new thread(client_handler, socket, clientnum, server.getSocketPort() == 443);
+				} catch (char *msg) {
+					// Nothing
+				}
+			}
 		} catch (char *msg) {
-			cout << msg << endl;
+			cout << "Select: " << msg << endl;
 			break;
 		}
 	}

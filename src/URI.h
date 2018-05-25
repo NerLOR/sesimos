@@ -6,14 +6,17 @@
 
 using namespace std;
 
-class Path {
+class URI {
 private:
 	string webroot;
+	string reqpath;
 	string relpath;
 	string query;
+	string filepath;
+	bool queryinit;
 
 public:
-	Path(string webroot, string reqpath);
+	URI(string webroot, string reqpath);
 
 	string getWebRoot();
 
@@ -34,6 +37,10 @@ public:
 	string getFileType();
 
 	bool isStatic();
+
+	string getQuery();
+
+	bool hasQuery();
 
 };
 
