@@ -224,7 +224,7 @@ string getWebRoot(string host) {
 	if (fileExists(root)) {
 		return root;
 	} else {
-		return "www.necronda.net";
+		return (string) webroot + "www.necronda.net";
 	}
 }
 
