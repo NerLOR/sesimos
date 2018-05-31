@@ -17,6 +17,8 @@
 
 using namespace std;
 
+string webroot = "/srv/necronda/";
+
 
 
 /**
@@ -138,7 +140,12 @@ std::string formatSize(unsigned long bytes) {
 }
 
 string getWebRoot(string host) {
-	return "/home/lorenz/Documents/Projects/Necronda-Server/necronda-server-3.0/webroot";
+	string root = webroot + host;
+	if (fileExists(root)) {
+		return root;
+	} else {
+		return webroot + "www.necronda.net";
+	}
 }
 
 
