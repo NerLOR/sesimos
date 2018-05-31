@@ -220,10 +220,10 @@ string read_line(FILE* file) {
 #include "network/http/HttpConnection.cpp"
 
 string getWebRoot(string host) {
-	string root = webroot + host;
-	if (host == "www.necronda.net:4443") {
+	if (host == "www.necronda.net") {
 		host = "www.necronda.net-new";
 	}
+	string root = webroot + host;
 	if (fileExists(root)) {
 		return root;
 	} else {
