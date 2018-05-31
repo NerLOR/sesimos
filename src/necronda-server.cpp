@@ -242,7 +242,7 @@ int main() {
 		exit(1);
 	}
 
-	list<unsigned short> ports = {80, 443};
+	list<unsigned short> ports = {8080, 4443};
 
 	list<Socket> servers = {};
 	auto it = ports.begin();
@@ -287,7 +287,7 @@ int main() {
 				try {
 					Socket *socket = server.accept();
 					clientnum++;
-					thread *t = new thread(client_handler, socket, clientnum, server.getSocketPort() == 443);
+					thread *t = new thread(client_handler, socket, clientnum, server.getSocketPort() == 4443);
 				} catch (char *msg) {
 					// Nothing
 				}
