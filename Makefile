@@ -1,3 +1,5 @@
+.DEFAULT_GOAL := install
+
 packages:
 	@echo "Installing packages..."
 	sudo apt-get install g++
