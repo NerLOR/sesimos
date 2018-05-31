@@ -139,6 +139,7 @@ long getPosition(std::string str, char c, int occurence) {
  */
 bool connection_handler(const char *preprefix, const char *col1, const char *col2, Socket *socket, long id, long num) {
 	bool error = false;
+	char buffer[1024];
 	char *prefix = (char *) preprefix;
 	try {
 		HttpConnection req(socket);
@@ -170,7 +171,6 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 					sprintf(hostbuffer, "%s", socket->getPeerAddress()->toString().c_str());
 				}
 
-				char buffer[1024];
 				sprintf(buffer, "[\x1B[1m%s\x1B[0m][%i]%s[%s][%i]%s ", host.c_str(), socket->getSocketPort(), col1,
 						hostbuffer, socket->getPeerPort(), col2);
 
