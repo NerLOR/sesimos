@@ -221,6 +221,9 @@ string read_line(FILE* file) {
 
 string getWebRoot(string host) {
 	string root = webroot + host;
+	if (host == "www.necronda.net") {
+		host = "www.necronda.net-new";
+	}
 	if (fileExists(root)) {
 		return root;
 	} else {
