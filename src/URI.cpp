@@ -50,6 +50,7 @@ URI::URI(string webroot, string reqpath) {
 	if (webroot[webroot.length() - 1] == '/') {
 		webroot.erase(webroot.length() - 1);
 	}
+	reqpath = url_decode(reqpath);
 	if (reqpath.find("/../") != string::npos) {
 		throw (char *) "Invalid path";
 	}
@@ -116,8 +117,9 @@ string URI::getFilePath() {
 }
 
 string URI::getRelativeFilePath() {
-	string rel = getRelativePath();
-	// TODO
+	string str = getFilePath();
+	long len = getWebRoot().length();
+	return str.substr(len, str.length() - len);
 }
 
 string URI::getNewPath() {
@@ -127,7 +129,7 @@ string URI::getNewPath() {
 		}
 	}
 	if (relpath != reqpath) {
-		return relpath + (queryinit? "?" + query : "");
+		return url_encode(relpath) + (queryinit? "?" + query : "");
 	} else {
 		return "";
 	}
@@ -138,7 +140,7 @@ FILE *URI::openFile() {
 }
 
 string URI::getFilePathInfo() {
-	return getAbsolutePath().erase(getFilePath().length(), getAbsolutePath().length());
+	return ""; //getAbsolutePath().erase(getFilePath().length(), getAbsolutePath().length());
 }
 
 string URI::getFileType() {
@@ -146,7 +148,7 @@ string URI::getFileType() {
 }
 
 bool URI::isStatic() {
-	return true;
+	return getExtension(filepath) != "php";
 }
 
 string URI::getQuery() {

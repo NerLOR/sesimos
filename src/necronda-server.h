@@ -33,5 +33,17 @@ string getTimestamp(time_t time);
 
 long getFileSize(string filename);
 
+string url_decode(string url);
+
+string url_encode(string url);
+
+string html_decode(string text);
+
+string html_encode(string text);
+
+string cli_encode(string text);
+
+string read_line(FILE *file);
+
 
 #endif

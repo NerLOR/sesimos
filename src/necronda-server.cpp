@@ -142,6 +142,75 @@ string getWebRoot(string host) {
 }
 
 
+
+string url_decode(string url) {
+	long pos = 0;
+	while ((pos = url.find('+', pos + 1)) != string::npos) {
+		url.replace(pos, 1, 1, ' ');
+	}
+	pos = 0;
+	while ((pos = url.find('%', pos + 1)) != string::npos) {
+		const char *num = url.substr(pos + 1, 2).c_str();
+		auto c = (char) strtol(num, nullptr, 16);
+		url.erase(pos, 3);
+		url.insert(pos, 1, c);
+	}
+
+	return url;
+}
+
+string url_encode(string url) {
+	char buff[4];
+	for (long pos = 0; pos < url.length(); pos++) {
+		auto c = (unsigned char) url[pos];
+		if (c < ' ' || c > '~' || c == ' ' || c == '#' || c == '?' || c == '&' || c == '=' || c == '\\' || c == '%') {
+			sprintf(buff, "%%%02X", c);
+			url.replace(pos, 1, buff);
+		}
+	}
+	return url;
+}
+
+string html_decode(string text) {
+	return text;
+}
+
+string html_encode(string text) {
+	return text;
+}
+
+string cli_encode(string text) {
+	char buff[5];
+	for (long pos = 0; pos < text.length(); pos++) {
+		auto c = (unsigned char) text[pos];
+		if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == ',' || c == '.' || c == '_' || c == '+' || c == ':' || c == '@' || c == '%' || c == '/' || c == '-')) {
+			sprintf(buff, "\\%.1s", &c);
+			text.replace(pos, 1, buff);
+			pos++;
+		}
+	}
+	return text;
+}
+
+string read_line(FILE* file) {
+	char *line = nullptr;
+	size_t len = 0;
+	ssize_t read;
+	if ((read = getline(&line, &len, file)) < 0) {
+		return "";
+	}
+	string l = string(line);
+	if (l[l.length()-1] == '\n') {
+		l.erase(l.length()-1);
+	}
+	if (l[l.length()-1] == '\r') {
+		l.erase(l.length()-1);
+	}
+	return l;
+}
+
+
+#include "procopen.cpp"
 #include "network/Address.cpp"
 #include "network/Socket.cpp"
 #include "URI.cpp"

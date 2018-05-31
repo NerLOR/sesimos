@@ -19,16 +19,21 @@
 #include "necronda-server.h"
 #include "network/http/HttpStatusCode.h"
 #include "URI.h"
+#include "procopen.h"
 
 
 /**
  * Writes log messages to the console
  * @param prefix The connection prefix
- * @param string The string to be written
+ * @param str The string to be written
  */
-void log(const char *prefix, const string &string) {
-	printf("%s%s\r\n", prefix, string.c_str());
+void log(const char *prefix, const string &str) {
+	printf("%s%s\r\n", prefix, str.c_str());
 	flush(cout);
+}
+
+void log_error(const char *prefix, const string &str) {
+	log(prefix, "\x1B[1;31m" + str + "\x1B[0m");
 }
 
 string getETag(string filename) {
@@ -106,6 +111,24 @@ string getETag(string filename) {
 	return md5;
 }
 
+#include <iostream>
+#include <wait.h>
+
+long getPosition(std::string str, char c, int occurence) {
+	int tempOccur = 0;
+	int num = 0;
+	for (auto it : str) {
+		num++;
+		if (it == c) {
+			if (++tempOccur == occurence) {
+				return num;
+			}
+		}
+	}
+
+	return -1;
+}
+
 /**
  * Handles (keep-alive) HTTP connections
  * @param prefix The connection prefix
@@ -114,8 +137,9 @@ string getETag(string filename) {
  * @param num The Connection Number in the client
  * @return Should the server wait for another header?
  */
-bool connection_handler(const char *prefix, Socket *socket, long id, long num) {
+bool connection_handler(const char *preprefix, const char *col1, const char *col2, Socket *socket, long id, long num) {
 	bool error = false;
+	char *prefix = (char *) preprefix;
 	try {
 		HttpConnection req(socket);
 		try {
@@ -131,19 +155,32 @@ bool connection_handler(const char *prefix, Socket *socket, long id, long num) {
 				req.respond(400);
 			} else {
 				string host = req.getField("Host");
+				long pos = host.find(':');
+				if (pos != string::npos) {
+					host.erase(pos, host.length() - pos);
+				}
 
-				string str = string(prefix);
-				unsigned long pos = str.find('[', 8);
-				string n = str.substr(0, 8) + host + str.substr(pos - 1, str.length() - pos + 1);
+				FILE *name = popen(("dig +time=1 -x " + socket->getPeerAddress()->toString() +
+									" | grep -oP \"^[^;].*\\t\\K([^ ]*)\\w\"").c_str(), "r");
+				char hostbuffer[1024];
+				memset(hostbuffer, 0, 1024);
+				size_t size = fread(hostbuffer, 1, 1024, name);
+				hostbuffer[size - 1] = 0; // remove \n
+				if (size <= 1) {
+					sprintf(hostbuffer, "%s", socket->getPeerAddress()->toString().c_str());
+				}
 
-				char buffer[256];
-				sprintf(buffer, "%s", n.c_str());
+				char buffer[1024];
+				sprintf(buffer, "[\x1B[1m%s\x1B[0m][%i]%s[%s][%i]%s ", host.c_str(), socket->getSocketPort(), col1,
+						hostbuffer, socket->getPeerPort(), col2);
+
 				prefix = buffer;
 
 				URI path = URI(getWebRoot(host), req.getPath());
-				log(prefix, req.getMethod() + " " + req.getPath());
+				log(prefix, "\x1B[1m" + req.getMethod() + " " + req.getPath() + "\x1B[0m");
 
 				FILE *file = path.openFile();
+				pid_t childpid = 0;
 
 				if (!path.getNewPath().empty()) {
 					req.redirect(302, path.getNewPath());
@@ -156,6 +193,8 @@ bool connection_handler(const char *prefix, Socket *socket, long id, long num) {
 						string type = path.getFileType();
 
 						if (type.find("inode/") == 0) {
+							req.respond(403);
+						} else if (path.getRelativeFilePath().find("/.") != string::npos) {
 							req.respond(403);
 						} else {
 							req.setField("Content-Type", type);
@@ -183,7 +222,6 @@ bool connection_handler(const char *prefix, Socket *socket, long id, long num) {
 								if (req.getMethod() != "GET" && req.getMethod() != "POST" && req.getMethod() != "PUT") {
 									invalidMethod = true;
 								}
-								system("php");
 							}
 
 							if (invalidMethod) {
@@ -191,15 +229,82 @@ bool connection_handler(const char *prefix, Socket *socket, long id, long num) {
 							} else if (etag) {
 								req.respond(304);
 							} else {
+								int statuscode = 200;
+								if (!path.isStatic()) {
+									string cmd = (string) "env -i" +
+												 " REDIRECT_STATUS=" + cli_encode("CGI") +
+												 " DOCUMENT_ROOT=" + cli_encode(getWebRoot(host)) +
+												 " " + req.cgiExport() +
+												 (req.isExistingField("Content-Length")?" CONTENT_LENGTH="+cli_encode(req.getField("Content-Length")):"") +
+												 (req.isExistingField("Content-Type")?" CONTENT_TYPE="+cli_encode(req.getField("Content-Type")):"") +
+												 ((socket->isSecured())?" HTTPS=on":"") +
+												 " PATH_INFO=" + cli_encode(path.getFilePathInfo()) +
+												 " PATH_TRANSLATED=" + cli_encode(path.getAbsolutePath()) +
+												 " QUERY_STRING=" + cli_encode(path.getQuery()) +
+												 " REMOTE_ADDR=" + cli_encode(socket->getPeerAddress()->toString()) +
+												 " REMOTE_HOST=" + cli_encode(hostbuffer) +
+												 " REMOTE_PORT=" + cli_encode(to_string(socket->getPeerPort())) +
+												 " REQUEST_METHOD=" + cli_encode(req.getMethod()) +
+												 " REQUEST_URI=" + cli_encode(req.getPath()) +
+												 " SCRIPT_FILENAME=" + cli_encode(path.getFilePath()) +
+												 " SCRIPT_NAME=" + cli_encode(path.getRelativePath()) +
+												 " SERVER_ADMIN=" + cli_encode("lorenz.stechauner@gmail.com") +
+												 " SERVER_NAME=" + cli_encode(host) +
+												 " SERVER_PORT=" + cli_encode(to_string(socket->getSocketPort())) +
+												 " SERVER_SOFTWARE=" + cli_encode("Necronda 3.0") +
+												 " SERVER_PROTOCOL=" + cli_encode("HTTP/1.1") +
+												 " GATEWAY_INTERFACE=" + cli_encode("CGI/1.1") +
+												 " /usr/bin/php-cgi";
 
-								bool compress = type.find("text/") == 0 && req.isExistingField("Accept-Encoding") &&
+									stds pipes = procopen(cmd.c_str());
+									childpid = pipes.pid;
+
+									char fdbuffer[4096];
+									if (req.getMethod() == "POST" || req.getMethod() == "PUT") {
+										long len = req.isExistingField("Content-Length") ? strtol(req.getField("Content-Length").c_str(), nullptr, 10) : -1;
+										socket->receive(pipes.stdin);
+									}
+									fclose(pipes.stdin);
+
+									string line;
+									while (!(line = read_line(pipes.stderr)).empty()) {
+										log_error(prefix, line);
+									}
+									fclose(pipes.stderr);
+
+									while (!(line = read_line(pipes.stdout)).empty()) {
+										long pos = line.find(':');
+										string index = line.substr(0, pos);
+										string data = line.substr(pos+1, line.length() - pos);
+
+										while (index[0] == ' ') index.erase(index.begin() + 0);
+										while (index[index.length() - 1] == ' ') index.erase(index.end() - 1);
+										while (data[0] == ' ') data.erase(data.begin() + 0);
+										while (data[data.length() - 1] == ' ') data.erase(data.end() - 1);
+
+										if (index == "Location") {
+											statuscode = 303;
+										}
+
+										req.setField(index, data);
+									}
+
+									fclose(file);
+									file = pipes.stdout;
+
+
+								}
+
+								bool compress = path.isStatic() && type.find("text/") == 0 && req.isExistingField("Accept-Encoding") &&
 												req.getField("Accept-Encoding").find("deflate") != string::npos;
 
 								if (compress) {
 									req.setField("Accept-Ranges", "none");
 								}
 
-								if (req.isExistingField("Range")) {
+								if (compress && req.isExistingField("Range")) {
+									req.respond(416);
+								} else if (req.isExistingField("Range")) {
 									string range = req.getField("Range");
 									if (range.find("bytes=") != 0 || !path.isStatic()) {
 										req.respond(416);
@@ -231,16 +336,39 @@ bool connection_handler(const char *prefix, Socket *socket, long id, long num) {
 										}
 									}
 								} else {
-									req.respond(200, file, compress);
+									req.respond(statuscode, file, compress);
 								}
 							}
 						}
 						fclose(file);
+						if (childpid > 0) {
+							waitpid(childpid, nullptr, 0);
+						}
 					}
 				}
 			}
 			HttpStatusCode status = req.getStatusCode();
-			log(prefix, to_string(status.code) + " " + status.message + " (" + formatTime(req.getDuration()) + ")");
+			int code = status.code;
+			string color = "";
+			string comment = "";
+			if ((code >= 200 && code < 300) || code == 304) {
+				color = "\x1B[1;32m"; // Success (Cached): Green
+			} else if (code >= 100 && code < 200) {
+				color = "\x1B[1;93m"; // Continue: Yellow
+			} else if (code >= 300 && code < 400) {
+				color = "\x1B[1;93m"; // Redirect: Yellow
+				comment = " -> " +
+						  (req.isExistingResponseField("Location") ? req.getResponseField("Location") : "<invalid>");
+			} else if (code >= 400 && code < 500) {
+				color = "\x1B[1;31m"; // Client Error: Red
+				//comment = " -> " + req.getPath();
+			} else if (code >= 500 & code < 600) {
+				color = "\x1B[1;31m"; // Server Error: Red
+				//comment = " -> " + req.getPath();
+			}
+			log(prefix,
+				color + to_string(status.code) + " " + status.message + comment + " (" + formatTime(req.getDuration()) +
+				")\x1B[0m");
 		} catch (char *msg) {
 			HttpStatusCode status = req.getStatusCode();
 			log(prefix, to_string(status.code) + " " + status.message + " (" + formatTime(req.getDuration()) + ")");
@@ -290,26 +418,25 @@ bool connection_handler(const char *prefix, Socket *socket, long id, long num) {
  */
 void client_handler(Socket *socket, long id, bool ssl) {
 	const char *prefix;
+	char const *col1;
+	char const *col2 = "\x1B[0m";
 	{
-		char const *col1;
-		char const *col2 = "\x1B[0m";
 		auto group = (int) (id % 6);
 		if (group == 0) {
-			col1 = "\x1B[1;31m";
+			col1 = "\x1B[0;31m"; // Red
 		} else if (group == 1) {
-			col1 = "\x1B[1;32m";
+			col1 = "\x1B[0;32m"; // Green
 		} else if (group == 2) {
-			col1 = "\x1B[1;34m";
+			col1 = "\x1B[0;34m"; // Blue
 		} else if (group == 3) {
-			col1 = "\x1B[1;33m";
+			col1 = "\x1B[0;33m"; // Yellow
 		} else if (group == 4) {
-			col1 = "\x1B[1;35m";
+			col1 = "\x1B[0;35m"; // Magenta
 		} else {
-			col1 = "\x1B[1;36m";
+			col1 = "\x1B[0;36m"; // Cyan
 		}
-		string *a = new string((string)
-									   col1 + "[" + socket->getSocketAddress()->toString() + "][" +
-							   to_string(socket->getSocketPort()) + "]" +
+		string *a = new string("[" + socket->getSocketAddress()->toString() + "][" +
+							   to_string(socket->getSocketPort()) + "]" + col1 +
 							   "[" + socket->getPeerAddress()->toString() + "][" + to_string(socket->getPeerPort()) +
 							   "]" + col2 + " ");
 		prefix = a->c_str();
@@ -338,7 +465,7 @@ void client_handler(Socket *socket, long id, bool ssl) {
 
 	long reqnum = 0;
 	if (!err) {
-		while (connection_handler(prefix, socket, id, ++reqnum));
+		while (connection_handler(prefix, col1, col2, socket, id, ++reqnum));
 		reqnum--;
 	}
 
