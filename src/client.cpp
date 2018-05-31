@@ -455,8 +455,10 @@ void client_handler(Socket *socket, long id, bool ssl) {
 
 	try {
 		if (ssl) {
-			socket->sslHandshake("/home/lorenz/Documents/Projects/Necronda-Server/necronda-server-3.0/privkey.pem",
-								 "/home/lorenz/Documents/Projects/Necronda-Server/necronda-server-3.0/fullchain.pem");
+			//socket->sslHandshake("/home/lorenz/Documents/Projects/Necronda-Server/necronda-server-3.0/privkey.pem",
+			//					 "/home/lorenz/Documents/Projects/Necronda-Server/necronda-server-3.0/fullchain.pem");
+			socket->sslHandshake("/cert/necronda.net/privkey.pem",
+			"/cert/necronda.net/fullchain.pem");
 		}
 	} catch (char *msg) {
 		log(prefix, (string) "Unable to perform handshake: " + msg);

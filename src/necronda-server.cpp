@@ -17,7 +17,7 @@
 
 using namespace std;
 
-string webroot = "/srv/necronda/";
+const char* webroot = "/srv/necronda/";
 
 
 
@@ -224,7 +224,7 @@ string getWebRoot(string host) {
 	if (fileExists(root)) {
 		return root;
 	} else {
-		return webroot + "www.necronda.net";
+		return "www.necronda.net";
 	}
 }
 
