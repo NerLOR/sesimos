@@ -139,14 +139,6 @@ std::string formatSize(unsigned long bytes) {
 	return std::string(buffer);
 }
 
-string getWebRoot(string host) {
-	string root = webroot + host;
-	if (fileExists(root)) {
-		return root;
-	} else {
-		return webroot + "www.necronda.net";
-	}
-}
 
 
 
@@ -226,6 +218,16 @@ string read_line(FILE* file) {
 #include "network/http/HttpRequest.cpp"
 #include "network/http/HttpResponse.cpp"
 #include "network/http/HttpConnection.cpp"
+
+string getWebRoot(string host) {
+	string root = webroot + host;
+	if (fileExists(root)) {
+		return root;
+	} else {
+		return webroot + "www.necronda.net";
+	}
+}
+
 
 #include "client.cpp"
 
