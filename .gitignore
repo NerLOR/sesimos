@@ -1,6 +1,6 @@
 *
 !src
-!src/*
+!src/**
 !run.sh
 !Makefile
 !.gitignore
