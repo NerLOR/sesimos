@@ -25,10 +25,15 @@ void HttpConnection::respond(int statuscode) {
 				"</title></head><body><center><h1>" + to_string(statuscode) + " " +
 				::getStatusCode(statuscode).message +
 				"</h1>" +
-				((request->isExistingField("Host")) ? "<p>Go back to the home page of <a href=\"//" +
-													 request->getField("Host") + "/\">" +
-													 request->getField("Host") +
-													 "</a></p>" : "") + "</center></body></html>\r\n"
+				((request->isExistingField("Host")) ?
+				 (request->isExistingField("Referer") &&
+				  request->getField("Referer").find(request->getField("Host")) != string::npos) ?
+				 "<p>Go back to the last page you visited: <a href=\"" + request->getField("Referer") + "\">" +
+				 request->getField("Referer") + "</a></p>" :
+				 "<p>Go back to the home page of <a href=\"//" +
+				 request->getField("Host") + "/\">" +
+				 request->getField("Host") +
+				 "</a></p>" : "") + "</center></body></html>\r\n"
 		);
 	} else {
 		respond(statuscode, "");

@@ -2,7 +2,7 @@
 
 packages:
 	@echo "Installing packages..."
-	sudo apt-get install g++ libmagic-dev libssl-dev
+	sudo apt-get install g++ libmagic-dev libssl-dev php-cgi
 	@echo "Finished downloading!"
 
 compile:
