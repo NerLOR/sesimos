@@ -229,7 +229,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 							} else if (etag) {
 								req.respond(304);
 							} else {
-								int statuscode = 200;
+								int statuscode = 0;
 								if (!path.isStatic()) {
 									string cmd = (string) "env -i" +
 												 " REDIRECT_STATUS=" + cli_encode("CGI") +
@@ -282,18 +282,21 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 										while (data[0] == ' ') data.erase(data.begin() + 0);
 										while (data[data.length() - 1] == ' ') data.erase(data.end() - 1);
 
-										if (index == "Location") {
-											statuscode = 303;
+										if (index == "Status") {
+											statuscode = (int) strtol(data.substr(0, 3).c_str(), nullptr, 10);
+										} else {
+											if (index == "Location" && statuscode == 0) {
+												statuscode = 303;
+											}
+											req.setField(index, data);
 										}
-
-										req.setField(index, data);
 									}
 
 									fclose(file);
 									file = pipes.stdout;
-
-
 								}
+
+								statuscode = (statuscode == 0) ? 200 : statuscode;
 
 								bool compress = path.isStatic() && type.find("text/") == 0 && req.isExistingField("Accept-Encoding") &&
 												req.getField("Accept-Encoding").find("deflate") != string::npos;

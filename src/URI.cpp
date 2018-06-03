@@ -59,6 +59,7 @@ URI::URI(string webroot, string reqpath) {
 	}
 	this->webroot = webroot;
 	this->reqpath = reqpath;
+	this->info = "";
 
 	string abs = reqpath;
 	if (fileExists(webroot + abs)) {
@@ -140,7 +141,7 @@ FILE *URI::openFile() {
 }
 
 string URI::getFilePathInfo() {
-	return ""; //getAbsolutePath().erase(getFilePath().length(), getAbsolutePath().length());
+	return info; //getAbsolutePath().erase(getFilePath().length(), getAbsolutePath().length());
 }
 
 string URI::getFileType() {

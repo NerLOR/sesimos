@@ -12,6 +12,7 @@ private:
 	string reqpath;
 	string relpath;
 	string query;
+	string info;
 	string filepath;
 	bool queryinit;
 
