@@ -161,7 +161,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 					host.erase(pos, host.length() - pos);
 				}
 
-				FILE *name = popen(("dig +time=1 -x " + socket->getPeerAddress()->toString() +
+				FILE *name = popen(("dig @8.8.8.8 +time=1 -x " + socket->getPeerAddress()->toString() +
 									" | grep -oP \"^[^;].*\\t\\K([^ ]*)\\w\"").c_str(), "r");
 				char hostbuffer[1024];
 				memset(hostbuffer, 0, 1024);
@@ -259,7 +259,6 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 									stds pipes = procopen(cmd.c_str());
 									childpid = pipes.pid;
 
-									char fdbuffer[4096];
 									if (req.getMethod() == "POST" || req.getMethod() == "PUT") {
 										long len = req.isExistingField("Content-Length") ? strtol(req.getField("Content-Length").c_str(), nullptr, 10) : -1;
 										socket->receive(pipes.stdin);
