@@ -12,6 +12,7 @@
 #include <fstream>
 #include <openssl/md5.h>
 #include <cstring>
+#include <fcntl.h>
 
 #include "network/Socket.h"
 #include "network/http/HttpRequest.h"
@@ -113,6 +114,7 @@ string getETag(string filename) {
 
 #include <iostream>
 #include <wait.h>
+
 
 long getPosition(std::string str, char c, int occurence) {
 	int tempOccur = 0;
@@ -292,53 +294,64 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 									}
 
 									fclose(file);
+									int c = fgetc(pipes.stdout);
+									if (c == -1) {
+										// No Data -> Error
+										req.respond((statuscode == 0) ? 500 : statuscode);
+										statuscode = -1;
+									} else {
+										ungetc(c, pipes.stdout);
+									}
 									file = pipes.stdout;
 								}
 
-								statuscode = (statuscode == 0) ? 200 : statuscode;
+								if (statuscode != -1) {
+									statuscode = (statuscode == 0) ? 200 : statuscode;
 
-								bool compress = path.isStatic() && type.find("text/") == 0 && req.isExistingField("Accept-Encoding") &&
-												req.getField("Accept-Encoding").find("deflate") != string::npos;
+									bool compress = path.isStatic() && type.find("text/") == 0 &&
+													req.isExistingField("Accept-Encoding") &&
+													req.getField("Accept-Encoding").find("deflate") != string::npos;
 
-								if (compress) {
-									req.setField("Accept-Ranges", "none");
-								}
+									if (compress) {
+										req.setField("Accept-Ranges", "none");
+									}
 
-								if (compress && req.isExistingField("Range")) {
-									req.respond(416);
-								} else if (req.isExistingField("Range")) {
-									string range = req.getField("Range");
-									if (range.find("bytes=") != 0 || !path.isStatic()) {
+									if (compress && req.isExistingField("Range")) {
 										req.respond(416);
-									} else {
-										fseek(file, 0L, SEEK_END);
-										long len = ftell(file);
-										fseek(file, 0L, SEEK_SET);
-										long p = range.find('-');
-										if (p == string::npos) {
+									} else if (req.isExistingField("Range")) {
+										string range = req.getField("Range");
+										if (range.find("bytes=") != 0 || !path.isStatic()) {
 											req.respond(416);
 										} else {
-											string part1 = range.substr(6, (unsigned long) (p - 6));
-											string part2 = range.substr((unsigned long) (p + 1),
-																		range.length() - p - 1);
-											long num1 = stol(part1, nullptr, 10);
-											long num2 = len - 1;
-											if (!part2.empty()) {
-												num2 = stol(part2, nullptr, 10);
-											}
-											if (num1 < 0 || num1 >= len || num2 < 0 || num2 >= len) {
+											fseek(file, 0L, SEEK_END);
+											long len = ftell(file);
+											fseek(file, 0L, SEEK_SET);
+											long p = range.find('-');
+											if (p == string::npos) {
 												req.respond(416);
 											} else {
-												req.setField("Content-Range",
-															 (string) "bytes " + to_string(num1) + "-" +
-															 to_string(num2) +
-															 "/" + to_string(len));
-												req.respond(206, file, compress, num1, num2);
+												string part1 = range.substr(6, (unsigned long) (p - 6));
+												string part2 = range.substr((unsigned long) (p + 1),
+																			range.length() - p - 1);
+												long num1 = stol(part1, nullptr, 10);
+												long num2 = len - 1;
+												if (!part2.empty()) {
+													num2 = stol(part2, nullptr, 10);
+												}
+												if (num1 < 0 || num1 >= len || num2 < 0 || num2 >= len) {
+													req.respond(416);
+												} else {
+													req.setField("Content-Range",
+																 (string) "bytes " + to_string(num1) + "-" +
+																 to_string(num2) +
+																 "/" + to_string(len));
+													req.respond(206, file, compress, num1, num2);
+												}
 											}
 										}
+									} else {
+										req.respond(statuscode, file, compress);
 									}
-								} else {
-									req.respond(statuscode, file, compress);
 								}
 							}
 						}
