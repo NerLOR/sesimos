@@ -72,9 +72,6 @@ URI::URI(string webroot, string reqpath) {
 		relpath.erase(slash);
 	}
 
-	cout << "info: " << info << endl;
-	cout << "rel: " << relpath << endl;
-
 	if (!info.empty() && isDirectory(webroot + relpath)) {
 		relpath.append("/");
 	}
@@ -95,7 +92,6 @@ URI::URI(string webroot, string reqpath) {
 	this->filepath = webroot + relpath;
 
 	if (isDirectory(webroot + abs)) {
-		cout << "DIR" << endl;
 		if (abs[abs.length() - 1] != '/') {
 			abs += "/";
 		}
@@ -118,10 +114,6 @@ URI::URI(string webroot, string reqpath) {
 		}
 	}
 
-	cout << "Before rel: "<<relpath << endl;
-	cout << "'" << info << "'" << endl;
-	cout << info.empty() << endl;
-
 	if (isStatic() && !info.empty()) {
 		if (relpath[relpath.length() - 1] == '/') {
 			relpath.erase(relpath.length() - 1);
@@ -136,10 +128,6 @@ URI::URI(string webroot, string reqpath) {
 	} else {
 		newpath = "";
 	}
-
-	cout << newpath << endl;
-	cout << relpath << endl;
-	cout << reqpath << endl;
 
 }
 
