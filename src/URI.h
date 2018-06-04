@@ -14,6 +14,7 @@ private:
 	string query;
 	string info;
 	string filepath;
+	string newpath;
 	bool queryinit;
 
 public:

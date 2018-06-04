@@ -59,9 +59,27 @@ URI::URI(string webroot, string reqpath) {
 	}
 	this->webroot = webroot;
 	this->reqpath = reqpath;
-	this->info = "";
 
-	string abs = reqpath;
+	info = "";
+	relpath = reqpath;
+
+	while (!fileExists(webroot + relpath) && !fileExists(webroot + relpath + ".php")) {
+		long slash = relpath.find_last_of('/');
+		if (slash == string::npos) {
+			break;
+		}
+		info = relpath.substr(slash) + info;
+		relpath.erase(slash);
+	}
+
+	cout << "info: " << info << endl;
+	cout << "rel: " << relpath << endl;
+
+	if (!info.empty() && isDirectory(webroot + relpath)) {
+		relpath.append("/");
+	}
+
+	string abs = relpath;
 	if (fileExists(webroot + abs)) {
 		string ext = getExtension(abs);
 		if (ext == "php" || ext == "html") {
@@ -74,9 +92,10 @@ URI::URI(string webroot, string reqpath) {
 		abs.erase(abs.length() - fname.length() - 1, abs.length());
 	}
 
-	this->filepath = webroot + reqpath;
+	this->filepath = webroot + relpath;
 
 	if (isDirectory(webroot + abs)) {
+		cout << "DIR" << endl;
 		if (abs[abs.length() - 1] != '/') {
 			abs += "/";
 		}
@@ -98,6 +117,29 @@ URI::URI(string webroot, string reqpath) {
 			this->filepath = webroot + abs + ".html";
 		}
 	}
+
+	cout << "Before rel: "<<relpath << endl;
+	cout << "'" << info << "'" << endl;
+	cout << info.empty() << endl;
+
+	if (isStatic() && !info.empty()) {
+		if (relpath[relpath.length() - 1] == '/') {
+			relpath.erase(relpath.length() - 1);
+		}
+		newpath = relpath + info;
+		filepath = "";
+	} else if (relpath != reqpath) {
+		if (!info.empty()) {
+			info.erase(0,1);
+		}
+		newpath = relpath + info;
+	} else {
+		newpath = "";
+	}
+
+	cout << newpath << endl;
+	cout << relpath << endl;
+	cout << reqpath << endl;
 
 }
 
@@ -129,8 +171,8 @@ string URI::getNewPath() {
 			return getRelativePath();
 		}
 	}
-	if (relpath != reqpath) {
-		return url_encode(relpath) + (queryinit? "?" + query : "");
+	if (!newpath.empty() && newpath != reqpath) {
+		return url_encode(newpath) + (queryinit? "?" + query : "");
 	} else {
 		return "";
 	}
