@@ -127,9 +127,7 @@ void HttpConnection::respond(int statuscode, FILE *file, bool compress, long sta
 		char buffer[CHUNK];
 		char buff[64];
 		while (true) {
-			unsigned long size = fread(buffer, 1,
-									   (CHUNK > (shouldTransfer - transfered)) ? (shouldTransfer - transfered) : CHUNK,
-									   file);
+			unsigned long size = fread(buffer, 1, (size_t) ((CHUNK > (shouldTransfer - transfered) && shouldTransfer > 0) ? (shouldTransfer - transfered) : CHUNK), file);
 			transfered += size;
 			sprintf(buff, "%lX\r\n", size);
 			socket->send(buff);
