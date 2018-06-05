@@ -308,7 +308,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 								if (statuscode != -1) {
 									statuscode = (statuscode == 0) ? 200 : statuscode;
 
-									bool compress = path.isStatic() && type.find("text/") == 0 &&
+									bool compress = /*path.isStatic() &&*/ type.find("text/") == 0 &&
 													req.isExistingField("Accept-Encoding") &&
 													req.getField("Accept-Encoding").find("deflate") != string::npos;
 
