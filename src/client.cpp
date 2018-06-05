@@ -184,7 +184,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 				FILE *file = path.openFile();
 				pid_t childpid = 0;
 
-				if (!path.getNewPath().empty()) {
+				if (!path.getNewPath().empty() && req.getMethod() != "POST") {
 					req.redirect(302, path.getNewPath());
 				} else {
 
