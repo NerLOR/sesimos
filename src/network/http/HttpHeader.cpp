@@ -93,7 +93,7 @@ string HttpHeader::getField(string index) {
 	if (i != fields.end()) {
 		return fields.at(index);
 	} else {
-		return nullptr;
+		return "";
 	}
 }
 
