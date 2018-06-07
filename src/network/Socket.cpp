@@ -576,7 +576,7 @@ long Socket::select(list<Socket> read, list<Socket> write, long millis) {
 		FD_SET(s.fd, &writefd);
 	}
 
-	struct timeval *tv;
+	struct timeval *tv = new struct timeval;
 	if (millis < 0) {
 		tv = nullptr;
 	} else if (millis == 0) {

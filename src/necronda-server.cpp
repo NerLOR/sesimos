@@ -195,7 +195,7 @@ string read_line(FILE* file) {
 	char *line = nullptr;
 	size_t len = 0;
 	ssize_t read;
-	if ((read = getline(&line, &len, file)) < 0) {
+	if ((read = getline(&line, &len, file)) < 0  || line == nullptr) {
 		return "";
 	}
 	string l = string(line);
