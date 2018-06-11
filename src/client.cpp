@@ -37,6 +37,14 @@ void log_error(const char *prefix, const string &str) {
 	log(prefix, "\x1B[1;31m" + str + "\x1B[0m");
 }
 
+void php_error_handler(const char* prefix, FILE *stderr) {
+	string line;
+	while (!(line = read_line(stderr)).empty()) {
+		log_error(prefix, line);
+	}
+	fclose(stderr);
+}
+
 string getETag(string filename) {
 	ifstream etags = ifstream("/var/necronda/ETags");
 
@@ -114,6 +122,7 @@ string getETag(string filename) {
 
 #include <iostream>
 #include <wait.h>
+#include <thread>
 
 
 long getPosition(std::string str, char c, int occurence) {
@@ -267,12 +276,9 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 									}
 									fclose(pipes.stdin);
 
-									string line;
-									while (!(line = read_line(pipes.stderr)).empty()) {
-										log_error(prefix, line);
-									}
-									fclose(pipes.stderr);
+									thread *t = new thread(php_error_handler, prefix, pipes.stderr);
 
+									string line;
 									while (!(line = read_line(pipes.stdout)).empty()) {
 										long pos = line.find(':');
 										string index = line.substr(0, pos);
