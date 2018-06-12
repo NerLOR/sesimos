@@ -381,10 +381,13 @@ void Socket::receive(FILE *file, long size) {
 	long len = 0;
 	long rec = 0;
 	do {
+		if (size - rec == 0) {
+			break;
+		}
 		len = receive((void*) buffer, (CHUNK > (size - rec) && size >= 0)?(size - rec):CHUNK);
 		fwrite(buffer, 1, CHUNK, file);
 		rec += len;
-	} while (len > 0 && size != len);
+	} while (len > 0);
 }
 
 string Socket::receiveLine() {
