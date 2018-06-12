@@ -277,7 +277,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 									//if (req.getMethod() == "POST" || req.getMethod() == "PUT") {
 									long len = req.isExistingField("Content-Length") ? strtol(
 											req.getField("Content-Length").c_str(), nullptr, 10) : (
-													   req.getMethod() == "POST" || req.getMethod() == "PUT)?-1:0;
+													   req.getMethod() == "POST" || req.getMethod() == "PUT")?-1:0;
 									log(prefix, to_string(len));
 									socket->receive(pipes.stdin, len);
 									//}
