@@ -37,7 +37,7 @@ void log_error(const char *prefix, const string &str) {
 	log(prefix, "\x1B[1;31m" + str + "\x1B[0m");
 }
 
-void php_error_handler(const char* prefix, FILE *stderr) {
+void php_error_handler(const char *prefix, FILE *stderr) {
 	string line;
 	while (!(line = read_line(stderr)).empty()) {
 		log_error(prefix, line);
@@ -246,9 +246,13 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 												 " REDIRECT_STATUS=" + cli_encode("CGI") +
 												 " DOCUMENT_ROOT=" + cli_encode(getWebRoot(host)) +
 												 " " + req.cgiExport() +
-												 (req.isExistingField("Content-Length")?" CONTENT_LENGTH="+cli_encode(req.getField("Content-Length")):"") +
-												 (req.isExistingField("Content-Type")?" CONTENT_TYPE="+cli_encode(req.getField("Content-Type")):"") +
-												 ((socket->isSecured())?" HTTPS=on":"") +
+												 (req.isExistingField("Content-Length") ? " CONTENT_LENGTH=" +
+																						  cli_encode(req.getField(
+																								  "Content-Length"))
+																						: "") +
+												 (req.isExistingField("Content-Type") ? " CONTENT_TYPE=" + cli_encode(
+														 req.getField("Content-Type")) : "") +
+												 ((socket->isSecured()) ? " HTTPS=on" : "") +
 												 " PATH_INFO=" + cli_encode(path.getFilePathInfo()) +
 												 " PATH_TRANSLATED=" + cli_encode(path.getAbsolutePath()) +
 												 " QUERY_STRING=" + cli_encode(path.getQuery()) +
@@ -271,9 +275,11 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 									childpid = pipes.pid;
 
 									//if (req.getMethod() == "POST" || req.getMethod() == "PUT") {
-										long len = req.isExistingField("Content-Length") ? strtol(req.getField("Content-Length").c_str(), nullptr, 10) : -1;
-										log(prefix, to_string(len));
-										socket->receive(pipes.stdin, len);
+									long len = req.isExistingField("Content-Length") ? strtol(
+											req.getField("Content-Length").c_str(), nullptr, 10) : (
+													   req.getMethod() == "POST" || req.getMethod() == "PUT)?-1:0;
+									log(prefix, to_string(len));
+									socket->receive(pipes.stdin, len);
 									//}
 									fclose(pipes.stdin);
 
@@ -283,7 +289,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 									while (!(line = read_line(pipes.stdout)).empty()) {
 										long pos = line.find(':');
 										string index = line.substr(0, pos);
-										string data = line.substr(pos+1, line.length() - pos);
+										string data = line.substr(pos + 1, line.length() - pos);
 
 										while (index[0] == ' ') index.erase(index.begin() + 0);
 										while (index[index.length() - 1] == ' ') index.erase(index.end() - 1);
@@ -316,8 +322,9 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 									statuscode = (statuscode == 0) ? 200 : statuscode;
 
 									bool compress = /*path.isStatic() &&*/ type.find("text/") == 0 &&
-													req.isExistingField("Accept-Encoding") &&
-													req.getField("Accept-Encoding").find("deflate") != string::npos;
+																		   req.isExistingField("Accept-Encoding") &&
+																		   req.getField("Accept-Encoding").find(
+																				   "deflate") != string::npos;
 
 									if (compress) {
 										req.setField("Accept-Ranges", "none");
@@ -480,7 +487,7 @@ void client_handler(Socket *socket, long id, bool ssl) {
 			//socket->sslHandshake("/home/lorenz/Documents/Projects/Necronda-Server/necronda-server-3.0/privkey.pem",
 			//					 "/home/lorenz/Documents/Projects/Necronda-Server/necronda-server-3.0/fullchain.pem");
 			socket->sslHandshake("/cert/necronda.net/privkey.pem",
-			"/cert/necronda.net/fullchain.pem");
+								 "/cert/necronda.net/fullchain.pem");
 		}
 	} catch (char *msg) {
 		log(prefix, (string) "Unable to perform handshake: " + msg);
