@@ -270,10 +270,11 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 									stds pipes = procopen(cmd.c_str());
 									childpid = pipes.pid;
 
-									if (req.getMethod() == "POST" || req.getMethod() == "PUT") {
+									//if (req.getMethod() == "POST" || req.getMethod() == "PUT") {
 										long len = req.isExistingField("Content-Length") ? strtol(req.getField("Content-Length").c_str(), nullptr, 10) : -1;
+										log(prefix, to_string(len));
 										socket->receive(pipes.stdin, len);
-									}
+									//}
 									fclose(pipes.stdin);
 
 									thread *t = new thread(php_error_handler, prefix, pipes.stderr);
