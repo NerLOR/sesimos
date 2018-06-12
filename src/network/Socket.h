@@ -149,6 +149,7 @@ public:
 
 	static long select(list<Socket> read, list<Socket> write);
 
+	void receive(FILE *file, long size);
 };
 
 Socket operator<<(Socket sock, const char *str);

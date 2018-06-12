@@ -376,6 +376,17 @@ void Socket::receive(FILE *file) {
 	} while (len > 0 && len == CHUNK);
 }
 
+void Socket::receive(FILE *file, long size) {
+	char buffer[CHUNK];
+	long len = 0;
+	long rec = 0;
+	do {
+		len = receive((void*) buffer, (CHUNK > (size - rec) && size >= 0)?(size - rec):CHUNK);
+		fwrite(buffer, 1, CHUNK, file);
+		rec += len;
+	} while (len > 0 && size != len);
+}
+
 string Socket::receiveLine() {
 	string str = receive("\n");
 	if (str.length() > 0 && str.at(str.length() - 1) == '\r') {

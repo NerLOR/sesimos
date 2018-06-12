@@ -272,7 +272,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 
 									if (req.getMethod() == "POST" || req.getMethod() == "PUT") {
 										long len = req.isExistingField("Content-Length") ? strtol(req.getField("Content-Length").c_str(), nullptr, 10) : -1;
-										socket->receive(pipes.stdin);
+										socket->receive(pipes.stdin, len);
 									}
 									fclose(pipes.stdin);
 
