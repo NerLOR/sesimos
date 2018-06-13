@@ -157,7 +157,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 		try {
 			if (req.isExistingField("Connection") && req.getField("Connection") == "keep-alive") {
 				req.setField("Connection", "keep-alive");
-				req.setField("Keep-Alive", "timeout=30, max=200");
+				req.setField("Keep-Alive", "timeout=60, max=100");
 			} else {
 				req.setField("Connection", "close");
 				error = true;
@@ -470,8 +470,8 @@ void client_handler(Socket *socket, long id, bool ssl) {
 
 	bool err = false;
 	try {
-		socket->setReceiveTimeout(30000);
-		socket->setSendTimeout(30000);
+		socket->setReceiveTimeout(60000);
+		socket->setSendTimeout(60000);
 	} catch (char *msg) {
 		log(prefix, (string) "Unable to set timeout on socket: " + msg);
 		err = true;
