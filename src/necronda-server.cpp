@@ -192,7 +192,7 @@ string cli_encode(string text) {
 }
 
 string read_line(FILE* file) {
-	char *line = nullptr;
+	char *line;
 	size_t len = 0;
 	ssize_t read;
 	if ((read = getline(&line, &len, file)) < 0  || line == nullptr) {
