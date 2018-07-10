@@ -14,11 +14,11 @@
 #include <cstring>
 #include <fcntl.h>
 
-#include "network/Socket.h"
-#include "network/http/HttpRequest.h"
-#include "network/http/HttpConnection.h"
+#include "../CppNet/src/network/Socket.h"
+#include "../CppNet/src/network/http/HttpRequest.h"
+#include "../CppNet/src/network/http/HttpConnection.h"
 #include "necronda-server.h"
-#include "network/http/HttpStatusCode.h"
+#include "../CppNet/src/network/http/HttpStatusCode.h"
 #include "URI.h"
 #include "procopen.h"
 

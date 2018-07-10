@@ -20,18 +20,6 @@ using namespace std;
 const char* webroot = "/srv/necronda/";
 
 
-
-/**
- * Returns UNIX time in microseconds
- * @return UNIX time [µs]
- */
-unsigned long getMicros() {
-	struct timeval tv;
-	gettimeofday(&tv, nullptr);
-	return (unsigned long) (1000000 * tv.tv_sec + tv.tv_usec);
-}
-
-
 string getMimeType(string path) {
 
 	unsigned long pos = path.find_last_of('.');
@@ -63,24 +51,6 @@ string getMimeType(string path) {
  *  Sun, 06 Nov 1994 08:49:37 GMT
  * @return
  */
-string getHttpDate() {
-	time_t rawtime;
-	time(&rawtime);
-	return getHttpDate(rawtime);
-}
-
-string getHttpDate(string filename) {
-	struct stat attrib;
-	stat(filename.c_str(), &attrib);
-	return getHttpDate(attrib.st_ctime);
-}
-
-string getHttpDate(time_t time) {
-	char buffer[64];
-	struct tm *timeinfo = gmtime(&time);
-	strftime(buffer, sizeof(buffer), "%a, %d %b %Y %H:%M:%S GMT", timeinfo);
-	return string(buffer);
-}
 
 std::string getTimestamp(string path) {
 	struct stat attrib;
@@ -210,14 +180,15 @@ string read_line(FILE* file) {
 
 
 #include "procopen.cpp"
-#include "network/Address.cpp"
-#include "network/Socket.cpp"
+#include "../CppNet/src/network/Address.cpp"
+#include "../CppNet/src/network/Socket.cpp"
 #include "URI.cpp"
-#include "network/http/HttpStatusCode.cpp"
-#include "network/http/HttpHeader.cpp"
-#include "network/http/HttpRequest.cpp"
-#include "network/http/HttpResponse.cpp"
-#include "network/http/HttpConnection.cpp"
+#include "../CppNet/src/network/http/Http.cpp"
+#include "../CppNet/src/network/http/HttpStatusCode.cpp"
+#include "../CppNet/src/network/http/HttpHeader.cpp"
+#include "../CppNet/src/network/http/HttpRequest.cpp"
+#include "../CppNet/src/network/http/HttpResponse.cpp"
+#include "../CppNet/src/network/http/HttpConnection.cpp"
 
 string getWebRoot(string host) {
 	if (host == "www.necronda.net") {
