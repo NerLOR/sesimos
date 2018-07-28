@@ -193,8 +193,11 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 				FILE *file = path.openFile();
 				pid_t childpid = 0;
 
-				if (!path.getNewPath().empty() && req.getMethod() != "POST") {
-					req.redirect(302, path.getNewPath());
+
+				if ((host == "necronda.net" || socket->getSocketPort() != 443) && path.getRelativeFilePath().find("/.well-known/acme-challenge/") != 0) {
+					req.redirect(303, "https://www.necronda.net/");
+				} else if (!path.getNewPath().empty() && req.getMethod() != "POST") {
+					req.redirect(303, path.getNewPath());
 				} else {
 
 					if (file == nullptr) {
@@ -205,7 +208,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 
 						if (type.find("inode/") == 0) {
 							req.respond(403);
-						} else if (path.getRelativeFilePath().find("/.") != string::npos) {
+						} else if (path.getRelativeFilePath().find("/.") != string::npos && path.getRelativeFilePath().find("/.well-known/acme-challenge/") != 0) {
 							req.respond(403);
 						} else {
 							req.setField("Content-Type", type);
