@@ -191,14 +191,11 @@ string read_line(FILE* file) {
 #include "../CppNet/src/network/http/HttpConnection.cpp"
 
 string getWebRoot(string host) {
-	if (host == "www.necronda.net") {
-		host = "www.necronda.net-new";
-	}
 	string root = webroot + host;
 	if (fileExists(root)) {
 		return root;
 	} else {
-		return (string) webroot + "www.necronda.net-new";
+		return "";
 	}
 }
 
