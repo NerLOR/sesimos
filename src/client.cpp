@@ -188,7 +188,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 
 				log(prefix, "\x1B[1m" + req.getMethod() + " " + req.getPath() + "\x1B[0m");
 
-				bool noRedirect = req.getPath().find("/.well-known/acme-challenge/") == 0 || req.getPath() == "/robots.txt";
+				bool noRedirect = req.getPath().find("/.well-known/acme-challenge/") == 0;
 
 				bool redir = true;
 				if (!noRedirect) {
@@ -199,8 +199,6 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 					} else {
 						redir = false;
 					}
-				} else if (getWebRoot(host).empty() && req.getPath() == "/robots.txt") {
-					req.redirect(303, "//www.necronda.net" + req.getPath());
 				} else {
 					redir = false;
 				}
