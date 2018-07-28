@@ -201,6 +201,8 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 					} else {
 						redir = false;
 					}
+				} else {
+					redir = false;
 				}
 
 				URI path = URI(getWebRoot(host), req.getPath());
