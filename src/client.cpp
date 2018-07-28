@@ -188,8 +188,10 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 
 				log(prefix, "\x1B[1m" + req.getMethod() + " " + req.getPath() + "\x1B[0m");
 
+				bool noRedirect = req.getPath().find("/.well-known/acme-challenge/") == 0 || req.getPath() == "/robots.txt";
+
 				bool redir = true;
-				if (req.getPath().find("/.well-known/acme-challenge/") != 0) {
+				if (!noRedirect) {
 					if (host == "necronda.net") {
 						req.redirect(303, "https://www.necronda.net/");
 					} else if (socket->getSocketPort() != 443) {
@@ -218,7 +220,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 
 						if (type.find("inode/") == 0) {
 							req.respond(403);
-						} else if (path.getRelativeFilePath().find("/.") != string::npos && path.getRelativeFilePath().find("/.well-known/acme-challenge/") != 0) {
+						} else if (path.getRelativeFilePath().find("/.") != string::npos && !noRedirect) {
 							req.respond(403);
 						} else {
 							req.setField("Content-Type", type);
