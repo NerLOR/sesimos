@@ -199,6 +199,8 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 					} else {
 						redir = false;
 					}
+				} else if (getWebRoot(host).empty() && req.getPath() == "/robots.txt") {
+					req.redirect(303, "//www.necronda.net" + req.getPath());
 				} else {
 					redir = false;
 				}
