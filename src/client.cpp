@@ -200,7 +200,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 						req.redirect(303, "https://www.necronda.net/");
 					} else if (socket->getSocketPort() != 443) {
 						req.redirect(303, "https://" + host + req.getPath());
-					} else if (getWebRoot(host).empty()) {
+					} else if (getWebRoot(host) == "/") {
 						req.redirect(303, "https://www.necronda.net" + req.getPath());
 					} else {
 						redir = false;

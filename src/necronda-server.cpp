@@ -195,7 +195,7 @@ string getWebRoot(string host) {
 	if (fileExists(root)) {
 		return root;
 	} else {
-		return "";
+		return "/";
 	}
 }
 
