@@ -47,7 +47,7 @@ URI::URI(string webroot, string reqpath) {
 		query = "";
 		queryinit = false;
 	}
-	if (webroot[webroot.length() - 1] == '/') {
+	if (webroot.length() >= 1 && webroot[webroot.length() - 1] == '/') {
 		webroot.erase(webroot.length() - 1);
 	}
 	reqpath = url_decode(reqpath);
