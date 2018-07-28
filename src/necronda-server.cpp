@@ -270,7 +270,7 @@ int main() {
 				try {
 					Socket *socket = server.accept();
 					clientnum++;
-					thread *t = new thread(client_handler, socket, clientnum, server.getSocketPort() == 4443);
+					thread *t = new thread(client_handler, socket, clientnum, server.getSocketPort() == 443);
 				} catch (char *msg) {
 					// Nothing
 				}
