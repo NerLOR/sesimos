@@ -184,35 +184,32 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 
 				sprintf(buffer, "[\x1B[1m%s\x1B[0m][%i]%s[%s][%i]%s ", host.c_str(), socket->getSocketPort(), col1,
 						hostbuffer, socket->getPeerPort(), col2);
-
 				prefix = buffer;
 
-				URI path = URI(getWebRoot(host), req.getPath());
 				log(prefix, "\x1B[1m" + req.getMethod() + " " + req.getPath() + "\x1B[0m");
 
-				FILE *file = path.openFile();
-				pid_t childpid = 0;
-
-
 				bool redir = true;
-				if (path.getRelativeFilePath().find("/.well-known/acme-challenge/") != 0) {
+				if (req.getPath().find("/.well-known/acme-challenge/") != 0) {
 					if (host == "necronda.net") {
 						req.redirect(303, "https://www.necronda.net/");
 					} else if (socket->getSocketPort() != 443) {
 						req.redirect(303, "https://" + host + req.getPath());
-					} else if (getWebRoot(host) == "/") {
+					} else if (getWebRoot(host).empty()) {
 						req.redirect(303, "https://www.necronda.net" + req.getPath());
 					} else {
 						redir = false;
 					}
 				}
 
+				URI path = URI(getWebRoot(host), req.getPath());
+				pid_t childpid = 0;
+
 				if (redir) {
 
 				} else if (!path.getNewPath().empty() && req.getMethod() != "POST") {
 					req.redirect(303, path.getNewPath());
 				} else {
-
+					FILE *file = path.openFile();
 					if (file == nullptr) {
 						req.setField("Cache-Control", "public, max-age=60");
 						req.respond(404);
