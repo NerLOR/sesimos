@@ -312,7 +312,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 												 " PATH_TRANSLATED=" + cli_encode(path.getAbsolutePath()) +
 												 " QUERY_STRING=" + cli_encode(path.getQuery()) +
 												 " REMOTE_ADDR=" + cli_encode(socket->getPeerAddress()->toString()) +
-												 " REMOTE_HOST=" + cli_encode(hostbuffer) +
+												 " REMOTE_HOST=" + cli_encode(info.host) +
 												 " REMOTE_PORT=" + cli_encode(to_string(socket->getPeerPort())) +
 												 " REQUEST_METHOD=" + cli_encode(req.getMethod()) +
 												 " REQUEST_URI=" + cli_encode(req.getPath()) +
