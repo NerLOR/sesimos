@@ -13,6 +13,7 @@
 #include <openssl/md5.h>
 #include <cstring>
 #include <fcntl.h>
+#include <sstream>
 
 #include "../CppNet/src/network/Socket.h"
 #include "../CppNet/src/network/http/HttpRequest.h"
@@ -21,6 +22,19 @@
 #include "../CppNet/src/network/http/HttpStatusCode.h"
 #include "URI.h"
 #include "procopen.h"
+#include "../CppNet/src/network/Address.h"
+
+
+typedef struct {
+    const char* host;
+    const char* cc;
+    const char* country;
+    const char* prov;
+    const char* provname;
+    const char* city;
+    const char* timezone;
+    const char* localdate;
+} IpAddressInfo;
 
 
 /**
@@ -43,6 +57,32 @@ void php_error_handler(const char *prefix, FILE *stderr) {
 		log_error(prefix, line);
 	}
 	fclose(stderr);
+}
+
+IpAddressInfo get_ip_address_info(Address* addr) {
+    FILE *name = popen(("/opt/ipinfo/ipinfo.py " + addr->toString()).c_str(), "r");
+    char hostbuffer[1024];
+    memset(hostbuffer, 0, 1024);
+    size_t size = fread(hostbuffer, 1, 1024, name);
+    istringstream buffer(hostbuffer);
+    string line;
+
+    IpAddressInfo info;
+    int num = 0;
+    while (std::getline(buffer, line)) {
+        switch (num) {
+            case 0: info.host = line.c_str(); break;
+            case 1: info.cc = line.c_str(); break;
+            case 2: info.country = line.c_str(); break;
+            case 3: info.prov = line.c_str(); break;
+            case 4: info.provname = line.c_str(); break;
+            case 5: info.city = line.c_str(); break;
+            case 6: info.timezone = line.c_str(); break;
+            case 7: info.localdate = line.c_str(); break;
+        }
+        num++;
+    }
+    return info;
 }
 
 string getETag(string filename) {
@@ -148,7 +188,7 @@ long getPosition(std::string str, char c, int occurence) {
  * @param num The Connection Number in the client
  * @return Should the server wait for another header?
  */
-bool connection_handler(const char *preprefix, const char *col1, const char *col2, Socket *socket, long id, long num) {
+bool connection_handler(const char *preprefix, const char *col1, const char *col2, Socket *socket, long id, long num, IpAddressInfo info) {
 	bool error = false;
 	char buffer[1024];
 	char *prefix = (char *) preprefix;
@@ -172,7 +212,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 					host.erase(pos, host.length() - pos);
 				}
 
-				FILE *name = popen(("dig @8.8.8.8 +time=1 -x " + socket->getPeerAddress()->toString() +
+				/*FILE *name = popen(("dig @8.8.8.8 +time=1 -x " + socket->getPeerAddress()->toString() +
 									" | grep -oP \"^[^;].*\\t\\K([^ ]*)\\w\"").c_str(), "r");
 				char hostbuffer[1024];
 				memset(hostbuffer, 0, 1024);
@@ -180,10 +220,10 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 				hostbuffer[size - 1] = 0; // remove \n
 				if (size <= 1) {
 					sprintf(hostbuffer, "%s", socket->getPeerAddress()->toString().c_str());
-				}
+				}*/
 
 				sprintf(buffer, "[\x1B[1m%s\x1B[0m][%i]%s[%s][%i]%s ", host.c_str(), socket->getSocketPort(), col1,
-						hostbuffer, socket->getPeerPort(), col2);
+						info.host, socket->getPeerPort(), col2);
 				prefix = buffer;
 
 				log(prefix, "\x1B[1m" + req.getMethod() + " " + req.getPath() + "\x1B[0m");
@@ -459,6 +499,7 @@ void client_handler(Socket *socket, long id, bool ssl) {
 	const char *prefix;
 	char const *col1;
 	char const *col2 = "\x1B[0m";
+    IpAddressInfo info = get_ip_address_info(socket->getPeerAddress());
 	{
 		auto group = (int) (id % 6);
 		if (group == 0) {
@@ -474,14 +515,19 @@ void client_handler(Socket *socket, long id, bool ssl) {
 		} else {
 			col1 = "\x1B[0;36m"; // Cyan
 		}
+
 		string *a = new string("[" + socket->getSocketAddress()->toString() + "][" +
 							   to_string(socket->getSocketPort()) + "]" + col1 +
-							   "[" + socket->getPeerAddress()->toString() + "][" + to_string(socket->getPeerPort()) +
+							   "[" + info.host + "][" + to_string(socket->getPeerPort()) +
 							   "]" + col2 + " ");
 		prefix = a->c_str();
 	}
 
 	log(prefix, "Connection established");
+    log(prefix, string("Host: ") + info.host + " (" + socket->getPeerAddress() + ")");
+    log(prefix, string("Location: ") + info.cc + "/" + info.country + ", " + info.prov + "/" + info.provname + ", " + info.city);
+    log(prefix, string("Local Date: ") + info.localdate + " (" + info.timezone + ")");
+
 
 	bool err = false;
 	try {
@@ -506,7 +552,7 @@ void client_handler(Socket *socket, long id, bool ssl) {
 
 	long reqnum = 0;
 	if (!err) {
-		while (connection_handler(prefix, col1, col2, socket, id, ++reqnum));
+		while (connection_handler(prefix, col1, col2, socket, id, ++reqnum, info));
 		reqnum--;
 	}
 
