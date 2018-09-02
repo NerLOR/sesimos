@@ -26,14 +26,14 @@
 
 
 typedef struct {
-    const char* host;
-    const char* cc;
-    const char* country;
-    const char* prov;
-    const char* provname;
-    const char* city;
-    const char* timezone;
-    const char* localdate;
+    string host;
+    string cc;
+    string country;
+    string prov;
+    string provname;
+    string city;
+    string timezone;
+    string localdate;
 } IpAddressInfo;
 
 
@@ -72,14 +72,14 @@ IpAddressInfo get_ip_address_info(Address* addr) {
     int num = 0;
     while (std::getline(buffer, line)) {
         switch (num) {
-            case 0: info.host = line.c_str(); break;
-            case 1: info.cc = line.c_str(); break;
-            case 2: info.country = line.c_str(); break;
-            case 3: info.prov = line.c_str(); break;
-            case 4: info.provname = line.c_str(); break;
-            case 5: info.city = line.c_str(); break;
-            case 6: info.timezone = line.c_str(); break;
-            case 7: info.localdate = line.c_str(); break;
+            case 0: info.host = line; break;
+            case 1: info.cc = line; break;
+            case 2: info.country = line; break;
+            case 3: info.prov = line; break;
+            case 4: info.provname = line; break;
+            case 5: info.city = line; break;
+            case 6: info.timezone = line; break;
+            case 7: info.localdate = line; break;
         }
         num++;
     }
@@ -224,7 +224,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 				}*/
 
 				sprintf(buffer, "[\x1B[1m%s\x1B[0m][%i]%s[%s][%i]%s ", host.c_str(), socket->getSocketPort(), col1,
-						info->host, socket->getPeerPort(), col2);
+						info->host.c_str(), socket->getPeerPort(), col2);
 				prefix = buffer;
 
 				log(prefix, "\x1B[1m" + req.getMethod() + " " + req.getPath() + "\x1B[0m");
