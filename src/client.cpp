@@ -189,7 +189,7 @@ long getPosition(std::string str, char c, int occurence) {
  * @param num The Connection Number in the client
  * @return Should the server wait for another header?
  */
-bool connection_handler(const char *preprefix, const char *col1, const char *col2, Socket *socket, long id, long num, IpAddressInfo info) {
+bool connection_handler(const char *preprefix, const char *col1, const char *col2, Socket *socket, long id, long num, IpAddressInfo *info) {
 	bool error = false;
 	char buffer[1024];
 	char *prefix = (char *) preprefix;
@@ -224,7 +224,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 				}*/
 
 				sprintf(buffer, "[\x1B[1m%s\x1B[0m][%i]%s[%s][%i]%s ", host.c_str(), socket->getSocketPort(), col1,
-						info.host, socket->getPeerPort(), col2);
+						info->host, socket->getPeerPort(), col2);
 				prefix = buffer;
 
 				log(prefix, "\x1B[1m" + req.getMethod() + " " + req.getPath() + "\x1B[0m");
@@ -313,7 +313,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 												 " PATH_TRANSLATED=" + cli_encode(path.getAbsolutePath()) +
 												 " QUERY_STRING=" + cli_encode(path.getQuery()) +
 												 " REMOTE_ADDR=" + cli_encode(socket->getPeerAddress()->toString()) +
-												 " REMOTE_HOST=" + cli_encode(info.host) +
+												 " REMOTE_HOST=" + cli_encode(info->host) +
 												 " REMOTE_PORT=" + cli_encode(to_string(socket->getPeerPort())) +
 												 " REQUEST_METHOD=" + cli_encode(req.getMethod()) +
 												 " REQUEST_URI=" + cli_encode(req.getPath()) +
@@ -553,7 +553,7 @@ void client_handler(Socket *socket, long id, bool ssl) {
 
 	long reqnum = 0;
 	if (!err) {
-		while (connection_handler(prefix, col1, col2, socket, id, ++reqnum, info));
+		while (connection_handler(prefix, col1, col2, socket, id, ++reqnum, &info));
 		reqnum--;
 	}
 
