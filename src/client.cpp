@@ -64,7 +64,6 @@ IpAddressInfo get_ip_address_info(Address* addr) {
     char hostbuffer[1024];
     memset(hostbuffer, 0, 1024);
     size_t size = fread(hostbuffer, 1, 1024, name);
-    printf("%s\n", hostbuffer);
     istringstream buffer(hostbuffer);
     string line;
 
