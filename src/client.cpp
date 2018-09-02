@@ -524,7 +524,7 @@ void client_handler(Socket *socket, long id, bool ssl) {
 	}
 
 	log(prefix, "Connection established");
-    log(prefix, string("Host: ") + info.host + " (" + socket->getPeerAddress() + ")");
+    log(prefix, string("Host: ") + info.host + " (" + socket->getPeerAddress()->toString() + ")");
     log(prefix, string("Location: ") + info.cc + "/" + info.country + ", " + info.prov + "/" + info.provname + ", " + info.city);
     log(prefix, string("Local Date: ") + info.localdate + " (" + info.timezone + ")");
 
