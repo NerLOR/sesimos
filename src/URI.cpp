@@ -118,12 +118,12 @@ URI::URI(string webroot, string reqpath) {
 		if (relpath[relpath.length() - 1] == '/') {
 			relpath.erase(relpath.length() - 1);
 		}
-		newpath = relpath + '/' + info;
+		newpath = relpath + info;
 		filepath = "";
 	} else if (relpath != reqpath) {
-		if (!info.empty()) {
+		/*if (!info.empty()) {
 			info.erase(0,1);
-		}
+		}*/
 		newpath = relpath + info;
 	} else {
 		newpath = "";
