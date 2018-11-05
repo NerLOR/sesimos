@@ -1,3 +1,7 @@
+#include <utility>
+
+#include <utility>
+
 /**
  * Necronda Web Server 3.0
  * client.cpp - Client and Connection handler
@@ -36,6 +40,17 @@ typedef struct {
     string localdate;
 } IpAddressInfo;
 
+
+void log_to_file(const char *prefix, const string &str, string host) {
+    //FILE *file = fopen((getWebRoot(std::move(host)) + ".access.log").c_str(), "a");
+    //fprintf(file, "%s%s\r\n", prefix, str.c_str());
+    //fflush(file);
+    //fclose(file);
+}
+
+void log_error_to_file(const char *prefix, const string &str, string host) {
+    log_to_file(prefix, "\x1B[1;31m" + str + "\x1B[0m", std::move(host));
+}
 
 /**
  * Writes log messages to the console
@@ -203,10 +218,12 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 				error = true;
 			}
 
+			string host = "";
+
 			if (!req.isExistingField("Host")) {
 				req.respond(400);
 			} else {
-				string host = req.getField("Host");
+				host = req.getField("Host");
 				long pos = host.find(':');
 				if (pos != string::npos) {
 					host.erase(pos, host.length() - pos);
@@ -227,6 +244,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 				prefix = buffer;
 
 				log(prefix, "\x1B[1m" + req.getMethod() + " " + req.getPath() + "\x1B[0m");
+				log_to_file(prefix, "\x1B[1m" + req.getMethod() + " " + req.getPath() + "\x1B[0m", host);
 
 				bool noRedirect = req.getPath().find("/.well-known/acme-challenge/") == 0;
 
@@ -445,19 +463,21 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 				color = "\x1B[1;31m"; // Server Error: Red
 				//comment = " -> " + req.getPath();
 			}
-			log(prefix,
-				color + to_string(status.code) + " " + status.message + comment + " (" + formatTime(req.getDuration()) +
-				")\x1B[0m");
+			string msg = color + to_string(status.code) + " " + status.message + comment + " (" + formatTime(req.getDuration()) + ")\x1B[0m";
+			log(prefix, msg);
+			if (!host.empty()) {
+                log_to_file(prefix, msg, host);
+            }
 		} catch (char *msg) {
 			HttpStatusCode status = req.getStatusCode();
 			log(prefix, to_string(status.code) + " " + status.message + " (" + formatTime(req.getDuration()) + ")");
 			try {
-				if (msg == "timeout") {
+				if (strncmp(msg, "timeout", strlen(msg)) == 0) {
 					log(prefix, "Timeout!");
 					req.setField("Connection", "close");
 					req.respond(408);
 					error = true;
-				} else if (msg == "Invalid path") {
+				} else if (strncmp(msg, "Invalid path", strlen(msg)) == 0) {
 					log(prefix, "Timeout!");
 					req.setField("Connection", "close");
 					req.respond(400);
