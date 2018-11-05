@@ -121,9 +121,9 @@ URI::URI(string webroot, string reqpath) {
 		newpath = relpath + info;
 		filepath = "";
 	} else if (relpath != reqpath) {
-		/*if (!info.empty()) {
+		if (!info.empty() && relpath[relpath.length() - 1] == '/') {
 			info.erase(0,1);
-		}*/
+		}
 		newpath = relpath + info;
 	} else {
 		newpath = "";
