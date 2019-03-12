@@ -246,7 +246,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 				log(prefix, "\x1B[1m" + req.getMethod() + " " + req.getPath() + "\x1B[0m");
 				log_to_file(prefix, "\x1B[1m" + req.getMethod() + " " + req.getPath() + "\x1B[0m", host);
 
-				bool noRedirect = req.getPath().find("/.well-known/acme-challenge/") == 0;
+				bool noRedirect = req.getPath().find("/.well-known/acme-challenge/") == 0 || (req.getPath().find("/files/") == 0 && host == "minecraft.necronda.net");
 
 				bool redir = true;
 				if (!noRedirect) {
