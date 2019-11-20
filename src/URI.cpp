@@ -67,7 +67,7 @@ URI::URI(string webroot, string reqpath) {
 	        && (!fileExists(webroot + relpath + ".php") || (isDirectory(webroot + relpath + ".php") && !fileExists(webroot + relpath + ".php/index.php")))
 	        && (!fileExists(webroot + relpath + ".html") || (isDirectory(webroot + relpath + ".html") && !fileExists(webroot + relpath + ".html/index.php")))) {
 		long slash = relpath.find_last_of('/');
-		if (slash == string::npos) {
+		if (slash == string::npos || relpath == "/") {
 			break;
 		}
 		info = relpath.substr(slash) + info;
