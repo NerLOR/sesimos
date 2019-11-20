@@ -11,7 +11,7 @@
 #include <thread>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <signum.h>
+#include <signal.h>
 #include <csignal>
 
 
