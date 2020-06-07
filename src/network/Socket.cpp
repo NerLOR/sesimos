@@ -384,7 +384,7 @@ void Socket::receive(FILE *file, long size) {
 		if (size - rec == 0) {
 			break;
 		}
-		len = receive((void*) buffer, (CPPNET_CHUNK > (size - rec) && size >= 0)?(size - rec):CPPNET_CHUNK);
+		len = receive((void*) buffer, (CPPNET_CHUNK > (size - rec) && size >= 0)?CPPNET_CHUNK:(size - rec));
 		fwrite(buffer, 1, CPPNET_CHUNK, file);
 		rec += len;
 	}
