@@ -180,15 +180,15 @@ string read_line(FILE* file) {
 
 
 #include "procopen.cpp"
-#include "../CppNet/src/network/Address.cpp"
-#include "../CppNet/src/network/Socket.cpp"
+#include "network/Address.cpp"
+#include "network/Socket.cpp"
 #include "URI.cpp"
-#include "../CppNet/src/network/http/Http.cpp"
-#include "../CppNet/src/network/http/HttpStatusCode.cpp"
-#include "../CppNet/src/network/http/HttpHeader.cpp"
-#include "../CppNet/src/network/http/HttpRequest.cpp"
-#include "../CppNet/src/network/http/HttpResponse.cpp"
-#include "../CppNet/src/network/http/HttpConnection.cpp"
+#include "network/http/Http.cpp"
+#include "network/http/HttpStatusCode.cpp"
+#include "network/http/HttpHeader.cpp"
+#include "network/http/HttpRequest.cpp"
+#include "network/http/HttpResponse.cpp"
+#include "network/http/HttpConnection.cpp"
 
 string getWebRoot(string host) {
 	string root = webroot + host;
