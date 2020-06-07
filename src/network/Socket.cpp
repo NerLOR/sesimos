@@ -380,12 +380,9 @@ void Socket::receive(FILE *file, long size) {
 	char buffer[CPPNET_CHUNK];
 	long len = 0;
 	long rec = 0;
-	while (1) {
-		if (size - rec == 0) {
-			break;
-		}
-		len = receive((void*) buffer, (CPPNET_CHUNK > (size - rec) && size >= 0)?CPPNET_CHUNK:(size - rec));
-		fwrite(buffer, 1, CPPNET_CHUNK, file);
+	while (size > rec) {
+		len = receive((void*) buffer, (CPPNET_CHUNK > (size - rec) && size >= 0)?(size - rec):CPPNET_CHUNK);
+		fwrite(buffer, 1, len, file);
 		rec += len;
 	}
 }
