@@ -19,14 +19,14 @@
 #include <fcntl.h>
 #include <sstream>
 
-#include "../CppNet/src/network/Socket.h"
-#include "../CppNet/src/network/http/HttpRequest.h"
-#include "../CppNet/src/network/http/HttpConnection.h"
+#include "network/Socket.h"
+#include "network/http/HttpRequest.h"
+#include "network/http/HttpConnection.h"
 #include "necronda-server.h"
-#include "../CppNet/src/network/http/HttpStatusCode.h"
+#include "network/http/HttpStatusCode.h"
 #include "URI.h"
 #include "procopen.h"
-#include "../CppNet/src/network/Address.h"
+#include "network/Address.h"
 
 
 typedef struct {
