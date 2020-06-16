@@ -531,7 +531,7 @@ void Socket::sslHandshake(KeyPair keypair) {
 	const char *keyfile = keypair.privkey.c_str();
 
 	if (isServerSide()) {
-		if (SSL_CTX_use_certificate_file(ctx, certfile, SSL_FILETYPE_PEM) != 1) {
+		if (SSL_CTX_use_certificate_chain_file(ctx, certfile, SSL_FILETYPE_PEM) != 1) {
 			throw (char *) ERR_reason_error_string(ERR_get_error());
 		}
 
