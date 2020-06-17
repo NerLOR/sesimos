@@ -12,8 +12,8 @@
 #define CPPNET_CHUNK  16384
 
 typedef struct {
-	string privkey;
-	string fullchain;
+    string privkey;
+    string fullchain;
 } KeyPair;
 
 using namespace std;
@@ -21,138 +21,138 @@ using namespace std;
 
 class Socket {
 private:
-	int fd;
-	SSL *ssl;
-	SSL_CTX *ctx;
-	bool enc;
-	bool servers;
-	bool clients;
-	unsigned long bytesSent;
-	unsigned long bytesReceived;
-	long microsStart;
-	long microsLast;
+    int fd;
+    SSL *ssl;
+    SSL_CTX *ctx;
+    bool enc;
+    bool servers;
+    bool clients;
+    unsigned long bytesSent;
+    unsigned long bytesReceived;
+    long microsStart;
+    long microsLast;
 
-	void setSocketOption(int, bool);
+    void setSocketOption(int, bool);
 
-	long send(void *buffer, int size);
+    long send(void *buffer, int size);
 
-	long receive(void *buffer, int size);
+    long receive(void *buffer, int size);
 
-	long peek(void *buffer, int size);
+    long peek(void *buffer, int size);
 
 public:
-	Socket();
+    Socket();
 
-	explicit Socket(int filedescriptor);
+    explicit Socket(int filedescriptor);
 
-	~Socket();
+    ~Socket();
 
-	void bind(Address *address, unsigned short port);
+    void bind(Address *address, unsigned short port);
 
-	void bind(unsigned short port);
+    void bind(unsigned short port);
 
-	void listen(int count = 1);
+    void listen(int count = 1);
 
-	void connect(Address address, unsigned short port);
+    void connect(Address address, unsigned short port);
 
-	Socket* accept();
+    Socket* accept();
 
-	void sslHandshake();
+    void sslHandshake();
 
-	void sslHandshake(map<string, KeyPair> sni);
+    void sslHandshake(map<string, KeyPair> sni);
 
-	void sslHandshake(KeyPair keypair);
+    void sslHandshake(KeyPair keypair);
 
-	void sslHandshake(string privkey, string fullchain);
+    void sslHandshake(string privkey, string fullchain);
 
-	long send(string *str);
+    long send(string *str);
 
-	long send(string str);
+    long send(string str);
 
-	long send(const char *str);
+    long send(const char *str);
 
-	long send(const char *str, long length);
+    long send(const char *str, long length);
 
-	string receive();
+    string receive();
 
-	string receive(long length);
+    string receive(long length);
 
-	string receive(string until);
+    string receive(string until);
 
-	string receive(const char *until, unsigned long strlen);
+    string receive(const char *until, unsigned long strlen);
 
-	string receive(const char *until);
+    string receive(const char *until);
 
-	void receive(FILE *file);
+    void receive(FILE *file);
 
-	string receiveLine();
+    string receiveLine();
 
-	void shutdown();
+    void shutdown();
 
-	void close();
+    void close();
 
-	long getDuration();
+    long getDuration();
 
-	Address *getSocketAddress() const;
+    Address *getSocketAddress() const;
 
-	unsigned short getSocketPort() const;
+    unsigned short getSocketPort() const;
 
-	Address *getPeerAddress() const;
+    Address *getPeerAddress() const;
 
-	unsigned short getPeerPort() const;
+    unsigned short getPeerPort() const;
 
-	string toString() const;
-
-
-	bool isServerSide();
-
-	bool isClientSide();
-
-	bool isSecured();
+    string toString() const;
 
 
-	void setReuseAddress(bool value = true);
+    bool isServerSide();
 
-	void setReusePort(bool value = true);
+    bool isClientSide();
 
-	void setSendBufferSize(int value);
-
-	void setReceiveBufferSize(int value);
-
-	void setMinReceiveBytes(int value);
-
-	void setMinSendBytes(int value);
-
-	void setSendTimeout(unsigned long ms);
-
-	void setReceiveTimeout(unsigned long ms);
+    bool isSecured();
 
 
-	bool getReuseAddress();
+    void setReuseAddress(bool value = true);
 
-	bool getReusePort();
+    void setReusePort(bool value = true);
 
-	int getSendBufferSize();
+    void setSendBufferSize(int value);
 
-	int getReceiveBufferSize();
+    void setReceiveBufferSize(int value);
 
-	int getMinReceiveBytes();
+    void setMinReceiveBytes(int value);
 
-	int getMinSendBytes();
+    void setMinSendBytes(int value);
 
-	long getSendTimeout();
+    void setSendTimeout(unsigned long ms);
 
-	long getReceiveTimeout();
+    void setReceiveTimeout(unsigned long ms);
 
-	unsigned long getBytesSent();
 
-	unsigned long getBytesReceived();
+    bool getReuseAddress();
 
-	static long select(list<Socket> read, list<Socket> write, long millis);
+    bool getReusePort();
 
-	static long select(list<Socket> read, list<Socket> write);
+    int getSendBufferSize();
 
-	void receive(FILE *file, long size);
+    int getReceiveBufferSize();
+
+    int getMinReceiveBytes();
+
+    int getMinSendBytes();
+
+    long getSendTimeout();
+
+    long getReceiveTimeout();
+
+    unsigned long getBytesSent();
+
+    unsigned long getBytesReceived();
+
+    static long select(list<Socket> read, list<Socket> write, long millis);
+
+    static long select(list<Socket> read, list<Socket> write);
+
+    void receive(FILE *file, long size);
 };
 
 Socket operator<<(Socket sock, const char *str);

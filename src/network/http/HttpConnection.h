@@ -11,43 +11,43 @@
 
 class HttpConnection {
 private:
-	Socket *socket;
-	HttpRequest *request;
-	HttpResponse *response;
-	long microsStart;
+    Socket *socket;
+    HttpRequest *request;
+    HttpResponse *response;
+    long microsStart;
 
 public:
-	explicit HttpConnection(Socket *socket);
+    explicit HttpConnection(Socket *socket);
 
-	void respond(int statuscode);
+    void respond(int statuscode);
 
-	void respond(int statuscode, string payload);
+    void respond(int statuscode, string payload);
 
-	void respond(int statuscode, FILE *file, bool compress = false, long start = -1, long end = -1);
+    void respond(int statuscode, FILE *file, bool compress = false, long start = -1, long end = -1);
 
-	void redirect(int statuscode, string location);
+    void redirect(int statuscode, string location);
 
-	bool isExistingField(string index);
+    bool isExistingField(string index);
 
-	bool isExistingResponseField(string index);
+    bool isExistingResponseField(string index);
 
-	string getField(string index);
+    string getField(string index);
 
-	string getResponseField(string index);
+    string getResponseField(string index);
 
-	string getPath();
+    string getPath();
 
-	string getMethod();
+    string getMethod();
 
-	void setField(string index, string data);
+    void setField(string index, string data);
 
-	long getDuration();
+    long getDuration();
 
-	HttpStatusCode getStatusCode();
+    HttpStatusCode getStatusCode();
 
-	string cgiExport();
+    string cgiExport();
 
-	void removeField(string index);
+    void removeField(string index);
 };
 
 #endif

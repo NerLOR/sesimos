@@ -28,10 +28,10 @@
 
 
 typedef struct {
-	FILE* stdin;
-	FILE* stdout;
-	FILE* stderr;
-	pid_t pid;
+    FILE* stdin;
+    FILE* stdout;
+    FILE* stderr;
+    pid_t pid;
 } stds;
 
 

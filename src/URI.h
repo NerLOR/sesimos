@@ -8,41 +8,41 @@ using namespace std;
 
 class URI {
 private:
-	string webroot;
-	string reqpath;
-	string relpath;
-	string query;
-	string info;
-	string filepath;
-	string newpath;
-	bool queryinit;
+    string webroot;
+    string reqpath;
+    string relpath;
+    string query;
+    string info;
+    string filepath;
+    string newpath;
+    bool queryinit;
 
 public:
-	URI(string webroot, string reqpath);
+    URI(string webroot, string reqpath);
 
-	string getWebRoot();
+    string getWebRoot();
 
-	string getRelativePath();
+    string getRelativePath();
 
-	string getAbsolutePath();
+    string getAbsolutePath();
 
-	string getFilePath();
+    string getFilePath();
 
-	string getRelativeFilePath();
+    string getRelativeFilePath();
 
-	string getNewPath();
+    string getNewPath();
 
-	FILE *openFile();
+    FILE *openFile();
 
-	string getFilePathInfo();
+    string getFilePathInfo();
 
-	string getFileType();
+    string getFileType();
 
-	bool isStatic();
+    bool isStatic();
 
-	string getQuery();
+    string getQuery();
 
-	bool hasQuery();
+    bool hasQuery();
 
 };
 

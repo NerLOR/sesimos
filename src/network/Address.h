@@ -11,20 +11,20 @@ using namespace std;
 
 class Address {
 private:
-	unsigned int address;
+    unsigned int address;
 
 public:
-	Address();
+    Address();
 
-	explicit Address(string address);
+    explicit Address(string address);
 
-	explicit Address(struct sockaddr_in *address);
+    explicit Address(struct sockaddr_in *address);
 
-	struct sockaddr_in toStruct(unsigned short port) const;
+    struct sockaddr_in toStruct(unsigned short port) const;
 
-	string toString() const;
+    string toString() const;
 
-	bool isLocal();
+    bool isLocal();
 
 };
 

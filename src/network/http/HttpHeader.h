@@ -12,9 +12,9 @@
 using namespace std;
 
 struct comp {
-	bool operator()(const std::string& lhs, const std::string& rhs) const {
-		return strcasecmp(lhs.c_str(), rhs.c_str()) < 0;
-	}
+    bool operator()(const std::string& lhs, const std::string& rhs) const {
+        return strcasecmp(lhs.c_str(), rhs.c_str()) < 0;
+    }
 };
 
 /**
@@ -25,28 +25,28 @@ struct comp {
  */
 class HttpHeader {
 private:
-	map<string, string, comp> fields;
+    map<string, string, comp> fields;
 
 public:
-	HttpHeader();
+    HttpHeader();
 
-	explicit HttpHeader(Socket *socket);
+    explicit HttpHeader(Socket *socket);
 
-	~HttpHeader();
+    ~HttpHeader();
 
-	void setField(string index, string data);
+    void setField(string index, string data);
 
-	string getField(string index);
+    string getField(string index);
 
-	void removeField(string index);
+    void removeField(string index);
 
-	bool isExistingField(string index);
+    bool isExistingField(string index);
 
-	void parse(Socket *socket);
+    void parse(Socket *socket);
 
-	string toString();
+    string toString();
 
-	string cgiExport();
+    string cgiExport();
 
 };
 

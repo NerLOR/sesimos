@@ -11,40 +11,40 @@
 
 class HttpResponse {
 private:
-	HttpHeader header;
-	HttpStatusCode statuscode;
-	string version;
+    HttpHeader header;
+    HttpStatusCode statuscode;
+    string version;
 
 public:
-	HttpResponse();
+    HttpResponse();
 
-	explicit HttpResponse(Socket *socket);
+    explicit HttpResponse(Socket *socket);
 
-	explicit HttpResponse(int statuscode, string version = "1.1");
+    explicit HttpResponse(int statuscode, string version = "1.1");
 
-	explicit HttpResponse(HttpStatusCode statuscode, string version = "1.1");
+    explicit HttpResponse(HttpStatusCode statuscode, string version = "1.1");
 
-	void parseHeader(Socket *socket);
+    void parseHeader(Socket *socket);
 
-	void sendHeader(Socket *socket);
+    void sendHeader(Socket *socket);
 
-	string getField(string index);
+    string getField(string index);
 
-	void setField(string index, string data);
+    void setField(string index, string data);
 
-	bool isExistingField(string index);
+    bool isExistingField(string index);
 
-	HttpStatusCode getStatusCode();
+    HttpStatusCode getStatusCode();
 
-	string getVersion();
+    string getVersion();
 
-	void setStatusCode(HttpStatusCode statuscode);
+    void setStatusCode(HttpStatusCode statuscode);
 
-	void setStatusCode(int statuscode);
+    void setStatusCode(int statuscode);
 
-	void setVersion(string version);
+    void setVersion(string version);
 
-	void removeField(string index);
+    void removeField(string index);
 };
 
 #endif
