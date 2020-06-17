@@ -291,7 +291,11 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 								string hash = getETag(path.getFilePath());
 								req.setField("ETag", hash);
 								req.setField("Accept-Ranges", "bytes");
-								req.setField("Cache-Control", "public, max-age=30");
+								if (type.find("text/") == 0) {
+									req.setField("Cache-Control", "public, max-age=3600");
+								} else {
+									req.setField("Cache-Control", "public, max-age=86400");
+								}
 								req.setField("Allow", "GET");
 								if (req.getMethod() != "GET") {
 									invalidMethod = true;
