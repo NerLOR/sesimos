@@ -373,6 +373,8 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                                         } else {
                                             if (index == "Location" && statuscode == 0) {
                                                 statuscode = 303;
+                                            } else if (index == "Content-Type") {
+                                                type = data;
                                             }
                                             req.setField(index, data);
                                         }
