@@ -103,17 +103,16 @@ IpAddressInfo get_ip_address_info(Address* addr) {
 }
 
 string get_os_info(int fd) {
-    struct tcp_info ti;
-    socklen_t tisize = sizeof(ti);
-    getsockopt(fd, IPPROTO_TCP, TCP_INFO, &ti, &tisize);
-    int winsize_rcv = ti.tcpi_rcv_mss;
-    int winsize_snd = ti.tcpi_snd_mss;
+    struct tcp_repair_window trw;
+    socklen_t trwsize = sizeof(trw);
+    getsockopt(fd, IPPROTO_TCP, TCP_REPAIR_WINDOW, &trw, &trwsize);
 
     int ttl;
     socklen_t ttlsize = sizeof(ttl);
     getsockopt(fd, IPPROTO_IP, IP_TTL, &ttl, &ttlsize);
 
-    return "win_size=" + to_string(winsize_rcv) + "/" + to_string(winsize_snd) + ", ttl=" + to_string(ttl);
+    return "win_size=" + to_string(trw.snd_wnd) + "/" + to_string(trw.rcv_wnd) + "/" + to_string(trw.max_window) + "/" +
+        to_string(trw.rcv_wup) + "/" + to_string(trw.snd_wl1) + ", ttl=" + to_string(ttl);
 }
 
 string getETag(string filename) {
