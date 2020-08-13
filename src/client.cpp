@@ -110,7 +110,7 @@ string get_os_info(int fd) {
 
     int ttl;
     unsigned int ttlsize = sizeof(ttl);
-    getsockopt(fd, IPPROTO_TCP, IP_TTL, &ttl, &ttlsize);
+    getsockopt(fd, IPPROTO_IP, IP_TTL, &ttl, &ttlsize);
 
     return "win_size=" + to_string(winsize) + ", ttl=" + to_string(ttl);
 }
