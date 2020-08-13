@@ -106,13 +106,14 @@ string get_os_info(int fd) {
     struct tcp_repair_window trw;
     socklen_t trwsize = sizeof(trw);
     getsockopt(fd, IPPROTO_TCP, TCP_REPAIR_WINDOW, &trw, &trwsize);
-    int winsize = trw.rcv_wnd;
+    int winsize_rcv = trw.rcv_wnd;
+    int winsize_snd = trw.snd_wnd;
 
     int ttl;
-    unsigned int ttlsize = sizeof(ttl);
+    socklen_t ttlsize = sizeof(ttl);
     getsockopt(fd, IPPROTO_IP, IP_TTL, &ttl, &ttlsize);
 
-    return "win_size=" + to_string(winsize) + ", ttl=" + to_string(ttl);
+    return "win_size=" + to_string(winsize_rcv) + "/" + to_string(winsize_snd) + ", ttl=" + to_string(ttl);
 }
 
 string getETag(string filename) {
