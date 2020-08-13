@@ -111,7 +111,7 @@ string get_os_info(int fd) {
     socklen_t ttlsize = sizeof(ttl);
     getsockopt(fd, IPPROTO_IP, IP_TTL, &ttl, &ttlsize);
 
-    return "win_size=" + to_string(ti.tcpi_snd_ssthresh) + ", ttl=" + to_string(ttl);
+    return "win_size=" + to_string(ti.tcpi_rcv_space) + ", ttl=" + to_string(ttl);
 }
 
 string getETag(string filename) {
