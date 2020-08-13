@@ -106,10 +106,10 @@ string get_os_info(int fd) {
     struct tcp_info ti;
     socklen_t tisize = sizeof(ti);
     getsockopt(fd, IPPROTO_TCP, TCP_INFO, &ti, &tisize);
-    int winsize = ti.tcpi_rcv_wscale;
+    int winsize = ti.tcpi_rcv_space;
 
     int ttl;
-    socklen_t ttlsize = sizeof(ttl);
+    unsigned int ttlsize = sizeof(ttl);
     getsockopt(fd, IPPROTO_TCP, IP_TTL, &ttl, &ttlsize);
 
     return "win_size=" + to_string(winsize) + ", ttl=" + to_string(ttl);
