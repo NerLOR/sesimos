@@ -91,6 +91,8 @@ public:
 
     void close();
 
+    int getFd();
+
     long getDuration();
 
     Address *getSocketAddress() const;

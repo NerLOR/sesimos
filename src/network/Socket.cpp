@@ -109,6 +109,10 @@ Socket::Socket() {
     servers = false;
 }
 
+int Socket::getFd() {
+    return fd;
+}
+
 void Socket::setSocketOption(int option, bool value = true) {
     int val = value ? 1 : 0;
 

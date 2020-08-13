@@ -18,6 +18,8 @@
 #include <cstring>
 #include <fcntl.h>
 #include <sstream>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #include "network/Socket.h"
 #include "network/http/HttpRequest.h"
@@ -98,6 +100,19 @@ IpAddressInfo get_ip_address_info(Address* addr) {
         num++;
     }
     return info;
+}
+
+string get_os_info(int fd) {
+    struct tcp_info ti;
+    socklen_t tisize = sizeof(ti);
+    getsockopt(fd, IPPROTO_TCP, TCP_INFO, &ti, &tisize);
+    int winsize = ti.tcpi_rcv_wscale;
+
+    int ttl;
+    socklen_t ttlsize = sizeof(ttl);
+    getsockopt(fd, IPPROTO_TCP, IP_TTL, &ttl, &ttlsize);
+
+    return "win_size=" + to_string(winsize) + ", ttl=" + to_string(ttl);
 }
 
 string getETag(string filename) {
@@ -526,6 +541,7 @@ void client_handler(Socket *socket, long id, bool ssl) {
     char const *col1;
     char const *col2 = "\x1B[0m";
     IpAddressInfo info = get_ip_address_info(socket->getPeerAddress());
+    auto os = get_os_info(socket->getFd());
     {
         auto group = (int) (id % 6);
         if (group == 0) {
@@ -551,6 +567,7 @@ void client_handler(Socket *socket, long id, bool ssl) {
 
     log(prefix, "Connection established");
     log(prefix, string("Host: ") + info.host + " (" + socket->getPeerAddress()->toString() + ")");
+    log(prefix, string("OS: ") + os);
     log(prefix, string("Location: ") + info.cc + "/" + info.country + ", " + info.prov + "/" + info.provname + ", " + info.city);
     log(prefix, string("Local Date: ") + info.localdate + " (" + info.timezone + ")");
 
