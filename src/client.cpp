@@ -103,10 +103,10 @@ IpAddressInfo get_ip_address_info(Address* addr) {
 }
 
 string get_os_info(int fd) {
-    struct tcp_info ti;
-    socklen_t tisize = sizeof(ti);
-    getsockopt(fd, IPPROTO_TCP, TCP_INFO, &ti, &tisize);
-    int winsize = ti.tcpi_rcv_space;
+    struct tcp_repair_window trw;
+    socklen_t trwsize = sizeof(trw);
+    getsockopt(fd, IPPROTO_TCP, TCP_REPAIR_WINDOW, &trw, &trwsize);
+    int winsize = trw.rcv_wnd;
 
     int ttl;
     unsigned int ttlsize = sizeof(ttl);
