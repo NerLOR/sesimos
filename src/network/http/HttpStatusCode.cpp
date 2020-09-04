@@ -16,7 +16,7 @@ HttpStatusCode httpStatusCodes[] = {
         HttpStatusCode{201, "Success",             "Created", ""},
         HttpStatusCode{202, "Success",            "Accepted", ""},
         HttpStatusCode{203, "Success",             "Non-Authoritative Information", ""},
-        HttpStatusCode{204, "Success",             "No Centent", ""},
+        HttpStatusCode{204, "Success",             "No Content", ""},
         HttpStatusCode{205, "Success",             "Reset Content", ""},
         HttpStatusCode{206, "Success",             "Partial Content", ""},
 
