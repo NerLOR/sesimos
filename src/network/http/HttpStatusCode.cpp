@@ -27,6 +27,7 @@ HttpStatusCode httpStatusCodes[] = {
         HttpStatusCode{304, "Redirection",         "Not Modified", ""},
         HttpStatusCode{305, "Redirection",         "Use Proxy", ""},
         HttpStatusCode{307, "Redirection",         "Temporary Redirect", ""},
+        HttpStatusCode{308, "Redirection",         "Permanent Redirect", ""},
 
         HttpStatusCode{400, "Client Error",     "Bad Request", ""},
         HttpStatusCode{401, "Client Error",     "Unauthorized", ""},
