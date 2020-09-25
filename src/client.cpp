@@ -226,7 +226,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         try {
             if (req.isExistingField("Connection") && req.getField("Connection") == "keep-alive") {
                 req.setField("Connection", "keep-alive");
-                req.setField("Keep-Alive", "timeout=60, max=100");
+                req.setField("Keep-Alive", "timeout=3600, max=100");
             } else {
                 req.setField("Connection", "close");
                 error = true;
