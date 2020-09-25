@@ -573,8 +573,8 @@ void client_handler(Socket *socket, long id, bool ssl) {
 
     bool err = false;
     try {
-        socket->setReceiveTimeout(60000);
-        socket->setSendTimeout(60000);
+        socket->setReceiveTimeout(3600000);
+        socket->setSendTimeout(36000000);
     } catch (char *msg) {
         log(prefix, (string) "Unable to set timeout on socket: " + msg);
         err = true;
