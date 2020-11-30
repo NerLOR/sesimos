@@ -326,10 +326,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         }
         type = path->getFileType();
 
-        if (type.find("inode/") == 0) {
-            req->respond(403);
-            goto respond;
-        } else if (path->getRelativeFilePath().find("/.") != string::npos && !noRedirect) {
+        if (type.find("inode/") == 0 || (path->getRelativeFilePath().find("/.") != string::npos && !noRedirect)) {
             req->respond(403);
             goto respond;
         }
@@ -418,7 +415,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 
             string line;
             while (!(line = read_line(pipes.stdout)).empty()) {
-                long pos = line.find(':');
+                pos = line.find(':');
                 string index = line.substr(0, pos);
                 string data = line.substr(pos + 1, line.length() - pos);
 
