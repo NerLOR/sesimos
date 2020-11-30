@@ -9,6 +9,9 @@
 #include "HttpStatusCode.h"
 #include "Http.h"
 
+
+HttpConnection::HttpConnection() = default;
+
 HttpConnection::HttpConnection(Socket *socket) {
     this->socket = socket;
     this->request = new HttpRequest(socket);
@@ -189,6 +192,3 @@ string HttpConnection::cgiExport() {
 void HttpConnection::removeField(string index) {
     response->removeField(std::move(index));
 }
-
-
-

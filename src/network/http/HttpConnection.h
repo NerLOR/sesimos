@@ -11,12 +11,14 @@
 
 class HttpConnection {
 private:
-    Socket *socket;
-    HttpRequest *request;
-    HttpResponse *response;
-    long microsStart;
+    Socket *socket{};
+    HttpRequest *request{};
+    HttpResponse *response{};
+    long microsStart{};
 
 public:
+    explicit HttpConnection();
+
     explicit HttpConnection(Socket *socket);
 
     void respond(int statuscode);
