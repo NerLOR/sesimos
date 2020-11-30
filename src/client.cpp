@@ -274,7 +274,8 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
             host.erase(pos, host.length() - pos);
         }
 
-        /*FILE *name = popen(("dig @8.8.8.8 +time=1 -x " + socket->getPeerAddress()->toString() +
+        /*
+        FILE *name = popen(("dig @8.8.8.8 +time=1 -x " + socket->getPeerAddress()->toString() +
                             " | grep -oP \"^[^;].*\\t\\K([^ ]*)\\w\"").c_str(), "r");
         char hostbuffer[1024];
         memset(hostbuffer, 0, 1024);
@@ -282,7 +283,8 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         hostbuffer[size - 1] = 0; // remove \n
         if (size <= 1) {
             sprintf(hostbuffer, "%s", socket->getPeerAddress()->toString().c_str());
-        }*/
+        }
+        */
 
         sprintf(buffer, "[\x1B[1m%s\x1B[0m][%i]%s[%s][%i]%s ", host.c_str(), socket->getSocketPort(), col1,
                 info->host.c_str(), socket->getPeerPort(), col2);
@@ -405,7 +407,10 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
             stds pipes = procopen(cmd.c_str());
             childpid = pipes.pid;
 
-            long len = req->isExistingField("Content-Length") ? strtol(req->getField("Content-Length").c_str(), nullptr, 10) : (req->getMethod() == "POST" || req->getMethod() == "PUT")?-1:0;
+            long len = req->isExistingField("Content-Length")
+                    ? strtol(req->getField("Content-Length").c_str(), nullptr, 10)
+                    : ((req->getMethod() == "POST" || req->getMethod() == "PUT") ? -1 : 0);
+
             socket->receive(pipes.stdin, len);
             fclose(pipes.stdin);
 
@@ -502,7 +507,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         if (childpid > 0) {
             waitpid(childpid, nullptr, 0);
         }
-    
+
         respond:
 
         HttpStatusCode status = req->getStatusCode();
