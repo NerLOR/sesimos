@@ -37,6 +37,8 @@ bool fileExists(string path) {
     return stat(path.c_str(), &statbuf) == 0;
 }
 
+URI::URI() = default;
+
 URI::URI(string webroot, string reqpath) {
     unsigned long pos = reqpath.find('?');
     if (pos != string::npos) {

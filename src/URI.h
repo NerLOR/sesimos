@@ -15,9 +15,11 @@ private:
     string info;
     string filepath;
     string newpath;
-    bool queryinit;
+    bool queryinit{};
 
 public:
+    URI();
+
     URI(string webroot, string reqpath);
 
     string getWebRoot();

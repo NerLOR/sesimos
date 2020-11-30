@@ -252,7 +252,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 
     try {
         bool noRedirect, redir, invalidMethod, etag;
-        URI *path;
+        URI path;
         pid_t childpid;
         FILE *file;
         int statuscode;
@@ -319,27 +319,27 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
             redir = false;
         }
 
-        *path = URI(getWebRoot(host), req.getPath());
+        path = URI(getWebRoot(host), req.getPath());
         childpid = 0;
         printf("STAGE 5\n");
         flush(cout);
 
         if (redir) {
             goto respond;
-        } else if (!path->getNewPath().empty() && req.getMethod() != "POST") {
-            req.redirect(303, path->getNewPath());
+        } else if (!path.getNewPath().empty() && req.getMethod() != "POST") {
+            req.redirect(303, path.getNewPath());
             goto respond;
         }
 
-        file = path->openFile();
+        file = path.openFile();
         if (file == nullptr) {
             req.setField("Cache-Control", "public, max-age=60");
             req.respond(404);
             goto respond;
         }
-        type = path->getFileType();
+        type = path.getFileType();
 
-        if (type.find("inode/") == 0 || (path->getRelativeFilePath().find("/.") != string::npos && !noRedirect)) {
+        if (type.find("inode/") == 0 || (path.getRelativeFilePath().find("/.") != string::npos && !noRedirect)) {
             req.respond(403);
             goto respond;
         }
@@ -347,13 +347,13 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         flush(cout);
 
         req.setField("Content-Type", type);
-        req.setField("Last-Modified", getHttpDate(path->getFilePath()));
+        req.setField("Last-Modified", getHttpDate(path.getFilePath()));
 
         invalidMethod = false;
         etag = false;
 
-        if (path->isStatic()) {
-            hash = getETag(path->getFilePath());
+        if (path.isStatic()) {
+            hash = getETag(path.getFilePath());
             req.setField("ETag", hash);
             req.setField("Accept-Ranges", "bytes");
             if (type.find("text/") == 0) {
@@ -388,7 +388,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         }
 
         statuscode = 0;
-        if (!path->isStatic()) {
+        if (!path.isStatic()) {
             string cmd = (string) "env -i" +
                          " REDIRECT_STATUS=" + cli_encode("CGI") +
                          " DOCUMENT_ROOT=" + cli_encode(getWebRoot(host)) +
@@ -400,16 +400,16 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                          (req.isExistingField("Content-Type") ? " CONTENT_TYPE=" + cli_encode(
                                  req.getField("Content-Type")) : "") +
                          ((socket->isSecured()) ? " HTTPS=on" : "") +
-                         " PATH_INFO=" + cli_encode(path->getFilePathInfo()) +
-                         " PATH_TRANSLATED=" + cli_encode(path->getAbsolutePath()) +
-                         " QUERY_STRING=" + cli_encode(path->getQuery()) +
+                         " PATH_INFO=" + cli_encode(path.getFilePathInfo()) +
+                         " PATH_TRANSLATED=" + cli_encode(path.getAbsolutePath()) +
+                         " QUERY_STRING=" + cli_encode(path.getQuery()) +
                          " REMOTE_ADDR=" + cli_encode(socket->getPeerAddress()->toString()) +
                          " REMOTE_HOST=" + cli_encode(info->host) +
                          " REMOTE_PORT=" + cli_encode(to_string(socket->getPeerPort())) +
                          " REQUEST_METHOD=" + cli_encode(req.getMethod()) +
                          " REQUEST_URI=" + cli_encode(req.getPath()) +
-                         " SCRIPT_FILENAME=" + cli_encode(path->getFilePath()) +
-                         " SCRIPT_NAME=" + cli_encode(path->getRelativePath()) +
+                         " SCRIPT_FILENAME=" + cli_encode(path.getFilePath()) +
+                         " SCRIPT_NAME=" + cli_encode(path.getRelativePath()) +
                          " SERVER_ADMIN=" + cli_encode("lorenz.stechauner@gmail.com") +
                          " SERVER_NAME=" + cli_encode(host) +
                          " SERVER_PORT=" + cli_encode(to_string(socket->getSocketPort())) +
@@ -492,7 +492,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                 req.respond(416);
             } else if (req.isExistingField("Range")) {
                 string range = req.getField("Range");
-                if (range.find("bytes=") != 0 || !path->isStatic()) {
+                if (range.find("bytes=") != 0 || !path.isStatic()) {
                     req.respond(416);
                 } else {
                     fseek(file, 0L, SEEK_END);
