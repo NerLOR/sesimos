@@ -222,11 +222,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
     char buffer[1024];
     char *prefix = (char *) preprefix;
 
-    printf("STAGE 0\n");
-    flush(cout);
     HttpConnection req;
-    printf("STAGE 1\n");
-    flush(cout);
     try {
         req = HttpConnection(socket);
     } catch (char *msg) {
@@ -247,8 +243,6 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 
         }
     }
-    printf("STAGE 2\n");
-    flush(cout);
 
     try {
         bool noRedirect, redir, invalidMethod, etag;
@@ -280,9 +274,6 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
             host.erase(pos, host.length() - pos);
         }
 
-        printf("STAGE 3\n");
-        flush(cout);
-
         /*
         FILE *name = popen(("dig @8.8.8.8 +time=1 -x " + socket->getPeerAddress()->toString() +
                             " | grep -oP \"^[^;].*\\t\\K([^ ]*)\\w\"").c_str(), "r");
@@ -303,9 +294,6 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         log_to_file(prefix, "\x1B[1m" + req.getMethod() + " " + req.getPath() + "\x1B[0m", host);
 
         noRedirect = req.getPath().find("/.well-known/") == 0 || (req.getPath().find("/files/") == 0);
-        printf("STAGE 4\n");
-        flush(cout);
-
         redir = true;
         if (!noRedirect) {
             if (getWebRoot(host).empty()) {
@@ -321,8 +309,6 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 
         path = URI(getWebRoot(host), req.getPath());
         childpid = 0;
-        printf("STAGE 5\n");
-        flush(cout);
 
         if (redir) {
             goto respond;
@@ -343,8 +329,6 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
             req.respond(403);
             goto respond;
         }
-        printf("STAGE 6\n");
-        flush(cout);
 
         req.setField("Content-Type", type);
         req.setField("Last-Modified", getHttpDate(path.getFilePath()));
@@ -376,8 +360,6 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                 invalidMethod = true;
             }
         }
-        printf("STAGE 7\n");
-        flush(cout);
 
         if (invalidMethod) {
             req.respond(405);
@@ -418,8 +400,6 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                          " GATEWAY_INTERFACE=" + cli_encode("CGI/1.1") +
                          " /usr/bin/php-cgi";
 
-            printf("STAGE 8\n");
-            flush(cout);
             stds pipes = procopen(cmd.c_str());
             childpid = pipes.pid;
 
@@ -431,8 +411,6 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
             fclose(pipes.stdin);
 
             t = new thread(php_error_handler, prefix, pipes.stderr);
-            printf("STAGE 9\n");
-            flush(cout);
 
             string line;
             while (!(line = read_line(pipes.stdout)).empty()) {
@@ -456,8 +434,6 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                     req.setField(index, data);
                 }
             }
-            printf("STAGE 10\n");
-            flush(cout);
 
             fclose(file);
             int c = fgetc(pipes.stdout);
@@ -470,9 +446,6 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
             }
             file = pipes.stdout;
         }
-
-        printf("STAGE 11\n");
-        flush(cout);
 
         if (statuscode != -1) {
             statuscode = (statuscode == 0) ? 200 : statuscode;
@@ -526,17 +499,12 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
             }
         }
 
-        printf("STAGE 12\n");
-        flush(cout);
-
         fclose(file);
         if (childpid > 0) {
             waitpid(childpid, nullptr, 0);
         }
 
         respond:
-        printf("STAGE RESPOND\n");
-        flush(cout);
 
         HttpStatusCode status = req.getStatusCode();
         int code = status.code;
