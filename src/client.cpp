@@ -222,8 +222,11 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
     char buffer[1024];
     char *prefix = (char *) preprefix;
 
+    printf("STAGE 0\n");
+    flush(cout);
     HttpConnection *req = nullptr;
     printf("STAGE 1\n");
+    flush(cout);
     try {
         *req = HttpConnection(socket);
     } catch (char *msg) {
@@ -245,6 +248,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         }
     }
     printf("STAGE 2\n");
+    flush(cout);
 
     try {
         bool noRedirect, redir, invalidMethod, etag;
@@ -277,6 +281,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         }
 
         printf("STAGE 3\n");
+        flush(cout);
 
         /*
         FILE *name = popen(("dig @8.8.8.8 +time=1 -x " + socket->getPeerAddress()->toString() +
@@ -299,6 +304,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 
         noRedirect = req->getPath().find("/.well-known/") == 0 || (req->getPath().find("/files/") == 0);
         printf("STAGE 4\n");
+        flush(cout);
 
         redir = true;
         if (!noRedirect) {
@@ -316,6 +322,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         *path = URI(getWebRoot(host), req->getPath());
         childpid = 0;
         printf("STAGE 5\n");
+        flush(cout);
 
         if (redir) {
             goto respond;
@@ -337,6 +344,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
             goto respond;
         }
         printf("STAGE 6\n");
+        flush(cout);
 
         req->setField("Content-Type", type);
         req->setField("Last-Modified", getHttpDate(path->getFilePath()));
@@ -369,6 +377,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
             }
         }
         printf("STAGE 7\n");
+        flush(cout);
 
         if (invalidMethod) {
             req->respond(405);
@@ -410,6 +419,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                          " /usr/bin/php-cgi";
 
             printf("STAGE 8\n");
+            flush(cout);
             stds pipes = procopen(cmd.c_str());
             childpid = pipes.pid;
 
@@ -422,6 +432,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 
             t = new thread(php_error_handler, prefix, pipes.stderr);
             printf("STAGE 9\n");
+            flush(cout);
 
             string line;
             while (!(line = read_line(pipes.stdout)).empty()) {
@@ -446,6 +457,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                 }
             }
             printf("STAGE 10\n");
+            flush(cout);
 
             fclose(file);
             int c = fgetc(pipes.stdout);
@@ -460,6 +472,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         }
 
         printf("STAGE 11\n");
+        flush(cout);
 
         if (statuscode != -1) {
             statuscode = (statuscode == 0) ? 200 : statuscode;
@@ -514,6 +527,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         }
 
         printf("STAGE 12\n");
+        flush(cout);
 
         fclose(file);
         if (childpid > 0) {
@@ -522,6 +536,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 
         respond:
         printf("STAGE RESPOND\n");
+        flush(cout);
 
         HttpStatusCode status = req->getStatusCode();
         int code = status.code;
