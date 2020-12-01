@@ -463,6 +463,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
             fclose(file);
             file = pipes.stdout;
             if (websocket) {
+                log(prefix, "Upgrade to WebSocket!");
                 req.respond(statuscode);
                 goto respond;
             } else {
