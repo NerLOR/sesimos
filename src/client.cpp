@@ -209,7 +209,7 @@ long getPosition(std::string str, char c, int occurence) {
     return -1;
 }
 
-int websocket_handler(Socket *socket, pid_t *childpid, stds *pipes) {
+int websocket_handler(Socket *socket, stds *pipes) {
     fd_set readfd;
     int maxfd = (socket->getFd() > pipes->stdout->_fileno) ? socket->getFd() : pipes->stdout->_fileno;
     FD_ZERO(&readfd);
@@ -552,7 +552,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         }
 
         if (websocket) {
-            websocket_handler(socket, &childpid, &pipes);
+            websocket_handler(socket, &pipes);
         }
     } catch (char *msg) {
         HttpStatusCode status = req.getStatusCode();
