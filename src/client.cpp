@@ -450,6 +450,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
             }
 
             websocket = statuscode == 101 && req.isExistingResponseField("Connection") && req.getResponseField("Connection") == "upgrade";
+            printf("STAGE 2\n");
 
             fclose(file);
             file = pipes.stdout;
@@ -459,6 +460,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
             } else {
                 fclose(pipes.stdin);
                 int c = fgetc(pipes.stdout);
+                printf("STAGE 3\n");
                 if (c == -1) {
                     // No Data -> Error
                     req.respond((statuscode == 0) ? 500 : statuscode);
@@ -481,6 +483,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         if (compress) {
             req.setField("Accept-Ranges", "none");
         }
+        printf("STAGE 4\n");
 
         if (compress && req.isExistingField("Range")) {
             req.respond(416);
@@ -518,6 +521,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         } else {
             req.respond(statuscode, file, compress);
         }
+        printf("STAGE 5\n");
 
         fclose(file);
         if (childpid > 0) {
