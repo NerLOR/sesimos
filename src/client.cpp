@@ -424,6 +424,10 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                     : ((req.getMethod() == "POST" || req.getMethod() == "PUT") ? -1 : 0);
 
             socket->receive(pipes.stdin, len);
+            if (req.getMethod() != "GET") {
+                // Close only if no Websocket upgrade is possible
+                fclose(pipes.stdin);
+            }
             t = new thread(php_error_handler, prefix, pipes.stderr);
 
             string line;
@@ -457,7 +461,6 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                 req.respond(statuscode);
                 goto respond;
             } else {
-                fclose(pipes.stdin);
                 int c = fgetc(pipes.stdout);
                 if (c == -1) {
                     // No Data -> Error
