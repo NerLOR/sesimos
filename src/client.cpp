@@ -209,6 +209,21 @@ long getPosition(std::string str, char c, int occurence) {
     return -1;
 }
 
+int websocket_handler(Socket *socket, pid_t *childpid, stds *pipes) {
+    fd_set readfd;
+    int maxfd = (socket->getFd() > pipes->stdout->_fileno) ? socket->getFd() : pipes->stdout->_fileno;
+    FD_ZERO(&readfd);
+    FD_SET(socket->getFd(), &readfd);
+    FD_SET(pipes->stdout->_fileno, &readfd);
+
+    while (true) {
+        int ret = ::select(maxfd + 1, &readfd, nullptr, nullptr, nullptr);
+        if (ret < 0) {
+            throw (char *) strerror(errno);
+        }
+    }
+}
+
 /**
  * Handles (keep-alive) HTTP connections
  * @param prefix The connection prefix
@@ -245,7 +260,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
     }
 
     try {
-        bool noRedirect, redir, invalidMethod, etag, compress;
+        bool noRedirect, redir, invalidMethod, etag, compress, websocket;
         URI path;
         pid_t childpid;
         FILE *file;
@@ -253,6 +268,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         string hash, type, host;
         thread *t;
         long pos;
+        stds pipes;
 
         if (req.isExistingField("Connection") && req.getField("Connection") == "keep-alive") {
             req.setField("Connection", "keep-alive");
@@ -400,7 +416,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                          " GATEWAY_INTERFACE=" + cli_encode("CGI/1.1") +
                          " /usr/bin/php-cgi";
 
-            stds pipes = procopen(cmd.c_str());
+            pipes = procopen(cmd.c_str());
             childpid = pipes.pid;
 
             long len = req.isExistingField("Content-Length")
@@ -408,8 +424,6 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                     : ((req.getMethod() == "POST" || req.getMethod() == "PUT") ? -1 : 0);
 
             socket->receive(pipes.stdin, len);
-            fclose(pipes.stdin);
-
             t = new thread(php_error_handler, prefix, pipes.stderr);
 
             string line;
@@ -435,15 +449,23 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                 }
             }
 
+            websocket = statuscode == 101 && req.isExistingResponseField("Connection") && req.getResponseField("Connection") == "upgrade";
+
             fclose(file);
             file = pipes.stdout;
-            int c = fgetc(pipes.stdout);
-            if (c == -1) {
-                // No Data -> Error
-                req.respond((statuscode == 0) ? 500 : statuscode);
+            if (websocket) {
+                req.respond(statuscode);
                 goto respond;
             } else {
-                ungetc(c, pipes.stdout);
+                fclose(pipes.stdin);
+                int c = fgetc(pipes.stdout);
+                if (c == -1) {
+                    // No Data -> Error
+                    req.respond((statuscode == 0) ? 500 : statuscode);
+                    goto respond;
+                } else {
+                    ungetc(c, pipes.stdout);
+                }
             }
         }
 
@@ -508,8 +530,8 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         int code = status.code;
         string color;
         string comment;
-        if ((code >= 200 && code < 300) || code == 304) {
-            color = "\x1B[1;32m"; // Success (Cached): Green
+        if ((code >= 200 && code < 300) || code == 304 || code == 101) {
+            color = "\x1B[1;32m"; // Success (Cached, Switching Protocols): Green
         } else if (code >= 100 && code < 200) {
             color = "\x1B[1;93m"; // Continue: Yellow
         } else if (code >= 300 && code < 400) {
@@ -527,6 +549,10 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
         log(prefix, msg);
         if (!host.empty()) {
             log_to_file(prefix, msg, host);
+        }
+
+        if (websocket) {
+            websocket_handler(socket, &childpid, &pipes);
         }
     } catch (char *msg) {
         HttpStatusCode status = req.getStatusCode();
