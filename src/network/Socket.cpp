@@ -236,6 +236,18 @@ long Socket::send(const char *str) {
     return send(str, strlen(str));
 }
 
+long Socket::send(FILE *file) {
+    char buffer[CPPNET_CHUNK];
+    long all_len = 0;
+    long len = 0;
+    do {
+        len = fread(buffer, 1, CPPNET_CHUNK, file);
+        send(buffer, len);
+        all_len += len;
+    } while (len > 0 && len == CPPNET_CHUNK);
+    return all_len;
+}
+
 Socket::~Socket() {
 
 }

@@ -227,7 +227,7 @@ int websocket_handler(Socket *socket, stds *pipes) {
             socket->receive(pipes->stdin);
         } else {
             ungetc(c, pipes->stdout);
-            socket->send(pipes->stdout, -1);
+            socket->send(pipes->stdout);
         }
     }
 }

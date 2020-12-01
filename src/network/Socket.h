@@ -34,6 +34,8 @@ private:
 
     void setSocketOption(int, bool);
 
+    long send(void *buffer, int size);
+
     long receive(void *buffer, int size);
 
     long peek(void *buffer, int size);
@@ -63,8 +65,6 @@ public:
 
     void sslHandshake(string privkey, string fullchain);
 
-    long send(void *buffer, int size);
-
     long send(string *str);
 
     long send(string str);
@@ -72,6 +72,8 @@ public:
     long send(const char *str);
 
     long send(const char *str, long length);
+
+    long send(FILE *file);
 
     string receive();
 
