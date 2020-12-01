@@ -424,7 +424,9 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                     : ((req.getMethod() == "POST" || req.getMethod() == "PUT") ? -1 : 0);
 
             socket->receive(pipes.stdin, len);
-            wantsWebsocket = req.getMethod() == "GET" && req.getField("Connection") == "Upgrade";
+            wantsWebsocket = req.getMethod() == "GET" &&
+                    req.isExistingResponseField("Connection") && req.getField("Connection") == "Upgrade" &&
+                    req.isExistingResponseField("Upgrade") && req.getField("Upgrade") == "websocket";
             if (!wantsWebsocket) {
                 // Close only if no Websocket upgrade is possible
                 fclose(pipes.stdin);
@@ -454,7 +456,9 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                 }
             }
 
-            websocket = statuscode == 101 && req.isExistingResponseField("Connection") && req.getResponseField("Connection") == "upgrade";
+            websocket = statuscode == 101 &&
+                    req.isExistingResponseField("Connection") &&
+                    req.getResponseField("Connection") == "upgrade";
 
             fclose(file);
             file = pipes.stdout;
