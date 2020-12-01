@@ -561,6 +561,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 
         if (websocket) {
             websocket_handler(socket, &pipes);
+            log(prefix, "\x1B[1mClosing WebSocket (" + formatTime(req.getDuration()) + ")\x1B[0m");
         }
     } catch (char *msg) {
         HttpStatusCode status = req.getStatusCode();
