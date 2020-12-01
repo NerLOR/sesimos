@@ -260,7 +260,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
     }
 
     try {
-        bool noRedirect, redir, invalidMethod, etag, compress, websocket;
+        bool noRedirect, redir, invalidMethod, etag, compress, wantsWebsocket, websocket = false;
         URI path;
         pid_t childpid;
         FILE *file;
@@ -424,7 +424,8 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                     : ((req.getMethod() == "POST" || req.getMethod() == "PUT") ? -1 : 0);
 
             socket->receive(pipes.stdin, len);
-            if (req.getMethod() != "GET") {
+            wantsWebsocket = req.getMethod() == "GET" && req.getField("Connection") == "Upgrade";
+            if (!wantsWebsocket) {
                 // Close only if no Websocket upgrade is possible
                 fclose(pipes.stdin);
             }
