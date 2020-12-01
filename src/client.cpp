@@ -216,7 +216,7 @@ int websocket_handler(Socket *socket, stds *pipes) {
     FD_SET(socket->getFd(), &readfd);
     FD_SET(pipes->stdout->_fileno, &readfd);
 
-    while (true) {
+    /*while (true) {
         int ret = ::select(maxfd + 1, &readfd, nullptr, nullptr, nullptr);
         if (ret < 0) {
             throw (char *) strerror(errno);
@@ -229,7 +229,7 @@ int websocket_handler(Socket *socket, stds *pipes) {
             ungetc(c, pipes->stdout);
             socket->send(pipes->stdout);
         }
-    }
+    }*/
 }
 
 /**
