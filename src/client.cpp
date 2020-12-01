@@ -457,8 +457,8 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
             }
 
             websocket = statuscode == 101 &&
-                    req.isExistingResponseField("Connection") &&
-                    req.getResponseField("Connection") == "upgrade";
+                    req.isExistingResponseField("Connection") && req.getResponseField("Connection") == "Upgrade" &&
+                    req.isExistingResponseField("Upgrade") && req.getResponseField("Upgrade") == "websocket";
 
             fclose(file);
             file = pipes.stdout;
