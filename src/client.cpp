@@ -245,7 +245,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
     }
 
     try {
-        bool noRedirect, redir, invalidMethod, etag;
+        bool noRedirect, redir, invalidMethod, etag, compress;
         URI path;
         pid_t childpid;
         FILE *file;
@@ -436,67 +436,65 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
             }
 
             fclose(file);
+            file = pipes.stdout;
             int c = fgetc(pipes.stdout);
             if (c == -1) {
                 // No Data -> Error
                 req.respond((statuscode == 0) ? 500 : statuscode);
-                statuscode = -1;
+                goto respond;
             } else {
                 ungetc(c, pipes.stdout);
             }
-            file = pipes.stdout;
         }
 
-        if (statuscode != -1) {
-            statuscode = (statuscode == 0) ? 200 : statuscode;
+        statuscode = (statuscode == 0) ? 200 : statuscode;
 
-            bool compress = (type.find("text/") == 0 ||
-                                (type.find("application/") == 0 && type.find("+xml") != string::npos) ||
-                                type == "application/json" ||
-                                type == "application/javascript") &&
-                            req.isExistingField("Accept-Encoding") &&
-                            req.getField("Accept-Encoding").find("deflate") != string::npos;
+        compress = (type.find("text/") == 0 ||
+                            (type.find("application/") == 0 && type.find("+xml") != string::npos) ||
+                            type == "application/json" ||
+                            type == "application/javascript") &&
+                        req.isExistingField("Accept-Encoding") &&
+                        req.getField("Accept-Encoding").find("deflate") != string::npos;
 
-            if (compress) {
-                req.setField("Accept-Ranges", "none");
-            }
+        if (compress) {
+            req.setField("Accept-Ranges", "none");
+        }
 
-            if (compress && req.isExistingField("Range")) {
+        if (compress && req.isExistingField("Range")) {
+            req.respond(416);
+        } else if (req.isExistingField("Range")) {
+            string range = req.getField("Range");
+            if (range.find("bytes=") != 0 || !path.isStatic()) {
                 req.respond(416);
-            } else if (req.isExistingField("Range")) {
-                string range = req.getField("Range");
-                if (range.find("bytes=") != 0 || !path.isStatic()) {
+            } else {
+                fseek(file, 0L, SEEK_END);
+                long len = ftell(file);
+                fseek(file, 0L, SEEK_SET);
+                long p = range.find('-');
+                if (p == string::npos) {
                     req.respond(416);
                 } else {
-                    fseek(file, 0L, SEEK_END);
-                    long len = ftell(file);
-                    fseek(file, 0L, SEEK_SET);
-                    long p = range.find('-');
-                    if (p == string::npos) {
+                    string part1 = range.substr(6, (unsigned long) (p - 6));
+                    string part2 = range.substr((unsigned long) (p + 1),
+                                                range.length() - p - 1);
+                    long num1 = stol(part1, nullptr, 10);
+                    long num2 = len - 1;
+                    if (!part2.empty()) {
+                        num2 = stol(part2, nullptr, 10);
+                    }
+                    if (num1 < 0 || num1 >= len || num2 < 0 || num2 >= len) {
                         req.respond(416);
                     } else {
-                        string part1 = range.substr(6, (unsigned long) (p - 6));
-                        string part2 = range.substr((unsigned long) (p + 1),
-                                                    range.length() - p - 1);
-                        long num1 = stol(part1, nullptr, 10);
-                        long num2 = len - 1;
-                        if (!part2.empty()) {
-                            num2 = stol(part2, nullptr, 10);
-                        }
-                        if (num1 < 0 || num1 >= len || num2 < 0 || num2 >= len) {
-                            req.respond(416);
-                        } else {
-                            req.setField("Content-Range",
-                                         (string) "bytes " + to_string(num1) + "-" +
-                                         to_string(num2) +
-                                         "/" + to_string(len));
-                            req.respond(206, file, compress, num1, num2);
-                        }
+                        req.setField("Content-Range",
+                                     (string) "bytes " + to_string(num1) + "-" +
+                                     to_string(num2) +
+                                     "/" + to_string(len));
+                        req.respond(206, file, compress, num1, num2);
                     }
                 }
-            } else {
-                req.respond(statuscode, file, compress);
             }
+        } else {
+            req.respond(statuscode, file, compress);
         }
 
         fclose(file);
@@ -508,8 +506,8 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
 
         HttpStatusCode status = req.getStatusCode();
         int code = status.code;
-        string color = "";
-        string comment = "";
+        string color;
+        string comment;
         if ((code >= 200 && code < 300) || code == 304) {
             color = "\x1B[1;32m"; // Success (Cached): Green
         } else if (code >= 100 && code < 200) {
