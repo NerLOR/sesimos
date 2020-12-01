@@ -245,17 +245,17 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
             if (msg == "Malformed header") {
                 log(prefix, "Unable to parse header: Malformed header");
                 socket->send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n");
-                error = true;
+                return false;
             } else if (msg == "timeout") {
                 log(prefix, "Timeout!");
                 socket->send("HTTP/1.1 408 Request Timeout\r\nConnection: close\r\n\r\n");
-                error = true;
+                return false;
             } else {
                 log(prefix, (string) "Unable to receive from socket: " + msg);
-                error = true;
+                return false;
             }
         } catch (char *msg2) {
-
+            return false;
         }
     }
 
