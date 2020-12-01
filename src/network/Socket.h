@@ -34,8 +34,6 @@ private:
 
     void setSocketOption(int, bool);
 
-    long send(void *buffer, int size);
-
     long receive(void *buffer, int size);
 
     long peek(void *buffer, int size);
@@ -64,6 +62,8 @@ public:
     void sslHandshake(KeyPair keypair);
 
     void sslHandshake(string privkey, string fullchain);
+
+    long send(void *buffer, int size);
 
     long send(string *str);
 
