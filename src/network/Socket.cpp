@@ -383,16 +383,19 @@ string Socket::receive(const char *until, unsigned long strlen) {
     return receive(string(until, strlen));
 }
 
-void Socket::receive(FILE *file) {
+long Socket::receive(FILE *file) {
     char buffer[CPPNET_CHUNK];
-    long len = 0;
+    long len;
+    long rec = 0;
     do {
         len = receive((void*) buffer, CPPNET_CHUNK);
         fwrite(buffer, 1, CPPNET_CHUNK, file);
+        rec += len;
     } while (len > 0 && len == CPPNET_CHUNK);
+    return len;
 }
 
-void Socket::receive(FILE *file, long size) {
+long Socket::receive(FILE *file, long size) {
     char buffer[CPPNET_CHUNK];
     long len = 0;
     long rec = 0;
@@ -401,6 +404,7 @@ void Socket::receive(FILE *file, long size) {
         fwrite(buffer, 1, len, file);
         rec += len;
     }
+    return rec;
 }
 
 string Socket::receiveLine() {

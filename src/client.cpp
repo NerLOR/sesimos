@@ -224,7 +224,7 @@ int websocket_handler(Socket *socket, stds *pipes) {
 
         int c = fgetc(pipes->stdout);
         if (c == -1) {
-            socket->receive(pipes->stdin);
+            long rec = socket->receive(pipes->stdin);
         } else {
             ungetc(c, pipes->stdout);
             socket->send(pipes->stdout);
