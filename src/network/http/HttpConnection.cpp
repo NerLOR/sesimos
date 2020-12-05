@@ -164,8 +164,12 @@ string HttpConnection::getMethod() {
     return request->getMethod();
 }
 
-long HttpConnection::getDuration() {
+unsigned long HttpConnection::getDuration() {
     return getMicros() - microsStart;
+}
+
+unsigned long HttpConnection::getMicrosStart() {
+    return microsStart;
 }
 
 HttpStatusCode HttpConnection::getStatusCode() {

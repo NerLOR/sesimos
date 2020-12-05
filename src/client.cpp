@@ -422,6 +422,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                          " SERVER_SOFTWARE=" + cli_encode("Necronda 3.0") +
                          " SERVER_PROTOCOL=" + cli_encode("HTTP/1.1") +
                          " GATEWAY_INTERFACE=" + cli_encode("CGI/1.1") +
+                         " REQUEST_TIMESTAMP=" + cli_encode(to_string(req.getMicrosStart())) +
                          " /usr/bin/php-cgi";
 
             pipes = procopen(cmd.c_str());

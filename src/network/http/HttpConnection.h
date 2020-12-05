@@ -14,7 +14,7 @@ private:
     Socket *socket{};
     HttpRequest *request{};
     HttpResponse *response{};
-    long microsStart{};
+    unsigned long microsStart{};
 
 public:
     explicit HttpConnection();
@@ -43,7 +43,9 @@ public:
 
     void setField(string index, string data);
 
-    long getDuration();
+    unsigned long getDuration();
+
+    unsigned long getMicrosStart();
 
     HttpStatusCode getStatusCode();
 
