@@ -423,6 +423,7 @@ bool connection_handler(const char *preprefix, const char *col1, const char *col
                          " SERVER_PROTOCOL=" + cli_encode("HTTP/1.1") +
                          " GATEWAY_INTERFACE=" + cli_encode("CGI/1.1") +
                          " REQUEST_TIMESTAMP=" + cli_encode(to_string(req.getMicrosStart())) +
+                         " REMOTE_CC=" + cli_encode(info->cc) +
                          " /usr/bin/php-cgi";
 
             pipes = procopen(cmd.c_str());
