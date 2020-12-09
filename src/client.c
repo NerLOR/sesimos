@@ -9,17 +9,17 @@
 #include "net/http.h"
 
 
-int websocket_handler() {
-    // TODO implement websocket_handler
+int client_websocket_handler() {
+    // TODO implement client_websocket_handler
     return 0;
 }
 
-int request_handler() {
-    // TODO implement request_handler
+int client_request_handler() {
+    // TODO implement client_request_handler
     return 0;
 }
 
-int connection_handler() {
-    // TODO implement connection_handler
+int client_connection_handler() {
+    // TODO implement client_connection_handler
     return 0;
 }
