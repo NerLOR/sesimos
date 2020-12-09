@@ -6,3 +6,4 @@
 !.gitignore
 !CppNet
 !CppNet/**
+!README.md
