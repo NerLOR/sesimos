@@ -26,6 +26,10 @@
 char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr, *log_base_prefix, *log_req_prefix;
 
 
+void client_terminate() {
+    // TODO prevent processing of further requests in connection
+}
+
 int client_websocket_handler() {
     // TODO implement client_websocket_handler
     return 0;
@@ -43,7 +47,10 @@ int client_connection_handler(int client) {
 
     sprintf(buf1, "Hello World!\nYour address is: %s\n", client_addr_str);
     send(client, buf1, strlen(buf1), 0);
-    int len = recv(client, &buf1, sizeof(buf1), 0);
+    int len = -1;
+    while (len == -1) {
+        len = recv(client, &buf1, sizeof(buf1), 0);
+    }
     sprintf(buf2, "Thank you, %.*s!\nGood bye!\n", len, buf1);
     send(client, buf2, strlen(buf2), 0);
 
@@ -58,6 +65,9 @@ int client_handler(int client, long client_num, struct sockaddr_in6 *client_addr
     struct sockaddr_storage server_addr_storage;
 
     char *color_table[] = {"\x1B[31m", "\x1B[32m", "\x1B[33m", "\x1B[34m", "\x1B[35m", "\x1B[36m"};
+
+    signal(SIGINT, client_terminate);
+    signal(SIGTERM, client_terminate);
 
     client_addr_str_ptr = malloc(INET6_ADDRSTRLEN);
     inet_ntop(client_addr->sin6_family, (void *) &client_addr->sin6_addr, client_addr_str_ptr, INET6_ADDRSTRLEN);

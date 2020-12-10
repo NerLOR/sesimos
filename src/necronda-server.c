@@ -52,8 +52,8 @@ void terminate() {
     fprintf(stderr, "\nTerminating gracefully...\n");
     active = 0;
 
-    signal(SIGTERM, destroy);
     signal(SIGINT, destroy);
+    signal(SIGTERM, destroy);
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         shutdown(SOCKETS[i], SHUT_RDWR);
@@ -62,6 +62,19 @@ void terminate() {
 
     int status = 0;
     int ret;
+    for (int i = 0; i < MAX_CHILDREN; i++) {
+        if (CHILDREN[i] != 0) {
+            ret = waitpid(CHILDREN[i], &status, WNOHANG);
+            if (ret < 0) {
+                fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n", CHILDREN[i], strerror(errno));
+            } else if (ret == CHILDREN[i]) {
+                CHILDREN[i] = 0;
+            } else {
+                kill(CHILDREN[i], SIGTERM);
+            }
+        }
+    }
+
     for (int i = 0; i < MAX_CHILDREN; i++) {
         if (CHILDREN[i] != 0) {
             ret = waitpid(CHILDREN[i], &status, 0);
