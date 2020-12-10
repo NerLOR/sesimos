@@ -37,32 +37,30 @@ int client_request_handler() {
 }
 
 int client_connection_handler(int client) {
-    char buf[256];
+    char buf1[256];
+    char buf2[256];
     print("Connection accepted from %s (%s) [%s]", client_addr_str, client_addr_str, "N/A");
 
-    sprintf(buf, "Hello World!\nYour address is: %s\n", client_addr_str);
-    send(client, buf, strlen(buf), 0);
+    sprintf(buf1, "Hello World!\nYour address is: %s\n", client_addr_str);
+    send(client, buf1, strlen(buf1), 0);
+    int len = recv(client, &buf1, sizeof(buf1), 0);
+    sprintf(buf2, "Thank you, %.*s!\nGood bye!\n", len, buf1);
+    send(client, buf2, strlen(buf2), 0);
+
     close(client);
 
     print("Connection closed");
     return 0;
 }
 
-int client_handler(int socket, long client_num) {
-    struct sockaddr_in6 client_addr, *server_addr;
+int client_handler(int client, long client_num, struct sockaddr_in6 *client_addr) {
+    struct sockaddr_in6 *server_addr;
     struct sockaddr_storage server_addr_storage;
-    unsigned int client_addr_len = sizeof(client_addr);
 
     char *color_table[] = {"\x1B[31m", "\x1B[32m", "\x1B[33m", "\x1B[34m", "\x1B[35m", "\x1B[36m"};
 
-    int client = accept(socket, (struct sockaddr *) &client_addr, &client_addr_len);
-    if (client == -1) {
-        fprintf(parent_stderr, ERR_STR "Unable to accept connection: %s" CLR_STR "\n", strerror(errno));
-        return -1;
-    }
-
     client_addr_str_ptr = malloc(INET6_ADDRSTRLEN);
-    inet_ntop(client_addr.sin6_family, (void *) &client_addr.sin6_addr, client_addr_str_ptr, INET6_ADDRSTRLEN);
+    inet_ntop(client_addr->sin6_family, (void *) &client_addr->sin6_addr, client_addr_str_ptr, INET6_ADDRSTRLEN);
     if (strncmp(client_addr_str_ptr, "::ffff:", 7) == 0) {
         client_addr_str = client_addr_str_ptr + 7;
     } else {
@@ -83,7 +81,7 @@ int client_handler(int socket, long client_num) {
     log_base_prefix = malloc(256);
     sprintf(log_base_prefix, "[%24s][%s%4i%s]%s[%*s][%5i]%s ",
             server_addr_str, R_STR, ntohs(server_addr->sin6_port), CLR_STR,
-            color_table[client_num % 6], INET_ADDRSTRLEN, client_addr_str, ntohs(client_addr.sin6_port), CLR_STR);
+            color_table[client_num % 6], INET_ADDRSTRLEN, client_addr_str, ntohs(client_addr->sin6_port), CLR_STR);
 
     int ret = client_connection_handler(client);
     free(client_addr_str_ptr);
