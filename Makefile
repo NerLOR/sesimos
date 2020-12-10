@@ -8,7 +8,7 @@ packages:
 compile:
 	@echo "Compiling..."
 	@mkdir -p bin
-	gcc src/necronda-server.c -o bin/necronda-server -std=c11 -fPIC -pthread -lz -lmagic -lssl -ldl -lcrypto
+	gcc src/necronda-server.c -o bin/necronda-server -std=c11
 	@echo "Finished compiling!"
 
 install: | packages update compile
