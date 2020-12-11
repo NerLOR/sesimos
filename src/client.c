@@ -48,7 +48,6 @@ int client_connection_handler(sock *client) {
         client->ssl = SSL_new(client->ctx);
         SSL_set_fd(client->ssl, client->socket);
         SSL_set_accept_state(client->ssl);
-        SSL_set_bio(client->ssl, client->bio_in, client->bio_out);
 
         ret = SSL_accept(client->ssl);
         if (ret <= 0) {
@@ -61,8 +60,6 @@ int client_connection_handler(sock *client) {
     if (client->enc) {
         SSL_shutdown(client->ssl);
         SSL_free(client->ssl);
-        BIO_free(client->bio_in);
-        BIO_free(client->bio_out);
     }
     shutdown(client->socket, SHUT_RDWR);
     close(client->socket);

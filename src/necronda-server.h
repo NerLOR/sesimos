@@ -10,7 +10,6 @@
 
 #include <sys/types.h>
 #include <stdio.h>
-#include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
@@ -38,8 +37,6 @@ typedef struct {
     int socket;
     SSL_CTX *ctx;
     SSL *ssl;
-    BIO *bio_in;
-    BIO *bio_out;
 } sock;
 
 char *ssl_get_error(SSL *ssl, int ret);

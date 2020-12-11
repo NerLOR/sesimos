@@ -200,11 +200,6 @@ int main(int argc, const char *argv[]) {
         return 1;
     }
 
-    client.bio_in = BIO_new(BIO_s_mem());
-    client.bio_out = BIO_new(BIO_s_mem());
-    BIO_set_mem_eof_return(client.bio_in, -1);
-    BIO_set_mem_eof_return(client.bio_out, -1);
-
     for (int i = 0; i < NUM_SOCKETS; i++) {
         if (listen(SOCKETS[i], LISTEN_BACKLOG) == -1) {
             fprintf(stderr, ERR_STR "Unable to listen on socket %i: %s" CLR_STR "\n", i, strerror(errno));
