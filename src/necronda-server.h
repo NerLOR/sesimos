@@ -21,6 +21,7 @@
 #define NUM_SOCKETS 2
 #define MAX_CHILDREN 1024
 #define LISTEN_BACKLOG 16
+#define REQ_PER_CONNECTION 100
 
 #define ERR_STR "\x1B[1;31m"
 #define CLR_STR "\x1B[0m"

@@ -5,6 +5,8 @@
  * Lorenz Stechauner, 2020-12-03
  */
 
+#define _POSIX_C_SOURCE 199309L
+
 #include "necronda-server.h"
 
 #include <stdio.h>

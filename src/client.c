@@ -14,8 +14,8 @@
 #include "net/http.h"
 
 
-#define out_1(fmt) fprintf(parent_stdout, "%s" fmt "\n", log_base_prefix)
-#define out_2(fmt, args...) fprintf(parent_stdout, "%s" fmt "\n", log_base_prefix, args)
+#define out_1(fmt) fprintf(parent_stdout, "%s" fmt "\n", log_prefix)
+#define out_2(fmt, args...) fprintf(parent_stdout, "%s" fmt "\n", log_prefix, args)
 
 #define out_x(x, arg1, arg2, arg3, arg4, arg5, arg6, arg7, FUNC, ...) FUNC
 
@@ -23,10 +23,28 @@
                          out_2(__VA_ARGS__), out_2(__VA_ARGS__), out_2(__VA_ARGS__), out_1(__VA_ARGS__))
 
 
-char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr, *log_base_prefix, *log_req_prefix;
+int keep_alive = 1;
+char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr,
+        *log_prefix, *log_conn_prefix, *log_req_prefix;
 
+
+char *format_duration(unsigned long micros, char *buf) {
+    if (micros < 10000) {
+        sprintf(buf, "%.1f ms", (double) micros / 1000.0);
+    } else if (micros < 1000000) {
+        sprintf(buf, "%li ms", micros / 1000);
+    } else if (micros < 100000000) {
+        sprintf(buf, "%.2f s", (double) micros / 1000000.0);
+    } else if (micros < 1000000000) {
+        sprintf(buf, "%.1f s", (double) micros / 1000000.0);
+    } else {
+        sprintf(buf, "%li s", micros / 1000000);
+    }
+    return buf;
+}
 
 void client_terminate() {
+    keep_alive = 0;
     // TODO prevent processing of further requests in connection
 }
 
@@ -35,13 +53,17 @@ int client_websocket_handler() {
     return 0;
 }
 
-int client_request_handler() {
+int client_request_handler(sock *client, int req_num) {
     // TODO implement client_request_handler
     return 0;
 }
 
 int client_connection_handler(sock *client) {
-    int ret;
+    int ret, req_num;
+    char buf[16];
+    struct timespec begin, end;
+
+    clock_gettime(CLOCK_MONOTONIC, &begin);
     print("Connection accepted from %s (%s) [%s]", client_addr_str, client_addr_str, "N/A");
 
     if (client->enc) {
@@ -56,6 +78,12 @@ int client_connection_handler(sock *client) {
         }
     }
 
+    req_num = 0;
+    while (keep_alive && req_num < REQ_PER_CONNECTION) {
+        client_request_handler(client, req_num++);
+        log_prefix = log_conn_prefix;
+    }
+
     close:
     if (client->enc) {
         SSL_shutdown(client->ssl);
@@ -63,8 +91,11 @@ int client_connection_handler(sock *client) {
     }
     shutdown(client->socket, SHUT_RDWR);
     close(client->socket);
+    clock_gettime(CLOCK_MONOTONIC, &end);
 
-    print("Connection closed");
+    unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
+
+    print("Connection closed (%s)", format_duration(micros, buf));
     return 0;
 }
 
@@ -97,14 +128,16 @@ int client_handler(sock *client, long client_num, struct sockaddr_in6 *client_ad
         server_addr_str = server_addr_str_ptr;
     }
 
-    log_base_prefix = malloc(256);
-    sprintf(log_base_prefix, "[%24s][%s%4i%s]%s[%*s][%5i]%s ",
+    log_conn_prefix = malloc(256);
+    sprintf(log_conn_prefix, "[%24s][%s%4i%s]%s[%*s][%5i]%s ",
             server_addr_str, client->enc ? HTTPS_STR : HTTP_STR, ntohs(server_addr->sin6_port), CLR_STR,
             color_table[client_num % 6], INET_ADDRSTRLEN, client_addr_str, ntohs(client_addr->sin6_port), CLR_STR);
+    log_prefix = log_conn_prefix;
 
     ret = client_connection_handler(client);
     free(client_addr_str_ptr);
     free(server_addr_str_ptr);
-    free(log_base_prefix);
+    free(log_conn_prefix);
+    free(log_req_prefix);
     return ret;
 }
