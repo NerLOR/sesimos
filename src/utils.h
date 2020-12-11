@@ -18,4 +18,7 @@ char *log_prefix;
 #define print(...) out_x(, ##__VA_ARGS__, out_2(__VA_ARGS__), out_2(__VA_ARGS__), out_2(__VA_ARGS__), \
                          out_2(__VA_ARGS__), out_2(__VA_ARGS__), out_2(__VA_ARGS__), out_1(__VA_ARGS__))
 
+
+char *format_duration(unsigned long micros, char *buf);
+
 #endif //NECRONDA_SERVER_UTILS_H

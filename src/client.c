@@ -20,22 +20,6 @@ char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_
 
 struct timeval timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
 
-
-char *format_duration(unsigned long micros, char *buf) {
-    if (micros < 10000) {
-        sprintf(buf, "%.1f ms", (double) micros / 1000.0);
-    } else if (micros < 1000000) {
-        sprintf(buf, "%li ms", micros / 1000);
-    } else if (micros < 100000000) {
-        sprintf(buf, "%.2f s", (double) micros / 1000000.0);
-    } else if (micros < 1000000000) {
-        sprintf(buf, "%.1f s", (double) micros / 1000000.0);
-    } else {
-        sprintf(buf, "%li s", micros / 1000000);
-    }
-    return buf;
-}
-
 void client_terminate() {
     keep_alive = 0;
     // TODO prevent processing of further requests in connection
