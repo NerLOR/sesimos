@@ -52,6 +52,7 @@ int client_request_handler(sock *client, int req_num) {
     char buf[16];
     char *msg = "HTTP/1.1 501 Not Implemented\r\n"
                 "Connection: keep-alive\r\n"
+                "Keep-Alive: timeout=3600, max=100\r\n"
                 "Content-Length: 116\r\n"
                 "\r\n"
                 "<!DOCTYPE html><html><head><title>501 Not Implemented</title></head><body><h1>501 Not Implemented</h1></body></html>";
