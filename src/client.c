@@ -18,6 +18,8 @@ int keep_alive = 1;
 char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr,
         *log_conn_prefix, *log_req_prefix;
 
+struct timeval timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
+
 
 char *format_duration(unsigned long micros, char *buf) {
     if (micros < 10000) {
@@ -48,14 +50,19 @@ int client_request_handler(sock *client, int req_num) {
     struct timespec begin, end;
     int ret;
     char buf[16];
-    char *msg = "HTTP/1.1 501 Not Implemented\r\nConnection: keep-alive\r\nContent-Length: 116\r\n\r\n<!DOCTYPE html><html><head><title>501 Not Implemented</title></head><body><h1>501 Not Implemented</h1></body></html>";
+    char *msg = "HTTP/1.1 501 Not Implemented\r\n"
+                "Connection: keep-alive\r\n"
+                "Content-Length: 116\r\n"
+                "\r\n"
+                "<!DOCTYPE html><html><head><title>501 Not Implemented</title></head><body><h1>501 Not Implemented</h1></body></html>";
 
     fd_set socket_fds;
     FD_ZERO(&socket_fds);
     FD_SET(client->socket, &socket_fds);
-
-    ret = select(client->socket + 1, &socket_fds, NULL, NULL, NULL);
-    if (ret < 0) {
+    timeout.tv_sec = CLIENT_TIMEOUT;
+    timeout.tv_usec = 0;
+    ret = select(client->socket + 1, &socket_fds, NULL, NULL, &timeout);
+    if (ret <= 0) {
         return 1;
     }
     clock_gettime(CLOCK_MONOTONIC, &begin);
@@ -87,7 +94,8 @@ int client_connection_handler(sock *client) {
     clock_gettime(CLOCK_MONOTONIC, &begin);
     print("Connection accepted from %s (%s) [%s]", client_addr_str, client_addr_str, "N/A");
 
-    struct timeval timeout = {.tv_sec = 3600, .tv_usec = 0};
+    timeout.tv_sec = CLIENT_TIMEOUT;
+    timeout.tv_usec = 0;
     if (setsockopt(client->socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) goto set_timeout_err;
     if (setsockopt(client->socket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0) {
         set_timeout_err:
