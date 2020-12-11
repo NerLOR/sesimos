@@ -135,7 +135,11 @@ void terminate() {
         }
     }
 
-    fprintf(stderr, "Goodbye\n");
+    signal(SIGINT, SIG_IGN);
+    signal(SIGTERM, SIG_IGN);
+
+    sleep(1);
+    fprintf(stderr, "\nGoodbye\n");
     exit(0);
 }
 
