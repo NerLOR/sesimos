@@ -220,6 +220,8 @@ int main(int argc, const char *argv[]) {
         }
     }
 
+    fprintf(stderr, "Ready to accept connections\n");
+
     while (active) {
         timeout.tv_sec = 1;
         timeout.tv_usec = 0;
