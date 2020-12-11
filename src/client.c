@@ -66,6 +66,14 @@ int client_connection_handler(sock *client) {
     clock_gettime(CLOCK_MONOTONIC, &begin);
     print("Connection accepted from %s (%s) [%s]", client_addr_str, client_addr_str, "N/A");
 
+    struct timeval timeout = {.tv_sec = 3600, .tv_usec = 0};
+    if (setsockopt(client->socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) goto set_timeout_err;
+    if (setsockopt(client->socket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0) {
+        set_timeout_err:
+        print(ERR_STR "Unable to set timeout for socket: %s" CLR_STR, strerror(errno));
+        return 1;
+    }
+
     if (client->enc) {
         client->ssl = SSL_new(client->ctx);
         SSL_set_fd(client->ssl, client->socket);
@@ -79,8 +87,9 @@ int client_connection_handler(sock *client) {
     }
 
     req_num = 0;
-    while (keep_alive && req_num < REQ_PER_CONNECTION) {
-        client_request_handler(client, req_num++);
+    ret = 0;
+    while (ret == 0 && keep_alive && req_num < REQ_PER_CONNECTION) {
+        ret = client_request_handler(client, req_num++);
         log_prefix = log_conn_prefix;
     }
 
