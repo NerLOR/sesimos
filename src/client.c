@@ -40,27 +40,34 @@ int client_request_handler() {
     return 0;
 }
 
-int client_connection_handler(int client) {
-    char buf1[256];
-    char buf2[256];
+int client_connection_handler(sock *client) {
+    int ret;
     print("Connection accepted from %s (%s) [%s]", client_addr_str, client_addr_str, "N/A");
 
-    sprintf(buf1, "Hello World!\nYour address is: %s\n", client_addr_str);
-    send(client, buf1, strlen(buf1), 0);
-    int len = -1;
-    while (len == -1) {
-        len = recv(client, &buf1, sizeof(buf1), 0);
-    }
-    sprintf(buf2, "Thank you, %.*s!\nGood bye!\n", len, buf1);
-    send(client, buf2, strlen(buf2), 0);
+    if (client->enc) {
+        client->ssl = SSL_new(client->ctx);
+        SSL_set_fd(client->ssl, client->socket);
 
-    close(client);
+        ret = SSL_accept(client->ssl);
+        if (ret <= 0) {
+            print(ERR_STR "Unable to perform handshake: %s" CLR_STR, ssl_get_error(client->ssl, ret));
+            goto close;
+        }
+    }
+
+    close:
+    if (client->enc) {
+        SSL_shutdown(client->ssl);
+    }
+    shutdown(client->socket, SHUT_RDWR);
+    close(client->socket);
 
     print("Connection closed");
     return 0;
 }
 
-int client_handler(int client, long client_num, struct sockaddr_in6 *client_addr) {
+int client_handler(sock *client, long client_num, struct sockaddr_in6 *client_addr) {
+    int ret;
     struct sockaddr_in6 *server_addr;
     struct sockaddr_storage server_addr_storage;
 
@@ -78,7 +85,7 @@ int client_handler(int client, long client_num, struct sockaddr_in6 *client_addr
     }
 
     socklen_t len = sizeof(server_addr_storage);
-    getsockname(client, (struct sockaddr *) &server_addr_storage, &len);
+    getsockname(client->socket, (struct sockaddr *) &server_addr_storage, &len);
     server_addr = (struct sockaddr_in6 *) &server_addr_storage;
     server_addr_str_ptr = malloc(INET6_ADDRSTRLEN);
     inet_ntop(server_addr->sin6_family, (void *) &server_addr->sin6_addr, server_addr_str_ptr, INET6_ADDRSTRLEN);
@@ -90,10 +97,10 @@ int client_handler(int client, long client_num, struct sockaddr_in6 *client_addr
 
     log_base_prefix = malloc(256);
     sprintf(log_base_prefix, "[%24s][%s%4i%s]%s[%*s][%5i]%s ",
-            server_addr_str, R_STR, ntohs(server_addr->sin6_port), CLR_STR,
+            server_addr_str, client->enc ? HTTPS_STR : HTTP_STR, ntohs(server_addr->sin6_port), CLR_STR,
             color_table[client_num % 6], INET_ADDRSTRLEN, client_addr_str, ntohs(client_addr->sin6_port), CLR_STR);
 
-    int ret = client_connection_handler(client);
+    ret = client_connection_handler(client);
     free(client_addr_str_ptr);
     free(server_addr_str_ptr);
     free(log_base_prefix);

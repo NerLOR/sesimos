@@ -24,6 +24,47 @@
 
 int active = 1;
 
+
+void openssl_init() {
+    SSL_library_init();
+    SSL_load_error_strings();
+    ERR_load_BIO_strings();
+    OpenSSL_add_all_algorithms();
+}
+
+char *ssl_get_error(SSL *ssl, int ret) {
+    if (ret > 0) {
+        return NULL;
+    }
+
+    unsigned long ret2 = ERR_get_error();
+    char *err2 = strerror(errno);
+    char *err1 = (char *) ERR_reason_error_string(ret2);
+
+    switch (SSL_get_error(ssl, ret)) {
+        case SSL_ERROR_NONE:
+            return "none";
+        case SSL_ERROR_ZERO_RETURN:
+            return "closed";
+        case SSL_ERROR_WANT_READ:
+            return "want read";
+        case SSL_ERROR_WANT_WRITE:
+            return "want write";
+        case SSL_ERROR_WANT_CONNECT:
+            return "want connect";
+        case SSL_ERROR_WANT_ACCEPT:
+            return "want accept";
+        case SSL_ERROR_WANT_X509_LOOKUP:
+            return "want x509 lookup";
+        case SSL_ERROR_SYSCALL:
+            return ((ret2 == 0) ? ((ret == 0) ? "protocol violation" : err2) : err1);
+        case SSL_ERROR_SSL:
+            return err1;
+        default:
+            return "unknown error";
+    }
+}
+
 void destroy() {
     fprintf(stderr, "\n" ERR_STR "Terminating forcefully!" CLR_STR "\n");
     int status = 0;
@@ -97,7 +138,8 @@ int main(int argc, const char *argv[]) {
     int ready_sockets_num = 0;
     long client_num = 0;
 
-    int client;
+    int client_fd;
+    sock client;
     struct sockaddr_in6 client_addr;
     unsigned int client_addr_len = sizeof(client_addr);
 
@@ -139,7 +181,24 @@ int main(int argc, const char *argv[]) {
     signal(SIGINT, terminate);
     signal(SIGTERM, terminate);
 
-    // TODO implement TLS server side handshake
+    openssl_init();
+
+    client.ctx = SSL_CTX_new(TLS_server_method());
+    SSL_CTX_set_options(client.ctx, SSL_OP_SINGLE_DH_USE);
+    SSL_CTX_set_verify(client.ctx, SSL_VERIFY_NONE, NULL);
+    SSL_CTX_set_min_proto_version(client.ctx, TLS1_VERSION);
+    SSL_CTX_set_mode(client.ctx, SSL_MODE_ENABLE_PARTIAL_WRITE);
+    SSL_CTX_set_cipher_list(client.ctx, "HIGH:!aNULL:!kRSA:!PSK:!SRP:!MD5:!RC4");
+    SSL_CTX_set_ecdh_auto(client.ctx, 1);
+
+    if (SSL_CTX_use_certificate_chain_file(client.ctx, "/home/lorenz/cert/chakotay.pem") != 1) {
+        fprintf(stderr, ERR_STR "Unable to load certificate chain file: %s" CLR_STR "\n", ERR_reason_error_string(ERR_get_error()));
+        return 1;
+    }
+    if (SSL_CTX_use_PrivateKey_file(client.ctx, "/home/lorenz/cert/priv/chakotay.key", SSL_FILETYPE_PEM) != 1) {
+        fprintf(stderr, ERR_STR "Unable to load private key file: %s" CLR_STR "\n", ERR_reason_error_string(ERR_get_error()));
+        return 1;
+    }
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         if (listen(SOCKETS[i], LISTEN_BACKLOG) == -1) {
@@ -168,8 +227,8 @@ int main(int argc, const char *argv[]) {
 
         for (int i = 0; i < NUM_SOCKETS; i++) {
             if (FD_ISSET(SOCKETS[i], &read_socket_fds)) {
-                client = accept(SOCKETS[i], (struct sockaddr *) &client_addr, &client_addr_len);
-                if (client == -1) {
+                client_fd = accept(SOCKETS[i], (struct sockaddr *) &client_addr, &client_addr_len);
+                if (client_fd == -1) {
                     fprintf(parent_stderr, ERR_STR "Unable to accept connection: %s" CLR_STR "\n", strerror(errno));
                     continue;
                 }
@@ -179,11 +238,15 @@ int main(int argc, const char *argv[]) {
                     // child
                     signal(SIGINT, SIG_IGN);
                     signal(SIGTERM, SIG_IGN);
-                    return client_handler(client, client_num, &client_addr);
+
+                    client.socket = client_fd;
+                    client.enc = i == 1;
+
+                    return client_handler(&client, client_num, &client_addr);
                 } else if (pid > 0) {
                     // parent
                     client_num++;
-                    close(client);
+                    close(client_fd);
                     for (int j = 0; j < MAX_CHILDREN; j++) {
                         if (CHILDREN[j] == 0) {
                             CHILDREN[j] = pid;

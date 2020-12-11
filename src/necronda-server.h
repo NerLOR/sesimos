@@ -10,6 +10,13 @@
 
 #include <sys/types.h>
 #include <stdio.h>
+#include <openssl/bio.h>
+#include <openssl/err.h>
+#include <openssl/pem.h>
+#include <openssl/ssl.h>
+#include <openssl/conf.h>
+#include <openssl/engine.h>
+#include <openssl/dh.h>
 
 
 #define NUM_SOCKETS 2
@@ -18,13 +25,23 @@
 
 #define ERR_STR "\x1B[1;31m"
 #define CLR_STR "\x1B[0m"
-#define R_STR "\x1B[31m"
-#define G_STR "\x1B[32m"
+#define HTTP_STR "\x1B[1;31m"
+#define HTTPS_STR "\x1B[1;32m"
 
 int SOCKETS[NUM_SOCKETS];
 pid_t CHILDREN[MAX_CHILDREN];
 
 FILE *parent_stdout, *parent_stderr;
 
+typedef struct {
+    int enc:1;
+    int socket;
+    SSL_CTX *ctx;
+    SSL *ssl;
+    BIO *bio_in;
+    BIO *bio_out;
+} sock;
+
+char *ssl_get_error(SSL *ssl, int ret);
 
 #endif //NECRONDA_SERVER_NECRONDA_SERVER_H
