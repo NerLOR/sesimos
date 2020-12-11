@@ -23,6 +23,8 @@
 #define LISTEN_BACKLOG 16
 #define REQ_PER_CONNECTION 100
 
+#define CLIENT_MAX_HEADER_SIZE 8192
+
 #define ERR_STR "\x1B[1;31m"
 #define CLR_STR "\x1B[0m"
 #define HTTP_STR "\x1B[1;31m"

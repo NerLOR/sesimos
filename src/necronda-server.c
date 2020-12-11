@@ -104,6 +104,7 @@ void terminate() {
     }
 
     int status = 0;
+    int wait_num = 0;
     int ret;
     for (int i = 0; i < MAX_CHILDREN; i++) {
         if (CHILDREN[i] != 0) {
@@ -114,8 +115,13 @@ void terminate() {
                 CHILDREN[i] = 0;
             } else {
                 kill(CHILDREN[i], SIGTERM);
+                wait_num++;
             }
         }
+    }
+
+    if (wait_num > 0) {
+        fprintf(stderr, "Waiting for %i child process(es)...\n", wait_num);
     }
 
     for (int i = 0; i < MAX_CHILDREN; i++) {

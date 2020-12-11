@@ -14,18 +14,9 @@
 #include "net/http.h"
 
 
-#define out_1(fmt) fprintf(parent_stdout, "%s" fmt "\n", log_prefix)
-#define out_2(fmt, args...) fprintf(parent_stdout, "%s" fmt "\n", log_prefix, args)
-
-#define out_x(x, arg1, arg2, arg3, arg4, arg5, arg6, arg7, FUNC, ...) FUNC
-
-#define print(...) out_x(, ##__VA_ARGS__, out_2(__VA_ARGS__), out_2(__VA_ARGS__), out_2(__VA_ARGS__), \
-                         out_2(__VA_ARGS__), out_2(__VA_ARGS__), out_2(__VA_ARGS__), out_1(__VA_ARGS__))
-
-
 int keep_alive = 1;
 char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr,
-        *log_prefix, *log_conn_prefix, *log_req_prefix;
+        *log_conn_prefix, *log_req_prefix;
 
 
 char *format_duration(unsigned long micros, char *buf) {
@@ -54,14 +45,44 @@ int client_websocket_handler() {
 }
 
 int client_request_handler(sock *client, int req_num) {
-    // TODO implement client_request_handler
+    struct timespec begin, end;
+    int ret;
+    char buf[16];
+    char *msg = "HTTP/1.1 501 Not Implemented\r\nConnection: keep-alive\r\nContent-Length: 116\r\n\r\n<!DOCTYPE html><html><head><title>501 Not Implemented</title></head><body><h1>501 Not Implemented</h1></body></html>";
+
+    fd_set socket_fds;
+    FD_ZERO(&socket_fds);
+    FD_SET(client->socket, &socket_fds);
+
+    ret = select(client->socket + 1, &socket_fds, NULL, NULL, NULL);
+    if (ret < 0) {
+        return 1;
+    }
+    clock_gettime(CLOCK_MONOTONIC, &begin);
+
+    http_req req;
+    ret = http_receive_request(client, &req);
+    if (ret != 0) {
+        return ret;
+    }
+
+    if (client->enc) {
+        SSL_write(client->ssl, msg, (int) strlen(msg));
+    } else {
+        send(client->socket, msg, strlen(msg), 0);
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
+    print(ERR_STR "501 Not Implemented (%s)" CLR_STR, format_duration(micros, buf));
+
     return 0;
 }
 
 int client_connection_handler(sock *client) {
+    struct timespec begin, end;
     int ret, req_num;
     char buf[16];
-    struct timespec begin, end;
 
     clock_gettime(CLOCK_MONOTONIC, &begin);
     print("Connection accepted from %s (%s) [%s]", client_addr_str, client_addr_str, "N/A");
@@ -100,8 +121,8 @@ int client_connection_handler(sock *client) {
     }
     shutdown(client->socket, SHUT_RDWR);
     close(client->socket);
-    clock_gettime(CLOCK_MONOTONIC, &end);
 
+    clock_gettime(CLOCK_MONOTONIC, &end);
     unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
 
     print("Connection closed (%s)", format_duration(micros, buf));
