@@ -73,7 +73,6 @@ int client_request_handler(sock *client, int req_num) {
 
     sprintf(log_req_prefix, "[%s%24s%s]%s ", BLD_STR, host, CLR_STR, log_client_prefix);
     log_prefix = log_req_prefix;
-
     print(BLD_STR "%s %s" CLR_STR, req.method, req.uri);
 
     respond:
@@ -82,13 +81,10 @@ int client_request_handler(sock *client, int req_num) {
     if (server_keep_alive && client_keep_alive) {
         http_add_header_field(&res.hdr, "Connection", "keep-alive");
         http_add_header_field(&res.hdr, "Keep-Alive", "timeout=3600, max=100");
-
     } else {
         http_add_header_field(&res.hdr, "Connection", "close");
     }
     http_add_header_field(&res.hdr, "Content-Length", "0");
-
-    res.status = http_get_status(501);
 
     http_send_response(client, &res);
 
