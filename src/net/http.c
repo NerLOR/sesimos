@@ -61,8 +61,13 @@ int http_receive_request(sock *client, http_req *req) {
             }
         }
 
+        if (rcv_len == 0) {
+            print("Unable to receive: closed");
+            return 1;
+        }
+
         ptr = buf;
-        while (1) {
+        while (rcv_len - (ptr - buf) != 0) {
             pos0 = memchr(ptr, '\r', rcv_len - (ptr - buf));
             if (pos0 == NULL || pos0[1] != '\n') {
                 print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);

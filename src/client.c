@@ -14,14 +14,14 @@
 #include "net/http.h"
 
 
-int keep_alive = 1;
+int server_keep_alive = 1;
 char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr,
         *log_client_prefix, *log_conn_prefix, *log_req_prefix;
 
 struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
 
 void client_terminate() {
-    keep_alive = 0;
+    server_keep_alive = 0;
     // TODO prevent processing of further requests in connection
 }
 
@@ -32,9 +32,9 @@ int client_websocket_handler() {
 
 int client_request_handler(sock *client, int req_num) {
     struct timespec begin, end;
-    int ret;
+    int ret, client_keep_alive;
     char buf[16];
-    char *host;
+    char *host, *hdr_connection;
     char *msg = "HTTP/1.1 501 Not Implemented\r\n"
                 "Connection: keep-alive\r\n"
                 "Keep-Alive: timeout=3600, max=100\r\n"
@@ -59,9 +59,14 @@ int client_request_handler(sock *client, int req_num) {
         return ret;
     }
 
+    hdr_connection = http_get_header_field(&req.hdr, "Connection");
+    client_keep_alive = hdr_connection != NULL && strncmp(hdr_connection, "keep-alive", 10) == 0;
     host = http_get_header_field(&req.hdr, "Host");
-    sprintf(log_req_prefix, "[%s%24s%s]%s ", (host != NULL) ? BLD_STR : "", (host != NULL) ? host : server_addr_str,
-            (host != NULL) ? CLR_STR : "", log_client_prefix);
+    if (host == NULL) {
+        goto respond;
+    }
+
+    sprintf(log_req_prefix, "[%s%24s%s]%s ", BLD_STR, host, CLR_STR, log_client_prefix);
     log_prefix = log_req_prefix;
 
     print(BLD_STR "%s %s" CLR_STR, req.method, req.uri);
@@ -72,12 +77,13 @@ int client_request_handler(sock *client, int req_num) {
         send(client->socket, msg, strlen(msg), 0);
     }
 
+    respond:
     clock_gettime(CLOCK_MONOTONIC, &end);
     unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
     print(ERR_STR "501 Not Implemented (%s)" CLR_STR, format_duration(micros, buf));
 
     http_free_req(&req);
-    return 0;
+    return !client_keep_alive;
 }
 
 int client_connection_handler(sock *client) {
@@ -111,7 +117,7 @@ int client_connection_handler(sock *client) {
 
     req_num = 0;
     ret = 0;
-    while (ret == 0 && keep_alive && req_num < REQ_PER_CONNECTION) {
+    while (ret == 0 && server_keep_alive && req_num < REQ_PER_CONNECTION) {
         ret = client_request_handler(client, req_num++);
         log_prefix = log_conn_prefix;
     }
