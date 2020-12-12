@@ -18,7 +18,7 @@ int keep_alive = 1;
 char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr,
         *log_conn_prefix, *log_req_prefix;
 
-struct timeval timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
+struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
 
 void client_terminate() {
     keep_alive = 0;
@@ -44,9 +44,9 @@ int client_request_handler(sock *client, int req_num) {
     fd_set socket_fds;
     FD_ZERO(&socket_fds);
     FD_SET(client->socket, &socket_fds);
-    timeout.tv_sec = CLIENT_TIMEOUT;
-    timeout.tv_usec = 0;
-    ret = select(client->socket + 1, &socket_fds, NULL, NULL, &timeout);
+    client_timeout.tv_sec = CLIENT_TIMEOUT;
+    client_timeout.tv_usec = 0;
+    ret = select(client->socket + 1, &socket_fds, NULL, NULL, &client_timeout);
     if (ret <= 0) {
         return 1;
     }
@@ -79,10 +79,10 @@ int client_connection_handler(sock *client) {
     clock_gettime(CLOCK_MONOTONIC, &begin);
     print("Connection accepted from %s (%s) [%s]", client_addr_str, client_addr_str, "N/A");
 
-    timeout.tv_sec = CLIENT_TIMEOUT;
-    timeout.tv_usec = 0;
-    if (setsockopt(client->socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) goto set_timeout_err;
-    if (setsockopt(client->socket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0) {
+    client_timeout.tv_sec = CLIENT_TIMEOUT;
+    client_timeout.tv_usec = 0;
+    if (setsockopt(client->socket, SOL_SOCKET, SO_RCVTIMEO, &client_timeout, sizeof(client_timeout)) < 0) goto set_timeout_err;
+    if (setsockopt(client->socket, SOL_SOCKET, SO_SNDTIMEO, &client_timeout, sizeof(client_timeout)) < 0) {
         set_timeout_err:
         print(ERR_STR "Unable to set timeout for socket: %s" CLR_STR, strerror(errno));
         return 1;
