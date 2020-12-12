@@ -35,12 +35,6 @@ int client_request_handler(sock *client, int req_num) {
     int ret, client_keep_alive;
     char buf[64];
     char *host, *hdr_connection;
-    char *msg = "HTTP/1.1 501 Not Implemented\r\n"
-                "Connection: keep-alive\r\n"
-                "Keep-Alive: timeout=3600, max=100\r\n"
-                "Content-Length: 116\r\n"
-                "\r\n"
-                "<!DOCTYPE html><html><head><title>501 Not Implemented</title></head><body><h1>501 Not Implemented</h1></body></html>";
 
     fd_set socket_fds;
     FD_ZERO(&socket_fds);
@@ -91,7 +85,8 @@ int client_request_handler(sock *client, int req_num) {
 
     clock_gettime(CLOCK_MONOTONIC, &end);
     unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
-    print("%s%03i %s (%s)%s", http_get_status_color(res.status), res.status->code, res.status->msg, format_duration(micros, buf), CLR_STR);
+    print("%s%03i %s (%s)%s", http_get_status_color(res.status), res.status->code, res.status->msg,
+          format_duration(micros, buf), CLR_STR);
 
     http_free_req(&req);
     http_free_res(&res);
@@ -108,7 +103,8 @@ int client_connection_handler(sock *client) {
 
     client_timeout.tv_sec = CLIENT_TIMEOUT;
     client_timeout.tv_usec = 0;
-    if (setsockopt(client->socket, SOL_SOCKET, SO_RCVTIMEO, &client_timeout, sizeof(client_timeout)) < 0) goto set_timeout_err;
+    if (setsockopt(client->socket, SOL_SOCKET, SO_RCVTIMEO, &client_timeout, sizeof(client_timeout)) < 0)
+        goto set_timeout_err;
     if (setsockopt(client->socket, SOL_SOCKET, SO_SNDTIMEO, &client_timeout, sizeof(client_timeout)) < 0) {
         set_timeout_err:
         print(ERR_STR "Unable to set timeout for socket: %s" CLR_STR, strerror(errno));
