@@ -70,18 +70,15 @@ int http_receive_request(sock *client, http_req *req) {
         }
 
         ptr = buf;
-        while (rcv_len - (ptr - buf) != 0) {
+        while (rcv_len != (ptr - buf)) {
             pos0 = memchr(ptr, '\r', rcv_len - (ptr - buf));
             if (pos0 == NULL || pos0[1] != '\n') {
                 print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);
                 free(buf);
                 return -1;
-            } else if (pos0[2] == '\r' && pos0[3] == '\n') {
-                free(buf);
-                return 0;
             }
 
-            if (ptr == buf) {
+            if (req->version[0] == 0) {
                 if (memcmp(ptr, "GET ", 4) == 0) {
                     sprintf(req->method, "GET");
                 } else if (memcmp(ptr, "HEAD ", 5) == 0) {
@@ -147,7 +144,10 @@ int http_receive_request(sock *client, http_req *req) {
 
                 req->hdr.field_num++;
             }
-
+            if (pos0[2] == '\r' && pos0[3] == '\n') {
+                free(buf);
+                return 0;
+            }
             ptr = pos0 + 2;
         }
     }

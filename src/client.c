@@ -68,6 +68,7 @@ int client_request_handler(sock *client, int req_num) {
     client_keep_alive = hdr_connection != NULL && strncmp(hdr_connection, "keep-alive", 10) == 0;
     host = http_get_header_field(&req.hdr, "Host");
     if (host == NULL) {
+        res.status = http_get_status(400);
         goto respond;
     }
 
