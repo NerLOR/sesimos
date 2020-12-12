@@ -33,7 +33,7 @@ int client_websocket_handler() {
 int client_request_handler(sock *client, int req_num) {
     struct timespec begin, end;
     int ret, client_keep_alive;
-    char buf[16];
+    char buf[64];
     char *host, *hdr_connection;
     char *msg = "HTTP/1.1 501 Not Implemented\r\n"
                 "Connection: keep-alive\r\n"
@@ -59,6 +59,11 @@ int client_request_handler(sock *client, int req_num) {
         return ret;
     }
 
+    http_res res;
+    sprintf(res.version, "1.1");
+    res.status = http_get_status(501);
+    res.hdr.field_num = 0;
+
     hdr_connection = http_get_header_field(&req.hdr, "Connection");
     client_keep_alive = hdr_connection != NULL && strncmp(hdr_connection, "keep-alive", 10) == 0;
     host = http_get_header_field(&req.hdr, "Host");
@@ -71,18 +76,28 @@ int client_request_handler(sock *client, int req_num) {
 
     print(BLD_STR "%s %s" CLR_STR, req.method, req.uri);
 
-    if (client->enc) {
-        SSL_write(client->ssl, msg, (int) strlen(msg));
-    } else {
-        send(client->socket, msg, strlen(msg), 0);
-    }
-
     respond:
+    http_add_header_field(&res.hdr, "Date", http_get_date(buf, sizeof(buf)));
+    http_add_header_field(&res.hdr, "Server", SERVER_STR);
+    if (server_keep_alive && client_keep_alive) {
+        http_add_header_field(&res.hdr, "Connection", "keep-alive");
+        http_add_header_field(&res.hdr, "Keep-Alive", "timeout=3600, max=100");
+
+    } else {
+        http_add_header_field(&res.hdr, "Connection", "close");
+    }
+    http_add_header_field(&res.hdr, "Content-Length", "0");
+
+    res.status = http_get_status(501);
+
+    http_send_response(client, &res);
+
     clock_gettime(CLOCK_MONOTONIC, &end);
     unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
-    print(ERR_STR "501 Not Implemented (%s)" CLR_STR, format_duration(micros, buf));
+    print("%s%03i %s (%s)%s", http_get_status_color(res.status), res.status->code, res.status->msg, format_duration(micros, buf), CLR_STR);
 
     http_free_req(&req);
+    http_free_res(&res);
     return !client_keep_alive;
 }
 

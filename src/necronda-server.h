@@ -32,6 +32,14 @@
 #define HTTP_STR "\x1B[1;31m"
 #define HTTPS_STR "\x1B[1;32m"
 
+#define HTTP_1XX_STR "\x1B[1;32m"
+#define HTTP_2XX_STR "\x1B[1;32m"
+#define HTTP_3XX_STR "\x1B[1;33m"
+#define HTTP_4XX_STR "\x1B[1;31m"
+#define HTTP_5XX_STR "\x1B[1;31m"
+
+#define SERVER_STR "Necronda/4.0"
+
 int SOCKETS[NUM_SOCKETS];
 pid_t CHILDREN[MAX_CHILDREN];
 

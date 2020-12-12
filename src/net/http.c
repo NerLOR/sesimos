@@ -23,7 +23,6 @@ void http_to_camel_case(char *str) {
     }
 }
 
-
 void http_free_hdr(http_hdr *hdr) {
     for (int i = 0; i < hdr->field_num; i++) {
         free(hdr->fields[i][0]);
@@ -34,6 +33,10 @@ void http_free_hdr(http_hdr *hdr) {
 void http_free_req(http_req *req) {
     free(req->uri);
     http_free_hdr(&req->hdr);
+}
+
+void http_free_res(http_res *res) {
+    http_free_hdr(&res->hdr);
 }
 
 int http_receive_request(sock *client, http_req *req) {
@@ -150,15 +153,87 @@ int http_receive_request(sock *client, http_req *req) {
     }
 }
 
-char *http_get_header_field(http_hdr *hdr, const char *field_name) {
+char *http_get_header_field(http_hdr *hdr, char *field_name) {
     size_t len = strlen(field_name);
     char *_field_name = malloc(len + 1);
     sprintf(_field_name, "%s", field_name);
     http_to_camel_case(_field_name);
     for (int i = 0; i < hdr->field_num; i++) {
         if (strncmp(hdr->fields[i][0], _field_name, len) == 0) {
+            free(_field_name);
             return hdr->fields[i][1];
         }
     }
+    free(_field_name);
     return NULL;
+}
+
+void http_add_header_field(http_hdr *hdr, char *field_name, char *field_value) {
+    size_t len_name = strlen(field_name);
+    size_t len_value = strlen(field_value);
+    char *_field_name = malloc(len_name + 1);
+    char *_field_value = malloc(len_value + 1);
+    sprintf(_field_name, "%s", field_name);
+    sprintf(_field_value, "%s", field_value);
+    http_to_camel_case(_field_name);
+    hdr->fields[hdr->field_num][0] = _field_name;
+    hdr->fields[hdr->field_num][1] = _field_value;
+    hdr->field_num++;
+}
+
+int http_send_response(sock *client, http_res *res) {
+    char *buf = malloc(CLIENT_MAX_HEADER_SIZE);
+    int len = 0;
+    int snd_len = 0;
+
+    len += sprintf(buf + len, "HTTP/%s %03i %s\r\n", res->version, res->status->code, res->status->msg);
+    for (int i = 0; i < res->hdr.field_num; i++) {
+        len += sprintf(buf + len, "%s: %s\r\n", res->hdr.fields[i][0], res->hdr.fields[i][1]);
+    }
+    len += sprintf(buf + len, "\r\n");
+
+    if (client->enc) {
+        snd_len = SSL_write(client->ssl, buf, len);
+    } else {
+        snd_len = send(client->socket, buf, len, 0);
+    }
+    free(buf);
+    return 0;
+}
+
+http_status *http_get_status(unsigned short status_code) {
+    for (int i = 0; i < sizeof(http_statuses) / sizeof(http_status); i++) {
+        if (http_statuses[i].code == status_code) {
+            return &http_statuses[i];
+        }
+    }
+    return NULL;
+}
+
+const char *http_get_status_color(http_status *status) {
+    unsigned short code = status->code;
+    if (code >= 100 && code < 200) {
+        return HTTP_1XX_STR;
+    } else if (code >= 200 && code < 300 || code == 304) {
+        return HTTP_2XX_STR;
+    } else if (code >= 300 && code < 400) {
+        return HTTP_3XX_STR;
+    } else if (code >= 400 && code < 500) {
+        return HTTP_4XX_STR;
+    } else if (code >= 500 && code < 600) {
+        return HTTP_5XX_STR;
+    }
+    return "";
+}
+
+char *http_format_date(time_t time, char *buf, size_t size) {
+    struct tm *timeinfo = gmtime(&time);
+    strftime(buf, size, "%a, %d %b %Y %H:%M:%S GMT", timeinfo);
+    return buf;
+}
+
+char *http_get_date(char *buf, size_t size) {
+    time_t rawtime;
+    time(&rawtime);
+    return http_format_date(rawtime, buf, size);
 }
