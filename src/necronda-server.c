@@ -138,8 +138,12 @@ void terminate() {
     signal(SIGINT, SIG_IGN);
     signal(SIGTERM, SIG_IGN);
 
-    sleep(1);
-    fprintf(stderr, "\nGoodbye\n");
+    if (wait_num > 0) {
+        sleep(1);
+        fprintf(stderr, "\nGoodbye\n");
+    } else {
+        fprintf(stderr, "Goodbye\n");
+    }
     exit(0);
 }
 
