@@ -9,11 +9,15 @@
 #define NECRONDA_SERVER_HTTP_H
 
 typedef struct {
+    char field_num;
+    char *fields[64][2];
+} http_hdr;
+
+typedef struct {
     char method[8];
     char *uri;
     char version[3];
-    char field_num;
-    char *fields[64][2];
+    http_hdr hdr;
 } http_req;
 
 int http_receive_request(sock *client, http_req *req);

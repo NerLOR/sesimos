@@ -16,7 +16,7 @@
 
 int keep_alive = 1;
 char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr,
-        *log_conn_prefix, *log_req_prefix;
+        *log_client_prefix, *log_conn_prefix, *log_req_prefix;
 
 struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
 
@@ -34,6 +34,7 @@ int client_request_handler(sock *client, int req_num) {
     struct timespec begin, end;
     int ret;
     char buf[16];
+    char *host;
     char *msg = "HTTP/1.1 501 Not Implemented\r\n"
                 "Connection: keep-alive\r\n"
                 "Keep-Alive: timeout=3600, max=100\r\n"
@@ -58,6 +59,13 @@ int client_request_handler(sock *client, int req_num) {
         return ret;
     }
 
+    host = http_get_header_field(&req.hdr, "Host");
+    sprintf(log_req_prefix, "[%s%24s%s]%s ", (host != NULL) ? BLD_STR : "", (host != NULL) ? host : server_addr_str,
+            (host != NULL) ? CLR_STR : "", log_client_prefix);
+    log_prefix = log_req_prefix;
+
+    print(BLD_STR "%s %s" CLR_STR, req.method, req.uri);
+
     if (client->enc) {
         SSL_write(client->ssl, msg, (int) strlen(msg));
     } else {
@@ -68,6 +76,7 @@ int client_request_handler(sock *client, int req_num) {
     unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
     print(ERR_STR "501 Not Implemented (%s)" CLR_STR, format_duration(micros, buf));
 
+    http_free_req(&req);
     return 0;
 }
 
@@ -151,10 +160,14 @@ int client_handler(sock *client, long client_num, struct sockaddr_in6 *client_ad
         server_addr_str = server_addr_str_ptr;
     }
 
+    log_req_prefix = malloc(256);
+    log_client_prefix = malloc(256);
+    sprintf(log_client_prefix, "[%s%4i%s]%s[%*s][%5i]%s", client->enc ? HTTPS_STR : HTTP_STR,
+            ntohs(server_addr->sin6_port), CLR_STR, color_table[client_num % 6], INET_ADDRSTRLEN, client_addr_str,
+            ntohs(client_addr->sin6_port), CLR_STR);
+
     log_conn_prefix = malloc(256);
-    sprintf(log_conn_prefix, "[%24s][%s%4i%s]%s[%*s][%5i]%s ",
-            server_addr_str, client->enc ? HTTPS_STR : HTTP_STR, ntohs(server_addr->sin6_port), CLR_STR,
-            color_table[client_num % 6], INET_ADDRSTRLEN, client_addr_str, ntohs(client_addr->sin6_port), CLR_STR);
+    sprintf(log_conn_prefix, "[%24s]%s ", server_addr_str, log_client_prefix);
     log_prefix = log_conn_prefix;
 
     ret = client_connection_handler(client);
@@ -162,5 +175,6 @@ int client_handler(sock *client, long client_num, struct sockaddr_in6 *client_ad
     free(server_addr_str_ptr);
     free(log_conn_prefix);
     free(log_req_prefix);
+    free(log_client_prefix);
     return ret;
 }

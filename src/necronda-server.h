@@ -28,6 +28,7 @@
 
 #define ERR_STR "\x1B[1;31m"
 #define CLR_STR "\x1B[0m"
+#define BLD_STR "\x1B[1m"
 #define HTTP_STR "\x1B[1;31m"
 #define HTTPS_STR "\x1B[1;32m"
 
