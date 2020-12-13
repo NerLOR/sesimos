@@ -9,17 +9,8 @@
 
 #include "necronda-server.h"
 
-#include <stdio.h>
-#include <sys/socket.h>
-#include <signal.h>
-#include <unistd.h>
-#include <sys/select.h>
-#include <string.h>
-#include <errno.h>
-#include <arpa/inet.h>
-#include <wait.h>
-
 #include "utils.c"
+#include "uri.c"
 #include "net/http.c"
 #include "client.c"
 

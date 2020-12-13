@@ -5,12 +5,9 @@
  * Lorenz Stechauner, 2020-12-03
  */
 
-#include <sys/types.h>
-#include <unistd.h>
-#include <stdlib.h>
-
 #include "necronda-server.h"
 #include "utils.h"
+#include "uri.h"
 #include "net/http.h"
 
 
@@ -20,9 +17,12 @@ char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_
 
 struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
 
+char *get_webroot(char *http_host) {
+
+}
+
 void client_terminate() {
     server_keep_alive = 0;
-    // TODO prevent processing of further requests in connection
 }
 
 int client_websocket_handler() {

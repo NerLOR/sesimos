@@ -8,6 +8,15 @@
 #ifndef NECRONDA_SERVER_NECRONDA_SERVER_H
 #define NECRONDA_SERVER_NECRONDA_SERVER_H
 
+#include <stdio.h>
+#include <sys/socket.h>
+#include <signal.h>
+#include <unistd.h>
+#include <sys/select.h>
+#include <string.h>
+#include <errno.h>
+#include <arpa/inet.h>
+#include <wait.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <openssl/err.h>
