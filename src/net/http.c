@@ -80,21 +80,21 @@ int http_receive_request(sock *client, http_req *req) {
 
             if (req->version[0] == 0) {
                 if (memcmp(ptr, "GET ", 4) == 0) {
-                    sprintf(req->method, "GET");
+                    strcpy(req->method, "GET");
                 } else if (memcmp(ptr, "HEAD ", 5) == 0) {
-                    sprintf(req->method, "HEAD");
+                    strcpy(req->method, "HEAD");
                 } else if (memcmp(ptr, "POST ", 5) == 0) {
-                    sprintf(req->method, "POST");
+                    strcpy(req->method, "POST");
                 } else if (memcmp(ptr, "PUT ", 4) == 0) {
-                    sprintf(req->method, "PUT");
+                    strcpy(req->method, "PUT");
                 } else if (memcmp(ptr, "DELETE ", 7) == 0) {
-                    sprintf(req->method, "DELETE");
+                    strcpy(req->method, "DELETE");
                 } else if (memcmp(ptr, "CONNECT ", 7) == 0) {
-                    sprintf(req->method, "CONNECT");
+                    strcpy(req->method, "CONNECT");
                 } else if (memcmp(ptr, "OPTIONS ", 7) == 0) {
-                    sprintf(req->method, "OPTIONS");
+                    strcpy(req->method, "OPTIONS");
                 } else if (memcmp(ptr, "TRACE ", 6) == 0) {
-                    sprintf(req->method, "TRACE");
+                    strcpy(req->method, "TRACE");
                 } else {
                     print(ERR_STR "Unable to parse header: Invalid method" CLR_STR);
                     free(buf);
@@ -156,7 +156,7 @@ int http_receive_request(sock *client, http_req *req) {
 char *http_get_header_field(http_hdr *hdr, char *field_name) {
     size_t len = strlen(field_name);
     char *_field_name = malloc(len + 1);
-    sprintf(_field_name, "%s", field_name);
+    strcpy(_field_name, field_name);
     http_to_camel_case(_field_name);
     for (int i = 0; i < hdr->field_num; i++) {
         if (strncmp(hdr->fields[i][0], _field_name, len) == 0) {
@@ -173,8 +173,8 @@ void http_add_header_field(http_hdr *hdr, char *field_name, char *field_value) {
     size_t len_value = strlen(field_value);
     char *_field_name = malloc(len_name + 1);
     char *_field_value = malloc(len_value + 1);
-    sprintf(_field_name, "%s", field_name);
-    sprintf(_field_value, "%s", field_value);
+    strcpy(_field_name, field_name);
+    strcpy(_field_value, field_value);
     http_to_camel_case(_field_name);
     hdr->fields[hdr->field_num][0] = _field_name;
     hdr->fields[hdr->field_num][1] = _field_value;
