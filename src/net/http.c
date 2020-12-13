@@ -66,7 +66,7 @@ int http_receive_request(sock *client, http_req *req) {
 
         if (rcv_len == 0) {
             print("Unable to receive: closed");
-            return 1;
+            return -1;
         }
 
         ptr = buf;
@@ -75,7 +75,7 @@ int http_receive_request(sock *client, http_req *req) {
             if (pos0 == NULL || pos0[1] != '\n') {
                 print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);
                 free(buf);
-                return -1;
+                return 1;
             }
 
             if (req->version[0] == 0) {
@@ -98,7 +98,7 @@ int http_receive_request(sock *client, http_req *req) {
                 } else {
                     print(ERR_STR "Unable to parse header: Invalid method" CLR_STR);
                     free(buf);
-                    return -1;
+                    return 2;
                 }
 
                 pos1 = memchr(ptr, ' ', rcv_len - (ptr - buf)) + 1;
@@ -108,13 +108,13 @@ int http_receive_request(sock *client, http_req *req) {
                     err_hdr_fmt:
                     print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);
                     free(buf);
-                    return -1;
+                    return 1;
                 }
 
                 if (memcmp(pos2, "HTTP/", 5) != 0 || memcmp(pos2 + 8, "\r\n", 2) != 0) {
                     print(ERR_STR "Unable to parse header: Invalid version" CLR_STR);
                     free(buf);
-                    return -1;
+                    return 3;
                 }
 
                 len = pos2 - pos1 - 1;
@@ -126,7 +126,7 @@ int http_receive_request(sock *client, http_req *req) {
                 if (pos1 == NULL) {
                     print(ERR_STR "Unable to parse header: Invalid version" CLR_STR);
                     free(buf);
-                    return -1;
+                    return 3;
                 }
 
                 len = pos1 - ptr;

@@ -40,6 +40,8 @@ int client_request_handler(sock *client, int req_num) {
     int ret, client_keep_alive;
     char buf[64];
     char msg_buf[4096];
+    char err_msg[256];
+    err_msg[0] = 0;
     char *host, *hdr_connection, *webroot;
 
     fd_set socket_fds;
@@ -62,6 +64,15 @@ int client_request_handler(sock *client, int req_num) {
     ret = http_receive_request(client, &req);
     if (ret != 0) {
         client_keep_alive = 0;
+        if (ret < 0) {
+            goto abort;
+        } else if (ret == 1) {
+            sprintf(err_msg, "Unable to parse header: Invalid header format.");
+        } else if (ret == 2) {
+            sprintf(err_msg, "Unable to parse header: Invalid method.");
+        } else if (ret == 3) {
+            sprintf(err_msg, "Unable to parse header: Invalid version");
+        }
         res.status = http_get_status(400);
         goto respond;
     }
@@ -71,6 +82,7 @@ int client_request_handler(sock *client, int req_num) {
     host = http_get_header_field(&req.hdr, "Host");
     if (host == NULL || strchr(host, '/') != NULL) {
         res.status = http_get_status(400);
+        sprintf(err_msg, "The client provided no or an invalid Host header field.");
         goto respond;
     }
 
@@ -96,7 +108,7 @@ int client_request_handler(sock *client, int req_num) {
     if (res.status->code >= 300 && res.status->code < 600) {
         http_error_msg *http_msg = http_get_error_msg(res.status->code);
         len = sprintf(msg_buf, http_error_document, res.status->code, res.status->msg,
-                      http_msg != NULL ? http_msg->err_msg : "", NULL,
+                      http_msg != NULL ? http_msg->err_msg : "", err_msg[0] != 0 ? err_msg : "",
                       res.status->code >= 300 && res.status->code < 400 ? "info" : "error");
         sprintf(buf, "%i", len);
         http_add_header_field(&res.hdr, "Content-Length", buf);
@@ -121,6 +133,8 @@ int client_request_handler(sock *client, int req_num) {
     unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
     print("%s%03i %s (%s)%s", http_get_status_color(res.status), res.status->code, res.status->msg,
           format_duration(micros, buf), CLR_STR);
+
+    abort:
 
     http_free_req(&req);
     http_free_res(&res);
