@@ -143,7 +143,7 @@ const char *http_error_document =
         "        }\n"
         "        h1 {\n"
         "            margin: 0.5em 0;\n"
-        "            font-size: 1.75em;\n"
+        "            font-size: 1.5em;\n"
         "        }\n"
         "        p {\n"
         "            text-align: center;\n"

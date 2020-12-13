@@ -112,6 +112,7 @@ int client_request_handler(sock *client, int req_num) {
                       res.status->code >= 300 && res.status->code < 400 ? "info" : "error");
         sprintf(buf, "%i", len);
         http_add_header_field(&res.hdr, "Content-Length", buf);
+        http_add_header_field(&res.hdr, "Content-Type", "text/html; charset=UTF-8");
     } else {
         http_add_header_field(&res.hdr, "Content-Length", "0");
     }
