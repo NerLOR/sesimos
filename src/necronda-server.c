@@ -171,6 +171,32 @@ int main(int argc, const char *argv[]) {
 
     printf("Necronda Web Server\n");
 
+    for (int i = 1; i < argc; i++) {
+        const char *arg = argv[i];
+        unsigned long len = strlen(arg);
+        if ((len == 2 && strncmp(arg, "-h", 2) == 0) || (len == 6 && strncmp(arg, "--help", 6) == 0)) {
+            printf("Usage: necronda-server [-h] -w <PATH> -c <CERT-FILE> -p <KEY-FILE>\n"
+                   "\n"
+                   "Options:\n"
+                   "  -c, --cert <CERT-FILE>    path to the full chain certificate file\n"
+                   "  -h, --help                print this dialogue\n"
+                   "  -p, --privkey <KEY-FILE>  path to the private key file\n"
+                   "  -w, --webroot <PATH>      path to the web root directory\n");
+            return 0;
+        } else if ((len == 2 && strncmp(arg, "-w", 2) == 0) || (len == 9 && strncmp(arg, "--webroot", 9) == 0)) {
+            if (i == argc - 1) {
+                fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: {-w|--webroot} <WEBROOT>" CLR_STR "\n", arg);
+                return 1;
+            }
+            arg = argv[++i];
+            len = strlen(arg);
+
+        } else {
+            fprintf(stderr, ERR_STR "Unable to parse argument '%s'" CLR_STR "\n", arg);
+            return 1;
+        }
+    }
+
     SOCKETS[0] = socket(AF_INET6, SOCK_STREAM, 0);
     if (SOCKETS[0] == -1) goto socket_err;
     SOCKETS[1] = socket(AF_INET6, SOCK_STREAM, 0);
