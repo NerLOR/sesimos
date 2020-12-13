@@ -54,7 +54,7 @@ pid_t CHILDREN[MAX_CHILDREN];
 
 FILE *parent_stdout, *parent_stderr;
 
-const char *cert_file, *key_file, *webroot;
+const char *cert_file, *key_file, *webroot_base;
 
 typedef struct {
     int enc:1;

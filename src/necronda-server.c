@@ -179,7 +179,7 @@ int main(int argc, const char *argv[]) {
                 fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --webroot <WEBROOT>" CLR_STR "\n", arg);
                 return 1;
             }
-            webroot = argv[++i];
+            webroot_base = argv[++i];
         } else if ((len == 2 && strncmp(arg, "-c", 2) == 0) || (len == 6 && strncmp(arg, "--cert", 6) == 0)) {
             if (i == argc - 1) {
                 fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --cert <CERT-FILE>" CLR_STR "\n", arg);
@@ -198,7 +198,7 @@ int main(int argc, const char *argv[]) {
         }
     }
 
-    if (webroot == NULL) {
+    if (webroot_base == NULL) {
         fprintf(stderr, ERR_STR "Error: --webroot is missing" CLR_STR "\n");
         return 1;
     }
