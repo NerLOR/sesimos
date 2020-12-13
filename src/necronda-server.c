@@ -185,16 +185,39 @@ int main(int argc, const char *argv[]) {
             return 0;
         } else if ((len == 2 && strncmp(arg, "-w", 2) == 0) || (len == 9 && strncmp(arg, "--webroot", 9) == 0)) {
             if (i == argc - 1) {
-                fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: {-w|--webroot} <WEBROOT>" CLR_STR "\n", arg);
+                fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --webroot <WEBROOT>" CLR_STR "\n", arg);
                 return 1;
             }
-            arg = argv[++i];
-            len = strlen(arg);
-
+            webroot = argv[++i];
+        } else if ((len == 2 && strncmp(arg, "-c", 2) == 0) || (len == 6 && strncmp(arg, "--cert", 6) == 0)) {
+            if (i == argc - 1) {
+                fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --cert <CERT-FILE>" CLR_STR "\n", arg);
+                return 1;
+            }
+            cert_file = argv[++i];
+        } else if ((len == 2 && strncmp(arg, "-p", 2) == 0) || (len == 9 && strncmp(arg, "--privkey", 9) == 0)) {
+            if (i == argc - 1) {
+                fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --privkey <KEY-FILE>" CLR_STR "\n", arg);
+                return 1;
+            }
+            key_file = argv[++i];
         } else {
             fprintf(stderr, ERR_STR "Unable to parse argument '%s'" CLR_STR "\n", arg);
             return 1;
         }
+    }
+
+    if (webroot == NULL) {
+        fprintf(stderr, ERR_STR "Error: --webroot is missing" CLR_STR "\n");
+        return 1;
+    }
+    if (cert_file == NULL) {
+        fprintf(stderr, ERR_STR "Error: --cert is missing" CLR_STR "\n");
+        return 1;
+    }
+    if (key_file == NULL) {
+        fprintf(stderr, ERR_STR "Error: --privkey is missing" CLR_STR "\n");
+        return 1;
     }
 
     SOCKETS[0] = socket(AF_INET6, SOCK_STREAM, 0);
@@ -233,12 +256,12 @@ int main(int argc, const char *argv[]) {
     SSL_CTX_set_cipher_list(client.ctx, "HIGH:!aNULL:!kRSA:!PSK:!SRP:!MD5:!RC4");
     SSL_CTX_set_ecdh_auto(client.ctx, 1);
 
-    if (SSL_CTX_use_certificate_chain_file(client.ctx, "/home/lorenz/cert/chakotay.pem") != 1) {
-        fprintf(stderr, ERR_STR "Unable to load certificate chain file: %s" CLR_STR "\n", ERR_reason_error_string(ERR_get_error()));
+    if (SSL_CTX_use_certificate_chain_file(client.ctx, cert_file) != 1) {
+        fprintf(stderr, ERR_STR "Unable to load certificate chain file: %s: %s" CLR_STR "\n", ERR_reason_error_string(ERR_get_error()), cert_file);
         return 1;
     }
-    if (SSL_CTX_use_PrivateKey_file(client.ctx, "/home/lorenz/cert/priv/chakotay.key", SSL_FILETYPE_PEM) != 1) {
-        fprintf(stderr, ERR_STR "Unable to load private key file: %s" CLR_STR "\n", ERR_reason_error_string(ERR_get_error()));
+    if (SSL_CTX_use_PrivateKey_file(client.ctx, key_file, SSL_FILETYPE_PEM) != 1) {
+        fprintf(stderr, ERR_STR "Unable to load private key file: %s: %s" CLR_STR "\n", ERR_reason_error_string(ERR_get_error()), key_file);
         return 1;
     }
 
