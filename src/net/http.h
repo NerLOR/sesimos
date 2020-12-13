@@ -151,7 +151,7 @@ const char *http_error_document =
         "            color: #808080;\n"
         "            font-size: 0.75em;\n"
         "            text-align: center;\n"
-        "            margin: 0.5em 0;"
+        "            margin: 0.5em 0;\n"
         "        }\n"
         "    </style>\n"
         "</head>\n"
