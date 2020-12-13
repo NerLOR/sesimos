@@ -8,7 +8,7 @@
 #include "necronda-server.h"
 #include "utils.h"
 #include "uri.h"
-#include "net/http.h"
+#include "http.h"
 
 
 int server_keep_alive = 1;

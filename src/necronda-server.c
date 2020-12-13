@@ -11,7 +11,7 @@
 
 #include "utils.c"
 #include "uri.c"
-#include "net/http.c"
+#include "http.c"
 #include "client.c"
 
 
