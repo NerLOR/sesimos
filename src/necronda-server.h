@@ -47,7 +47,8 @@
 #define HTTP_4XX_STR "\x1B[1;31m"
 #define HTTP_5XX_STR "\x1B[1;31m"
 
-#define SERVER_STR "Necronda/4.0"
+#define NECRONDA_VERSION "4.0"
+#define SERVER_STR "Necronda/" NECRONDA_VERSION
 
 int SOCKETS[NUM_SOCKETS];
 pid_t CHILDREN[MAX_CHILDREN];

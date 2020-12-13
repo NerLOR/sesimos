@@ -17,8 +17,13 @@ char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_
 
 struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
 
-char *get_webroot(char *http_host) {
-
+char *get_webroot(const char *http_host) {
+    char *webroot = malloc(strlen(webroot_base) + strlen(http_host) + 1);
+    unsigned long len = strlen(webroot_base);
+    while (webroot_base[len - 1] == '/') len--;
+    long pos = strchr(http_host, ':') - http_host;
+    sprintf(webroot, "%.*s/%.*s", (int) len, webroot_base, (int) (pos == -1 ? strlen(http_host) : pos), http_host);
+    return webroot;
 }
 
 void client_terminate() {
@@ -34,7 +39,8 @@ int client_request_handler(sock *client, int req_num) {
     struct timespec begin, end;
     int ret, client_keep_alive;
     char buf[64];
-    char *host, *hdr_connection;
+    char msg_buf[4096];
+    char *host, *hdr_connection, *webroot;
 
     fd_set socket_fds;
     FD_ZERO(&socket_fds);
@@ -47,21 +53,23 @@ int client_request_handler(sock *client, int req_num) {
     }
     clock_gettime(CLOCK_MONOTONIC, &begin);
 
-    http_req req;
-    ret = http_receive_request(client, &req);
-    if (ret != 0) {
-        return ret;
-    }
-
     http_res res;
     sprintf(res.version, "1.1");
     res.status = http_get_status(501);
     res.hdr.field_num = 0;
 
+    http_req req;
+    ret = http_receive_request(client, &req);
+    if (ret != 0) {
+        client_keep_alive = 0;
+        res.status = http_get_status(400);
+        goto respond;
+    }
+
     hdr_connection = http_get_header_field(&req.hdr, "Connection");
     client_keep_alive = hdr_connection != NULL && strncmp(hdr_connection, "keep-alive", 10) == 0;
     host = http_get_header_field(&req.hdr, "Host");
-    if (host == NULL) {
+    if (host == NULL || strchr(host, '/') != NULL) {
         res.status = http_get_status(400);
         goto respond;
     }
@@ -70,18 +78,44 @@ int client_request_handler(sock *client, int req_num) {
     log_prefix = log_req_prefix;
     print(BLD_STR "%s %s" CLR_STR, req.method, req.uri);
 
+    webroot = get_webroot(host);
+    http_uri uri;
+    uri_init(&uri, webroot, req.uri);
+
     respond:
     http_add_header_field(&res.hdr, "Date", http_get_date(buf, sizeof(buf)));
     http_add_header_field(&res.hdr, "Server", SERVER_STR);
     if (server_keep_alive && client_keep_alive) {
         http_add_header_field(&res.hdr, "Connection", "keep-alive");
-        http_add_header_field(&res.hdr, "Keep-Alive", "timeout=3600, max=100");
+        sprintf(buf, "timeout=%i, max=%i", CLIENT_TIMEOUT, REQ_PER_CONNECTION);
+        http_add_header_field(&res.hdr, "Keep-Alive", buf);
     } else {
         http_add_header_field(&res.hdr, "Connection", "close");
     }
-    http_add_header_field(&res.hdr, "Content-Length", "0");
+    int len = 0;
+    if (res.status->code >= 300 && res.status->code < 600) {
+        http_error_msg *http_msg = http_get_error_msg(res.status->code);
+        len = sprintf(msg_buf, http_error_document, res.status->code, res.status->msg,
+                      http_msg != NULL ? http_msg->err_msg : "", NULL,
+                      res.status->code >= 300 && res.status->code < 400 ? "info" : "error");
+        sprintf(buf, "%i", len);
+        http_add_header_field(&res.hdr, "Content-Length", buf);
+    } else {
+        http_add_header_field(&res.hdr, "Content-Length", "0");
+    }
 
     http_send_response(client, &res);
+    if (res.status->code >= 400 && res.status->code < 600) {
+        int snd_len = 0;
+        while (snd_len < len) {
+            if (client->enc) {
+                ret = SSL_write(client->ssl, msg_buf, len - snd_len);
+            } else {
+                ret = send(client->socket, msg_buf, len - snd_len, 0);
+            }
+            snd_len += ret;
+        }
+    }
 
     clock_gettime(CLOCK_MONOTONIC, &end);
     unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;

@@ -16,8 +16,15 @@ typedef struct {
     char *pathinfo;
     char *query;
     char *filename;
+    char *filename_comp;
     char *uri;
     struct stat stat;
-} uri;
+    int is_static:1;
+} http_uri;
+
+
+int uri_init(http_uri *uri, const char *webroot, const char *uri_str);
+
+void uri_free(http_uri *uri);
 
 #endif //NECRONDA_SERVER_URI_H

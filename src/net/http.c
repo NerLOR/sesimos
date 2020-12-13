@@ -210,6 +210,15 @@ http_status *http_get_status(unsigned short status_code) {
     return NULL;
 }
 
+http_error_msg *http_get_error_msg(unsigned short status_code) {
+    for (int i = 0; i < sizeof(http_error_messages) / sizeof(http_get_error_msg); i++) {
+        if (http_error_messages[i].code == status_code) {
+            return &http_error_messages[i];
+        }
+    }
+    return NULL;
+}
+
 const char *http_get_status_color(http_status *status) {
     unsigned short code = status->code;
     if (code >= 100 && code < 200) {
