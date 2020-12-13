@@ -153,7 +153,7 @@ int http_receive_request(sock *client, http_req *req) {
     }
 }
 
-char *http_get_header_field(http_hdr *hdr, char *field_name) {
+char *http_get_header_field(http_hdr *hdr, const char *field_name) {
     size_t len = strlen(field_name);
     char *_field_name = malloc(len + 1);
     strcpy(_field_name, field_name);
@@ -168,7 +168,7 @@ char *http_get_header_field(http_hdr *hdr, char *field_name) {
     return NULL;
 }
 
-void http_add_header_field(http_hdr *hdr, char *field_name, char *field_value) {
+void http_add_header_field(http_hdr *hdr, const char *field_name, const char *field_value) {
     size_t len_name = strlen(field_name);
     size_t len_value = strlen(field_value);
     char *_field_name = malloc(len_name + 1);

@@ -91,9 +91,9 @@ void http_free_res(http_res *res);
 
 int http_receive_request(sock *client, http_req *req);
 
-char *http_get_header_field(http_hdr *hdr, char *field_name);
+char *http_get_header_field(http_hdr *hdr, const char *field_name);
 
-void http_add_header_field(http_hdr *hdr, char *field_name, char *field_value);
+void http_add_header_field(http_hdr *hdr, const char *field_name, const char *field_value);
 
 int http_send_response(sock *client, http_res *res);
 
