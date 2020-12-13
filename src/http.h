@@ -107,7 +107,7 @@ http_error_msg http_error_messages[] = {
         {501, "The server does not support the functionality required to fulfill the request."},
         {502, "The server, while acting as a gateway or proxy, received an invalid response from the upstream server it accessed in attempting to fulfill the request."},
         {503, "The server is currently unable to handle the request due to a temporary overloading or maintenance of the server."},
-        {504, "he server, while acting as a gateway or proxy, did not receive a timely response from the upstream server specified by the URI or some other auxiliary server it needed to access in attempting to complete the request."},
+        {504, "The server, while acting as a gateway or proxy, did not receive a timely response from the upstream server specified by the URI or some other auxiliary server it needed to access in attempting to complete the request."},
         {505, "The server does not support, or refuses to support, the HTTP protocol version that was used in the request message."}
 };
 
