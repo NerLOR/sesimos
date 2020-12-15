@@ -40,6 +40,7 @@ int client_request_handler(sock *client, int req_num) {
     int ret, client_keep_alive;
     char buf[64];
     char msg_buf[4096];
+    char msg_pre_buf[4096];
     char err_msg[256];
     err_msg[0] = 0;
     char *host, *hdr_connection, *webroot;
@@ -107,9 +108,10 @@ int client_request_handler(sock *client, int req_num) {
     int len = 0;
     if (res.status->code >= 300 && res.status->code < 600) {
         http_error_msg *http_msg = http_get_error_msg(res.status->code);
-        len = sprintf(msg_buf, http_error_document, res.status->code, res.status->msg,
-                      http_msg != NULL ? http_msg->err_msg : "", err_msg[0] != 0 ? err_msg : "",
-                      res.status->code >= 300 && res.status->code < 400 ? "info" : "error");
+        sprintf(msg_pre_buf, http_error_document, res.status->code, res.status->msg,
+                http_msg != NULL ? http_msg->err_msg : "", err_msg[0] != 0 ? err_msg : "");
+        len = sprintf(msg_buf, http_default_document, res.status->code, res.status->msg,
+                      msg_pre_buf, res.status->code >= 300 && res.status->code < 400 ? "info" : "error");
         sprintf(buf, "%i", len);
         http_add_header_field(&res.hdr, "Content-Length", buf);
         http_add_header_field(&res.hdr, "Content-Type", "text/html; charset=UTF-8");
