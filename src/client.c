@@ -113,7 +113,7 @@ int client_request_handler(sock *client, int req_num) {
                 http_msg != NULL ? http_msg->err_msg : "", err_msg[0] != 0 ? err_msg : "");
         len = sprintf(msg_buf, http_default_document, res.status->code, res.status->msg,
                       msg_pre_buf, res.status->code >= 300 && res.status->code < 400 ? "info" : "error",
-                      http_error_icon);
+                      http_error_icon, "#C00000");
         sprintf(buf, "%li", len);
         http_add_header_field(&res.hdr, "Content-Length", buf);
         http_add_header_field(&res.hdr, "Content-Type", "text/html; charset=UTF-8");

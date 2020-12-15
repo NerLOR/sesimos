@@ -117,16 +117,18 @@ const char *http_default_document =
         "<head>\n"
         "    <title>%1$i %2$s</title>\n"
         "    <meta charset=\"UTF-8\"/>\n"
-        "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>\n"
+        "    <meta name=\"theme-color\" content=\"%6$s\"/>\n"
+        "    <meta name=\"apple-mobile-web-app-status-bar-style\" content=\"black-translucent\"/>\n"
+        "    <meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"/>\n"
         "%5$s"
         "    <style>\n"
-        "        html {font-family: \"Arial\", sans-serif; --error: #C00000; --info: #E0C000; --color: var(--%4$s);}\n"
-        "        body {background-color: #F0F0F0; margin: 0.5em;}\n"
-        "        main {max-width: 600px; margin: 2em auto; background-color: #FFFFFF; border: 1px solid var(--color); border-radius: 4px; padding: 1em 2em;}\n"
-        "        h1, h2, h3, h4, h5, h6, h7 {text-align: center;color: var(--color);}\n"
-        "        h1 {margin: 0.5em 0; font-size: 1.5em;}\n"
-        "        p {text-align: center;}\n"
-        "        div.footer {color: #808080; font-size: 0.75em; text-align: center; margin: 0.5em 0;}\n"
+        "        html{font-family:\"Arial\",sans-serif;--error:#C00000;--info:#E0C000;--color:var(--%4$s);}\n"
+        "        body{background-color:#F0F0F0;margin:0.5em;}\n"
+        "        main{max-width:600px;margin:2em auto;background-color:#FFFFFF;border: 1px solid var(--color);border-radius:4px;padding:1em 2em;}\n"
+        "        h1,h2,h3,h4,h5,h6,h7{text-align:center;color:var(--color);}\n"
+        "        h1{margin:0.5em 0;font-size:1.5em;}\n"
+        "        p{text-align:center;}\n"
+        "        div.footer{color:#808080;font-size:0.75em;text-align:center;margin:0.5em 0;}\n"
         "    </style>\n"
         "</head>\n"
         "<body>\n"
@@ -138,7 +140,7 @@ const char *http_default_document =
         "</html>\n";
 
 const char *http_error_document =
-        "        <h1>%1$i %2$s :(</h1>\n"
+        "        <h1>%1$i %2$s :&#xFEFF;(</h1>\n"
         "        <p>%3$s</p>\n"
         "        <p>%4$s</p>\n";
 
