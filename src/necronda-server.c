@@ -130,7 +130,9 @@ void terminate() {
     signal(SIGTERM, SIG_IGN);
 
     if (wait_num > 0) {
-        sleep(1);
+        // Wait another 50 ms to let child processes write to stdout/stderr
+        struct timespec ts = {.tv_sec = 0, .tv_nsec = 50000000};
+        nanosleep(&ts, &ts);
         fprintf(stderr, "\nGoodbye\n");
     } else {
         fprintf(stderr, "Goodbye\n");
