@@ -118,6 +118,7 @@ const char *http_default_document =
         "    <title>%1$i %2$s</title>\n"
         "    <meta charset=\"UTF-8\"/>\n"
         "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>\n"
+        "%5$s"
         "    <style>\n"
         "        html {font-family: \"Arial\", sans-serif; --error: #C00000; --info: #E0C000; --color: var(--%4$s);}\n"
         "        body {background-color: #F0F0F0; margin: 0.5em;}\n"
@@ -140,6 +141,12 @@ const char *http_error_document =
         "        <h1>%1$i %2$s :(</h1>\n"
         "        <p>%3$s</p>\n"
         "        <p>%4$s</p>\n";
+
+const char *http_error_icon =
+        "    <link rel=\"shortcut icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
+        "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
+        "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiNDMDAwMDAiIHN0eWxlPSJmb250LWZhbWls"
+        "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjooPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
 
 
 void http_to_camel_case(char *str);

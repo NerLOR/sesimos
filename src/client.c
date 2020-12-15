@@ -44,6 +44,7 @@ int client_request_handler(sock *client, int req_num) {
     char err_msg[256];
     err_msg[0] = 0;
     char *host, *hdr_connection, *webroot;
+    unsigned long content_length = 0;
 
     fd_set socket_fds;
     FD_ZERO(&socket_fds);
@@ -105,18 +106,20 @@ int client_request_handler(sock *client, int req_num) {
     } else {
         http_add_header_field(&res.hdr, "Connection", "close");
     }
-    int len = 0;
+    unsigned long len = 0;
     if (res.status->code >= 300 && res.status->code < 600) {
         http_error_msg *http_msg = http_get_error_msg(res.status->code);
         sprintf(msg_pre_buf, http_error_document, res.status->code, res.status->msg,
                 http_msg != NULL ? http_msg->err_msg : "", err_msg[0] != 0 ? err_msg : "");
         len = sprintf(msg_buf, http_default_document, res.status->code, res.status->msg,
-                      msg_pre_buf, res.status->code >= 300 && res.status->code < 400 ? "info" : "error");
-        sprintf(buf, "%i", len);
+                      msg_pre_buf, res.status->code >= 300 && res.status->code < 400 ? "info" : "error",
+                      http_error_icon);
+        sprintf(buf, "%li", len);
         http_add_header_field(&res.hdr, "Content-Length", buf);
         http_add_header_field(&res.hdr, "Content-Type", "text/html; charset=UTF-8");
     } else {
-        http_add_header_field(&res.hdr, "Content-Length", "0");
+        sprintf(buf, "%li", content_length);
+        http_add_header_field(&res.hdr, "Content-Length", buf);
     }
 
     http_send_response(client, &res);
@@ -124,7 +127,7 @@ int client_request_handler(sock *client, int req_num) {
         int snd_len = 0;
         while (snd_len < len) {
             if (client->enc) {
-                ret = SSL_write(client->ssl, msg_buf, len - snd_len);
+                ret = SSL_write(client->ssl, msg_buf, (int) (len - snd_len));
             } else {
                 ret = send(client->socket, msg_buf, len - snd_len, 0);
             }
