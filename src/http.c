@@ -16,7 +16,7 @@ void http_to_camel_case(char *str, int strict) {
         ch = str[i];
         if (last == '-' && ch >= 'a' && ch <= 'z') {
             str[i] = (char) ((int) ch & 0x5F);
-        } else if (last != '-' && ch >= 'A' && ch <= 'Z' && strict == HTTP_STRICT) {
+        } else if (last != '-' && ch >= 'A' && ch <= 'Z' && strict == HTTP_LOWER) {
             str[i] = (char) ((int) ch | 0x20);
         }
         last = str[i];
@@ -132,7 +132,7 @@ int http_receive_request(sock *client, http_req *req) {
                 len = pos1 - ptr;
                 req->hdr.fields[req->hdr.field_num][0] = malloc(len + 1);
                 sprintf(req->hdr.fields[req->hdr.field_num][0], "%.*s", (int) len, ptr);
-                http_to_camel_case(req->hdr.fields[req->hdr.field_num][0], HTTP_NOT_STRICT);
+                http_to_camel_case(req->hdr.fields[req->hdr.field_num][0], HTTP_LOWER);
 
                 pos1++;
                 pos2 = pos0 - 1;

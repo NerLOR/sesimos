@@ -8,8 +8,8 @@
 #ifndef NECRONDA_SERVER_HTTP_H
 #define NECRONDA_SERVER_HTTP_H
 
-#define HTTP_STRICT 1
-#define HTTP_NOT_STRICT 0
+#define HTTP_LOWER 1
+#define HTTP_PRESERVE_UPPER 0
 
 typedef struct {
     unsigned short code;
