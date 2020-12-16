@@ -175,7 +175,7 @@ void http_add_header_field(http_hdr *hdr, const char *field_name, const char *fi
     char *_field_value = malloc(len_value + 1);
     strcpy(_field_name, field_name);
     strcpy(_field_value, field_value);
-    http_to_camel_case(_field_name, HTTP_NOT_STRICT);
+    http_to_camel_case(_field_name, HTTP_PRESERVE_UPPER);
     hdr->fields[hdr->field_num][0] = _field_name;
     hdr->fields[hdr->field_num][1] = _field_value;
     hdr->field_num++;
