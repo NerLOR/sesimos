@@ -9,14 +9,14 @@
 #include "utils.h"
 
 
-void http_to_camel_case(char *str) {
+void http_to_camel_case(char *str, int strict) {
     char last = '-';
     char ch;
     for (int i = 0; i < strlen(str); i++) {
         ch = str[i];
         if (last == '-' && ch >= 'a' && ch <= 'z') {
             str[i] = (char) ((int) ch & 0x5F);
-        } else if (last != '-' && ch >= 'A' && ch <= 'Z') {
+        } else if (last != '-' && ch >= 'A' && ch <= 'Z' && strict == HTTP_STRICT) {
             str[i] = (char) ((int) ch | 0x20);
         }
         last = str[i];
@@ -132,7 +132,7 @@ int http_receive_request(sock *client, http_req *req) {
                 len = pos1 - ptr;
                 req->hdr.fields[req->hdr.field_num][0] = malloc(len + 1);
                 sprintf(req->hdr.fields[req->hdr.field_num][0], "%.*s", (int) len, ptr);
-                http_to_camel_case(req->hdr.fields[req->hdr.field_num][0]);
+                http_to_camel_case(req->hdr.fields[req->hdr.field_num][0], HTTP_NOT_STRICT);
 
                 pos1++;
                 pos2 = pos0 - 1;
@@ -153,11 +153,11 @@ int http_receive_request(sock *client, http_req *req) {
     }
 }
 
-char *http_get_header_field(http_hdr *hdr, const char *field_name) {
+char *http_get_header_field(http_hdr *hdr, const char *field_name, int strict) {
     size_t len = strlen(field_name);
     char *_field_name = malloc(len + 1);
     strcpy(_field_name, field_name);
-    http_to_camel_case(_field_name);
+    http_to_camel_case(_field_name, strict);
     for (int i = 0; i < hdr->field_num; i++) {
         if (strncmp(hdr->fields[i][0], _field_name, len) == 0) {
             free(_field_name);
@@ -175,7 +175,7 @@ void http_add_header_field(http_hdr *hdr, const char *field_name, const char *fi
     char *_field_value = malloc(len_value + 1);
     strcpy(_field_name, field_name);
     strcpy(_field_value, field_value);
-    http_to_camel_case(_field_name);
+    http_to_camel_case(_field_name, HTTP_NOT_STRICT);
     hdr->fields[hdr->field_num][0] = _field_name;
     hdr->fields[hdr->field_num][1] = _field_value;
     hdr->field_num++;

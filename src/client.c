@@ -79,9 +79,9 @@ int client_request_handler(sock *client, int req_num) {
         goto respond;
     }
 
-    hdr_connection = http_get_header_field(&req.hdr, "Connection");
+    hdr_connection = http_get_header_field(&req.hdr, "Connection", HTTP_NOT_STRICT);
     client_keep_alive = hdr_connection != NULL && strncmp(hdr_connection, "keep-alive", 10) == 0;
-    host = http_get_header_field(&req.hdr, "Host");
+    host = http_get_header_field(&req.hdr, "Host", HTTP_NOT_STRICT);
     if (host == NULL || strchr(host, '/') != NULL) {
         res.status = http_get_status(400);
         sprintf(err_msg, "The client provided no or an invalid Host header field.");
