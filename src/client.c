@@ -46,6 +46,15 @@ int client_request_handler(sock *client, int req_num) {
     char *host, *hdr_connection, *webroot;
     unsigned long content_length = 0;
 
+    http_res res;
+    sprintf(res.version, "1.1");
+    res.status = http_get_status(501);
+    res.hdr.field_num = 0;
+    http_add_header_field(&res.hdr, "Date", http_get_date(buf, sizeof(buf)));
+    http_add_header_field(&res.hdr, "Server", SERVER_STR);
+
+    clock_gettime(CLOCK_MONOTONIC, &begin);
+
     fd_set socket_fds;
     FD_ZERO(&socket_fds);
     FD_SET(client->socket, &socket_fds);
@@ -53,14 +62,14 @@ int client_request_handler(sock *client, int req_num) {
     client_timeout.tv_usec = 0;
     ret = select(client->socket + 1, &socket_fds, NULL, NULL, &client_timeout);
     if (ret <= 0) {
-        return 1;
+        if (errno != 0) {
+            return 1;
+        }
+        client_keep_alive = 0;
+        res.status = http_get_status(408);
+        goto respond;
     }
     clock_gettime(CLOCK_MONOTONIC, &begin);
-
-    http_res res;
-    sprintf(res.version, "1.1");
-    res.status = http_get_status(501);
-    res.hdr.field_num = 0;
 
     http_req req;
     ret = http_receive_request(client, &req);
@@ -94,11 +103,54 @@ int client_request_handler(sock *client, int req_num) {
 
     webroot = get_webroot(host);
     http_uri uri;
-    uri_init(&uri, webroot, req.uri);
+    ret = uri_init(&uri, webroot, req.uri, URI_DIR_MODE_INFO);
+    if (ret != 0) {
+        if (ret == 1) {
+            sprintf(err_msg, "Invalid URI: has to start with slash.");
+        } else if (ret == 2) {
+            sprintf(err_msg, "Invalid URI: contains relative path change (/../).");
+        }
+        res.status = http_get_status(400);
+        goto respond;
+    }
+
+    /*
+    print("webroot:       %s", uri.webroot);
+    print("req_path:      %s", uri.req_path);
+    print("path:          %s", uri.path);
+    print("pathinfo:      %s", uri.pathinfo);
+    print("query:         %s", uri.query);
+    print("filename:      %s", uri.filename);
+    print("filename_comp: %s", uri.filename_comp);
+    print("uri:           %s", uri.uri);
+    print("is_static:     %i", uri.is_static);
+    print("is_dir:        %i", uri.is_dir);
+     */
+
+    if (strcmp(uri.uri, req.uri) != 0) {
+        res.status = http_get_status(308);
+        http_add_header_field(&res.hdr, "Location", uri.uri);
+        goto respond;
+    }
+
+    if (uri.filename == NULL && (int) uri.is_static && (int) uri.is_dir && strlen(uri.pathinfo) == 0) {
+        res.status = http_get_status(403);
+        sprintf(err_msg, "It is not allowed to list the contents of this directory.");
+        goto respond;
+    } else if (uri.filename == NULL && (int) !uri.is_static && (int) uri.is_dir && strlen(uri.pathinfo) == 0) {
+        res.status = http_get_status(501);
+        sprintf(err_msg, "Listing contents of an directory is currently not implemented.");
+        // TODO list directory contents
+        goto respond;
+    } else if (uri.filename == NULL || (strlen(uri.pathinfo) > 0 && (int) uri.is_static)) {
+        res.status = http_get_status(404);
+        goto respond;
+    }
+
+
+
 
     respond:
-    http_add_header_field(&res.hdr, "Date", http_get_date(buf, sizeof(buf)));
-    http_add_header_field(&res.hdr, "Server", SERVER_STR);
     if (server_keep_alive && client_keep_alive) {
         http_add_header_field(&res.hdr, "Connection", "keep-alive");
         sprintf(buf, "timeout=%i, max=%i", CLIENT_TIMEOUT, REQ_PER_CONNECTION);
@@ -107,7 +159,7 @@ int client_request_handler(sock *client, int req_num) {
         http_add_header_field(&res.hdr, "Connection", "close");
     }
     unsigned long len = 0;
-    if (res.status->code >= 300 && res.status->code < 600) {
+    if (res.status->code >= 400 && res.status->code < 600) {
         http_error_msg *http_msg = http_get_error_msg(res.status->code);
         sprintf(msg_pre_buf, http_error_document, res.status->code, res.status->msg,
                 http_msg != NULL ? http_msg->err_msg : "", err_msg[0] != 0 ? err_msg : "");
@@ -136,12 +188,13 @@ int client_request_handler(sock *client, int req_num) {
     }
 
     clock_gettime(CLOCK_MONOTONIC, &end);
+    char *location = http_get_header_field(&res.hdr, "Location", HTTP_PRESERVE_UPPER);
     unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
-    print("%s%03i %s (%s)%s", http_get_status_color(res.status), res.status->code, res.status->msg,
-          format_duration(micros, buf), CLR_STR);
+    print("%s%03i %s%s%s (%s)%s", http_get_status_color(res.status), res.status->code, res.status->msg,
+          location != NULL ? " -> " : "", location != NULL ? location : "", format_duration(micros, buf), CLR_STR);
 
     abort:
-
+    uri_free(&uri);
     http_free_req(&req);
     http_free_res(&res);
     return !client_keep_alive;
