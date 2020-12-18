@@ -199,8 +199,8 @@ int client_request_handler(sock *client, int req_num) {
     print("%s%03i %s%s%s (%s)%s", http_get_status_color(res.status), res.status->code, res.status->msg,
           location != NULL ? " -> " : "", location != NULL ? location : "", format_duration(micros, buf), CLR_STR);
 
-    abort:
     uri_free(&uri);
+    abort:
     http_free_req(&req);
     http_free_res(&res);
     return !client_keep_alive;
