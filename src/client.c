@@ -38,7 +38,7 @@ int client_websocket_handler() {
 int client_request_handler(sock *client, int req_num) {
     struct timespec begin, end;
     int ret, client_keep_alive;
-    char buf[64];
+    char buf[1024];
     char msg_buf[4096];
     char msg_pre_buf[4096];
     char err_msg[256];
@@ -127,9 +127,14 @@ int client_request_handler(sock *client, int req_num) {
     print("is_dir:        %i", uri.is_dir);
      */
 
-    if (strcmp(uri.uri, req.uri) != 0) {
+    ssize_t size = sizeof(buf);
+    url_decode(req.uri, buf, &size);
+    if (strcmp(uri.uri, buf) != 0) {
         res.status = http_get_status(308);
-        http_add_header_field(&res.hdr, "Location", uri.uri);
+        size = sizeof(buf);
+        encode_url(uri.uri, buf, &size);
+        print("%s", buf);
+        http_add_header_field(&res.hdr, "Location", buf);
         goto respond;
     }
 

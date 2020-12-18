@@ -28,7 +28,6 @@ int url_encode(const char *str, char *enc, ssize_t *size) {
     memset(enc, 0, *size);
     for (int i = 0; i < strlen(str); i++, ptr++) {
         if ((ptr - enc) >= *size) {
-            printf("%li %li\n", ptr - enc, *size);
             return -1;
         }
         ch = str[i];
@@ -44,6 +43,29 @@ int url_encode(const char *str, char *enc, ssize_t *size) {
             ptr[0] = '+';
         } else {
             ptr[0] = ch;
+        }
+    }
+    *size = ptr - enc;
+    return 0;
+}
+
+int encode_url(const char *str, char *enc, ssize_t *size) {
+    char *ptr = enc;
+    unsigned char ch;
+    memset(enc, 0, *size);
+    for (int i = 0; i < strlen(str); i++, ptr++) {
+        if ((ptr - enc) >= *size) {
+            return -1;
+        }
+        ch = str[i];
+        if (ch > 0x7F || ch == ' ') {
+            if ((ptr - enc + 2) >= *size) {
+                return -1;
+            }
+            sprintf(ptr, "%%%02X", ch);
+            ptr += 2;
+        } else {
+            ptr[0] = (char) ch;
         }
     }
     *size = ptr - enc;
