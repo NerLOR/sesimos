@@ -37,7 +37,7 @@ int client_websocket_handler() {
 
 int client_request_handler(sock *client, int req_num) {
     struct timespec begin, end;
-    int ret, client_keep_alive;
+    int ret, client_keep_alive, dir_mode;
     char buf[1024];
     char msg_buf[4096];
     char msg_pre_buf[4096];
@@ -102,8 +102,9 @@ int client_request_handler(sock *client, int req_num) {
     print(BLD_STR "%s %s" CLR_STR, req.method, req.uri);
 
     webroot = get_webroot(host);
+    dir_mode = URI_DIR_MODE_FORBIDDEN;
     http_uri uri;
-    ret = uri_init(&uri, webroot, req.uri, URI_DIR_MODE_INFO);
+    ret = uri_init(&uri, webroot, req.uri, dir_mode);
     if (ret != 0) {
         if (ret == 1) {
             sprintf(err_msg, "Invalid URI: has to start with slash.");
