@@ -157,8 +157,8 @@ int main(int argc, const char *argv[]) {
     parent_stderr = stderr;
 
     const struct sockaddr_in6 addresses[2] = {
-            {.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_ANY_INIT, .sin6_port = htons(8080)},
-            {.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_ANY_INIT, .sin6_port = htons(4443)}
+            {.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_ANY_INIT, .sin6_port = htons(80)},
+            {.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_ANY_INIT, .sin6_port = htons(443)}
     };
 
     printf("Necronda Web Server\n");
