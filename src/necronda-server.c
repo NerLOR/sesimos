@@ -11,6 +11,7 @@
 
 #include "utils.c"
 #include "uri.c"
+#include "cache.c"
 #include "http.c"
 #include "client.c"
 
@@ -238,6 +239,7 @@ int main(int argc, const char *argv[]) {
     signal(SIGINT, terminate);
     signal(SIGTERM, terminate);
 
+    cache_init();
     openssl_init();
 
     client.ctx = SSL_CTX_new(TLS_server_method());

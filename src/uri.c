@@ -35,9 +35,7 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     uri->pathinfo = NULL;
     uri->query = NULL;
     uri->filename = NULL;
-    uri->filename_comp = NULL;
     uri->uri = NULL;
-    uri->etag = NULL;
     uri->is_static = 1;
     uri->is_dir = 0;
     if (uri_str[0] != '/') {
@@ -168,7 +166,5 @@ void uri_free(http_uri *uri) {
     if (uri->pathinfo != NULL) free(uri->pathinfo);
     if (uri->query != NULL) free(uri->query);
     if (uri->filename != NULL) free(uri->filename);
-    if (uri->filename_comp != NULL) free(uri->filename_comp);
-    if (uri->etag != NULL) free(uri->etag);
     if (uri->uri != NULL) free(uri->uri);
 }

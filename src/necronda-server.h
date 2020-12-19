@@ -34,6 +34,7 @@
 #define CLIENT_TIMEOUT 3600
 
 #define CLIENT_MAX_HEADER_SIZE 8192
+#define FILE_CACHE_SIZE 1024
 
 #define ERR_STR "\x1B[1;31m"
 #define CLR_STR "\x1B[0m"

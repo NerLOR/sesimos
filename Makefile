@@ -7,7 +7,7 @@ packages:
 
 compile:
 	@mkdir -p bin
-	gcc src/necronda-server.c -o bin/necronda-server -std=c11 -lssl -lcrypto
+	gcc src/necronda-server.c -o bin/necronda-server -std=c11 -lssl -lcrypto -lmagic
 
 install: | packages update compile
 	@echo "Finished!"

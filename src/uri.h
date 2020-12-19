@@ -9,6 +9,7 @@
 #define NECRONDA_SERVER_URI_H
 
 #include <sys/stat.h>
+#include "cache.h"
 
 #define URI_DIR_MODE_FORBIDDEN 0
 #define URI_DIR_MODE_LIST 1
@@ -21,10 +22,8 @@ typedef struct {
     char *pathinfo;       // "login"
     char *query;          // "username=test"
     char *filename;       // "/account/index.php"
-    char *filename_comp;  // "/srv/www/www.test.org/res/.file.css.compressed"
     char *uri;            // "/account/login?username=test"
-    char *etag;
-    struct stat stat;
+    meta_data meta;
     unsigned int is_static:1;
     unsigned int is_dir:1;
 } http_uri;

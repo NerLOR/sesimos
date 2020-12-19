@@ -155,9 +155,9 @@ int client_request_handler(sock *client, int req_num) {
         sprintf(err_msg, "It is not allowed to list the contents of this directory.");
         goto respond;
     } else if (uri.filename == NULL && (int) !uri.is_static && (int) uri.is_dir && strlen(uri.pathinfo) == 0) {
+        // TODO list directory contents
         res.status = http_get_status(501);
         sprintf(err_msg, "Listing contents of an directory is currently not implemented.");
-        // TODO list directory contents
         goto respond;
     } else if (uri.filename == NULL || (strlen(uri.pathinfo) > 0 && (int) uri.is_static)) {
         res.status = http_get_status(404);
@@ -312,7 +312,7 @@ int client_handler(sock *client, long client_num, struct sockaddr_in6 *client_ad
 
     log_req_prefix = malloc(256);
     log_client_prefix = malloc(256);
-    sprintf(log_client_prefix, "[%s%4i%s]%s[%*s][%5i]%s", client->enc ? HTTPS_STR : HTTP_STR,
+    sprintf(log_client_prefix, "[%s%4i%s]%s[%*s][%5i]%s", (int) client->enc ? HTTPS_STR : HTTP_STR,
             ntohs(server_addr->sin6_port), CLR_STR, color_table[client_num % 6], INET_ADDRSTRLEN, client_addr_str,
             ntohs(client_addr->sin6_port), CLR_STR);
 
