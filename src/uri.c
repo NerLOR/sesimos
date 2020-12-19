@@ -155,6 +155,10 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     return 0;
 }
 
+int uri_init_cache(http_uri *uri) {
+    return 0;
+}
+
 void uri_free(http_uri *uri) {
     if (uri->webroot != NULL) free(uri->webroot);
     if (uri->req_path != NULL) free(uri->req_path);

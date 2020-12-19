@@ -49,6 +49,7 @@
 
 #define NECRONDA_VERSION "4.0"
 #define SERVER_STR "Necronda/" NECRONDA_VERSION
+#define NECRONDA_DEFAULT "www.necronda.net"
 
 int SOCKETS[NUM_SOCKETS];
 pid_t CHILDREN[MAX_CHILDREN];
@@ -58,7 +59,7 @@ FILE *parent_stdout, *parent_stderr;
 const char *cert_file, *key_file, *webroot_base;
 
 typedef struct {
-    int enc:1;
+    unsigned int enc:1;
     int socket;
     SSL_CTX *ctx;
     SSL *ssl;

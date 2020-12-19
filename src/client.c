@@ -38,9 +38,8 @@ int client_websocket_handler() {
 int client_request_handler(sock *client, int req_num) {
     struct timespec begin, end;
     int ret, client_keep_alive, dir_mode;
-    char buf[1024];
-    char msg_buf[4096];
-    char msg_pre_buf[4096];
+    char buf0[1024], buf1[1024];
+    char msg_buf[4096], msg_pre_buf[4096];
     char err_msg[256];
     err_msg[0] = 0;
     char *host, *hdr_connection, *webroot;
@@ -50,7 +49,7 @@ int client_request_handler(sock *client, int req_num) {
     sprintf(res.version, "1.1");
     res.status = http_get_status(501);
     res.hdr.field_num = 0;
-    http_add_header_field(&res.hdr, "Date", http_get_date(buf, sizeof(buf)));
+    http_add_header_field(&res.hdr, "Date", http_get_date(buf0, sizeof(buf0)));
     http_add_header_field(&res.hdr, "Server", SERVER_STR);
 
     clock_gettime(CLOCK_MONOTONIC, &begin);
@@ -102,6 +101,13 @@ int client_request_handler(sock *client, int req_num) {
     print(BLD_STR "%s %s" CLR_STR, req.method, req.uri);
 
     webroot = get_webroot(host);
+    if (webroot == NULL) {
+        res.status = http_get_status(307);
+        sprintf(buf0, "https://%s%s", NECRONDA_DEFAULT, req.uri);
+        http_add_header_field(&req.hdr, "Location", buf0);
+        goto respond;
+    }
+
     dir_mode = URI_DIR_MODE_FORBIDDEN;
     http_uri uri;
     ret = uri_init(&uri, webroot, req.uri, dir_mode);
@@ -128,14 +134,14 @@ int client_request_handler(sock *client, int req_num) {
     print("is_dir:        %i", uri.is_dir);
      */
 
-    ssize_t size = sizeof(buf);
-    url_decode(req.uri, buf, &size);
-    if (strcmp(uri.uri, buf) != 0) {
+    ssize_t size = sizeof(buf0);
+    url_decode(req.uri, buf0, &size);
+    if (strcmp(uri.uri, buf0) != 0 || (strncmp(uri.uri, "/.well-known/", 13) != 0 && !client->enc)) {
         res.status = http_get_status(308);
-        size = sizeof(buf);
-        encode_url(uri.uri, buf, &size);
-        print("%s", buf);
-        http_add_header_field(&res.hdr, "Location", buf);
+        size = sizeof(buf0);
+        encode_url(uri.uri, buf0, &size);
+        sprintf(buf1, "https://%s%s", host, buf0);
+        http_add_header_field(&res.hdr, "Location", buf0);
         goto respond;
     }
 
@@ -153,14 +159,15 @@ int client_request_handler(sock *client, int req_num) {
         goto respond;
     }
 
-
-
+    if ((int) uri.is_static && uri.filename != NULL) {
+        uri_init_cache(&uri);
+    }
 
     respond:
     if (server_keep_alive && client_keep_alive) {
         http_add_header_field(&res.hdr, "Connection", "keep-alive");
-        sprintf(buf, "timeout=%i, max=%i", CLIENT_TIMEOUT, REQ_PER_CONNECTION);
-        http_add_header_field(&res.hdr, "Keep-Alive", buf);
+        sprintf(buf0, "timeout=%i, max=%i", CLIENT_TIMEOUT, REQ_PER_CONNECTION);
+        http_add_header_field(&res.hdr, "Keep-Alive", buf0);
     } else {
         http_add_header_field(&res.hdr, "Connection", "close");
     }
@@ -172,12 +179,12 @@ int client_request_handler(sock *client, int req_num) {
         len = sprintf(msg_buf, http_default_document, res.status->code, res.status->msg,
                       msg_pre_buf, res.status->code >= 300 && res.status->code < 400 ? "info" : "error",
                       http_error_icon, "#C00000");
-        sprintf(buf, "%li", len);
-        http_add_header_field(&res.hdr, "Content-Length", buf);
+        sprintf(buf0, "%li", len);
+        http_add_header_field(&res.hdr, "Content-Length", buf0);
         http_add_header_field(&res.hdr, "Content-Type", "text/html; charset=UTF-8");
     } else {
-        sprintf(buf, "%li", content_length);
-        http_add_header_field(&res.hdr, "Content-Length", buf);
+        sprintf(buf0, "%li", content_length);
+        http_add_header_field(&res.hdr, "Content-Length", buf0);
     }
 
     http_send_response(client, &res);
@@ -197,7 +204,7 @@ int client_request_handler(sock *client, int req_num) {
     char *location = http_get_header_field(&res.hdr, "Location", HTTP_PRESERVE_UPPER);
     unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
     print("%s%03i %s%s%s (%s)%s", http_get_status_color(res.status), res.status->code, res.status->msg,
-          location != NULL ? " -> " : "", location != NULL ? location : "", format_duration(micros, buf), CLR_STR);
+          location != NULL ? " -> " : "", location != NULL ? location : "", format_duration(micros, buf0), CLR_STR);
 
     uri_free(&uri);
     abort:

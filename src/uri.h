@@ -32,6 +32,8 @@ typedef struct {
 
 int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mode);
 
+int uri_init_cache(http_uri *uri);
+
 void uri_free(http_uri *uri);
 
 #endif //NECRONDA_SERVER_URI_H
