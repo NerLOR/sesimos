@@ -164,8 +164,14 @@ int client_request_handler(sock *client, int req_num) {
         goto respond;
     }
 
-    if ((int) uri.is_static && uri.filename != NULL) {
+    if (uri.is_static) {
         uri_init_cache(&uri);
+        http_add_header_field(&res.hdr, "Allow", "GET, HEAD");
+        http_add_header_field(&res.hdr, "Accept-Ranges", "bytes");
+        if (strncmp(req.method, "GET", 3) != 0 && strncmp(req.method, "HEAD", 4) != 0) {
+            res.status = http_get_status(405);
+            goto respond;
+        }
     }
 
     respond:
@@ -175,6 +181,9 @@ int client_request_handler(sock *client, int req_num) {
         http_add_header_field(&res.hdr, "Keep-Alive", buf0);
     } else {
         http_add_header_field(&res.hdr, "Connection", "close");
+    }
+    if (http_get_header_field(&res.hdr, "Accept-Ranges", HTTP_PRESERVE_UPPER) == NULL) {
+        http_add_header_field(&res.hdr, "Accept-Ranges", "none");
     }
     unsigned long len = 0;
     if (res.status->code >= 400 && res.status->code < 600) {
@@ -193,15 +202,17 @@ int client_request_handler(sock *client, int req_num) {
     }
 
     http_send_response(client, &res);
-    if (res.status->code >= 400 && res.status->code < 600) {
-        int snd_len = 0;
-        while (snd_len < len) {
-            if (client->enc) {
-                ret = SSL_write(client->ssl, msg_buf, (int) (len - snd_len));
-            } else {
-                ret = send(client->socket, msg_buf, len - snd_len, 0);
+    if (strncmp(req.method, "HEAD", 4) != 0) {
+        if (res.status->code >= 400 && res.status->code < 600) {
+            int snd_len = 0;
+            while (snd_len < len) {
+                if (client->enc) {
+                    ret = SSL_write(client->ssl, msg_buf, (int) (len - snd_len));
+                } else {
+                    ret = send(client->socket, msg_buf, len - snd_len, 0);
+                }
+                snd_len += ret;
             }
-            snd_len += ret;
         }
     }
 
