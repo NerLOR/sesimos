@@ -141,7 +141,7 @@ int client_request_handler(sock *client, int req_num) {
         size = sizeof(buf0);
         encode_url(uri.uri, buf0, &size);
         sprintf(buf1, "https://%s%s", host, buf0);
-        http_add_header_field(&res.hdr, "Location", buf0);
+        http_add_header_field(&res.hdr, "Location", buf1);
         goto respond;
     }
 
