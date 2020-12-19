@@ -68,9 +68,11 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     uri->path = malloc(size);
     uri->pathinfo = malloc(size);
     strcpy(uri->path, uri->req_path);
-    strcpy(uri->pathinfo, "");
     if (uri->path[strlen(uri->path) - 1] == '/') {
         uri->path[strlen(uri->path) - 1] = 0;
+        strcpy(uri->pathinfo, "/");
+    } else {
+        strcpy(uri->pathinfo, "");
     }
     while (1) {
         sprintf(buf0, "%s%s", uri->webroot, uri->path);

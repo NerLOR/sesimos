@@ -136,12 +136,17 @@ int client_request_handler(sock *client, int req_num) {
 
     ssize_t size = sizeof(buf0);
     url_decode(req.uri, buf0, &size);
-    if (strcmp(uri.uri, buf0) != 0 || (strncmp(uri.uri, "/.well-known/", 13) != 0 && !client->enc)) {
+    int change_proto = strncmp(uri.uri, "/.well-known/", 13) != 0 && !client->enc;
+    if (strcmp(uri.uri, buf0) != 0 || change_proto) {
         res.status = http_get_status(308);
         size = sizeof(buf0);
         encode_url(uri.uri, buf0, &size);
-        sprintf(buf1, "https://%s%s", host, buf0);
-        http_add_header_field(&res.hdr, "Location", buf1);
+        if (change_proto) {
+            sprintf(buf1, "https://%s%s", host, buf0);
+            http_add_header_field(&res.hdr, "Location", buf1);
+        } else {
+            http_add_header_field(&res.hdr, "Location", buf0);
+        }
         goto respond;
     }
 
