@@ -45,6 +45,7 @@ int client_request_handler(sock *client, int req_num) {
     char *host, *hdr_connection, *webroot;
     unsigned long content_length = 0;
     FILE *file = NULL;
+    msg_buf[0] = 0;
 
     http_res res;
     sprintf(res.version, "1.1");
@@ -223,7 +224,7 @@ int client_request_handler(sock *client, int req_num) {
     if (strncmp(req.method, "HEAD", 4) != 0) {
         unsigned long snd_len = 0;
         unsigned long len = 0;
-        if (res.status->code >= 400 && res.status->code < 600) {
+        if (msg_buf[0] != 0) {
             while (snd_len < content_length) {
                 if (client->enc) {
                     ret = SSL_write(client->ssl, msg_buf, (int) (content_length - snd_len));
