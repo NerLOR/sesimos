@@ -33,8 +33,10 @@
 #define REQ_PER_CONNECTION 100
 #define CLIENT_TIMEOUT 3600
 
+#define CHUNK_SIZE 4096
 #define CLIENT_MAX_HEADER_SIZE 8192
 #define FILE_CACHE_SIZE 1024
+#define SHM_KEY 255641
 
 #define ERR_STR "\x1B[1;31m"
 #define CLR_STR "\x1B[0m"
@@ -51,6 +53,8 @@
 #define NECRONDA_VERSION "4.0"
 #define SERVER_STR "Necronda/" NECRONDA_VERSION
 #define NECRONDA_DEFAULT "www.necronda.net"
+
+#define MAGIC_FILE "/usr/share/file/misc/magic.mgc"
 
 int SOCKETS[NUM_SOCKETS];
 pid_t CHILDREN[MAX_CHILDREN];

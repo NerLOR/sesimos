@@ -23,9 +23,9 @@ typedef struct {
     char *query;          // "username=test"
     char *filename;       // "/account/index.php"
     char *uri;            // "/account/login?username=test"
-    meta_data meta;
-    unsigned int is_static:1;
-    unsigned int is_dir:1;
+    meta_data *meta;
+    unsigned char is_static:1;
+    unsigned char is_dir:1;
 } http_uri;
 
 

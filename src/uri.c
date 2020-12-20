@@ -36,6 +36,7 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     uri->query = NULL;
     uri->filename = NULL;
     uri->uri = NULL;
+    uri->meta = NULL;
     uri->is_static = 1;
     uri->is_dir = 0;
     if (uri_str[0] != '/') {
@@ -152,10 +153,6 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     uri->uri = malloc(strlen(buf0) + 1);
     strcpy(uri->uri, buf0);
 
-    return 0;
-}
-
-int uri_init_cache(http_uri *uri) {
     return 0;
 }
 

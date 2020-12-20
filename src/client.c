@@ -39,11 +39,12 @@ int client_request_handler(sock *client, int req_num) {
     struct timespec begin, end;
     int ret, client_keep_alive, dir_mode;
     char buf0[1024], buf1[1024];
-    char msg_buf[4096], msg_pre_buf[4096];
-    char err_msg[256];
+    char msg_buf[4096], msg_pre_buf[4096], err_msg[256];
+    char buffer[CHUNK_SIZE];
     err_msg[0] = 0;
     char *host, *hdr_connection, *webroot;
     unsigned long content_length = 0;
+    FILE *file = NULL;
 
     http_res res;
     sprintf(res.version, "1.1");
@@ -165,13 +166,27 @@ int client_request_handler(sock *client, int req_num) {
     }
 
     if (uri.is_static) {
-        uri_init_cache(&uri);
+        res.status = http_get_status(200);
         http_add_header_field(&res.hdr, "Allow", "GET, HEAD");
         http_add_header_field(&res.hdr, "Accept-Ranges", "bytes");
         if (strncmp(req.method, "GET", 3) != 0 && strncmp(req.method, "HEAD", 4) != 0) {
             res.status = http_get_status(405);
             goto respond;
         }
+
+        ret = uri_cache_init(&uri);
+        if (ret != 0) {
+            res.status = http_get_status(500);
+            sprintf(err_msg, "Unable to communicate with internal file cache.");
+            goto respond;
+        }
+        sprintf(buf0, "%s, charset=%s", uri.meta->type, uri.meta->charset);
+        http_add_header_field(&res.hdr, "Content-Type", buf0);
+
+        file = fopen(uri.filename, "rb");
+        fseek(file, 0, 2);
+        content_length = ftell(file);
+        fseek(file, 0, 0);
     }
 
     respond:
@@ -185,31 +200,63 @@ int client_request_handler(sock *client, int req_num) {
     if (http_get_header_field(&res.hdr, "Accept-Ranges", HTTP_PRESERVE_UPPER) == NULL) {
         http_add_header_field(&res.hdr, "Accept-Ranges", "none");
     }
-    unsigned long len = 0;
+
     if (res.status->code >= 400 && res.status->code < 600) {
         http_error_msg *http_msg = http_get_error_msg(res.status->code);
         sprintf(msg_pre_buf, http_error_document, res.status->code, res.status->msg,
                 http_msg != NULL ? http_msg->err_msg : "", err_msg[0] != 0 ? err_msg : "");
-        len = sprintf(msg_buf, http_default_document, res.status->code, res.status->msg,
-                      msg_pre_buf, res.status->code >= 300 && res.status->code < 400 ? "info" : "error",
-                      http_error_icon, "#C00000");
-        sprintf(buf0, "%li", len);
-        http_add_header_field(&res.hdr, "Content-Length", buf0);
+        content_length = sprintf(msg_buf, http_default_document, res.status->code, res.status->msg,
+                                 msg_pre_buf, res.status->code >= 300 && res.status->code < 400 ? "info" : "error",
+                                 http_error_icon, "#C00000");
         http_add_header_field(&res.hdr, "Content-Type", "text/html; charset=UTF-8");
-    } else {
-        sprintf(buf0, "%li", content_length);
-        http_add_header_field(&res.hdr, "Content-Length", buf0);
     }
+    sprintf(buf0, "%li", content_length);
+    http_add_header_field(&res.hdr, "Content-Length", buf0);
 
     http_send_response(client, &res);
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    char *location = http_get_header_field(&res.hdr, "Location", HTTP_PRESERVE_UPPER);
+    unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
+    print("%s%03i %s%s%s (%s)%s", http_get_status_color(res.status), res.status->code, res.status->msg,
+          location != NULL ? " -> " : "", location != NULL ? location : "", format_duration(micros, buf0), CLR_STR);
+
     if (strncmp(req.method, "HEAD", 4) != 0) {
+        unsigned long snd_len = 0;
+        unsigned long len = 0;
         if (res.status->code >= 400 && res.status->code < 600) {
-            int snd_len = 0;
-            while (snd_len < len) {
+            while (snd_len < content_length) {
                 if (client->enc) {
-                    ret = SSL_write(client->ssl, msg_buf, (int) (len - snd_len));
+                    ret = SSL_write(client->ssl, msg_buf, (int) (content_length - snd_len));
+                    if (ret <= 0) {
+                        print(ERR_STR "Unable to send: %s" CLR_STR, ssl_get_error(client->ssl, ret));
+                    }
                 } else {
-                    ret = send(client->socket, msg_buf, len - snd_len, 0);
+                    ret = send(client->socket, msg_buf, content_length - snd_len, 0);
+                    if (ret < 0) {
+                        print(ERR_STR "Unable to send: %s" CLR_STR, strerror(errno));
+                    }
+                }
+                if (ret < 0) {
+                    break;
+                }
+                snd_len += ret;
+            }
+        } else if (file != NULL) {
+            while (snd_len < content_length) {
+                len = fread(&buffer, 1, CHUNK_SIZE, file);
+                if (client->enc) {
+                    ret = SSL_write(client->ssl, buffer, (int) len);
+                    if (ret <= 0) {
+                        print(ERR_STR "Unable to send: %s" CLR_STR, ssl_get_error(client->ssl, ret));
+                    }
+                } else {
+                    ret = send(client->socket, buffer, len, 0);
+                    if (ret < 0) {
+                        print(ERR_STR "Unable to send: %s" CLR_STR, strerror(errno));
+                    }
+                }
+                if (ret <= 0) {
+                    break;
                 }
                 snd_len += ret;
             }
@@ -217,10 +264,8 @@ int client_request_handler(sock *client, int req_num) {
     }
 
     clock_gettime(CLOCK_MONOTONIC, &end);
-    char *location = http_get_header_field(&res.hdr, "Location", HTTP_PRESERVE_UPPER);
-    unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
-    print("%s%03i %s%s%s (%s)%s", http_get_status_color(res.status), res.status->code, res.status->msg,
-          location != NULL ? " -> " : "", location != NULL ? location : "", format_duration(micros, buf0), CLR_STR);
+    micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
+    print("Transfer complete: %s", format_duration(micros, buf0));
 
     uri_free(&uri);
     abort:

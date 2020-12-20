@@ -80,6 +80,7 @@ void destroy() {
     if (kills > 0) {
         fprintf(stderr, ERR_STR "Killed %i child process(es)" CLR_STR "\n", kills);
     }
+    cache_unload();
     exit(2);
 }
 
@@ -137,6 +138,7 @@ void terminate() {
     } else {
         fprintf(stderr, "Goodbye\n");
     }
+    cache_unload();
     exit(0);
 }
 
@@ -239,7 +241,9 @@ int main(int argc, const char *argv[]) {
     signal(SIGINT, terminate);
     signal(SIGTERM, terminate);
 
-    cache_init();
+    if (cache_init() != 0) {
+        return 1;
+    }
     openssl_init();
 
     client.ctx = SSL_CTX_new(TLS_server_method());
