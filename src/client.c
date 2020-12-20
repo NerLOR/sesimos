@@ -232,11 +232,11 @@ int client_request_handler(sock *client, int req_num) {
                     }
                 } else {
                     ret = send(client->socket, msg_buf, content_length - snd_len, 0);
-                    if (ret < 0) {
+                    if (ret <= 0) {
                         print(ERR_STR "Unable to send: %s" CLR_STR, strerror(errno));
                     }
                 }
-                if (ret < 0) {
+                if (ret <= 0) {
                     break;
                 }
                 snd_len += ret;
@@ -251,7 +251,7 @@ int client_request_handler(sock *client, int req_num) {
                     }
                 } else {
                     ret = send(client->socket, buffer, len, 0);
-                    if (ret < 0) {
+                    if (ret <= 0) {
                         print(ERR_STR "Unable to send: %s" CLR_STR, strerror(errno));
                     }
                 }
