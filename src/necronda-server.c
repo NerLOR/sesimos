@@ -183,7 +183,7 @@ int main(int argc, const char *argv[]) {
         const char *arg = argv[i];
         unsigned long len = strlen(arg);
         if ((len == 2 && strncmp(arg, "-h", 2) == 0) || (len == 6 && strncmp(arg, "--help", 6) == 0)) {
-            printf("Usage: necronda-server [-h] -w <PATH> -c <CERT-FILE> -p <KEY-FILE>\n"
+            printf("Usage: necronda-server [-h] -w <PATH> -c <CERT-FILE> -p <KEY-FILE> [-g <DB-FILE>]\n"
                    "\n"
                    "Options:\n"
                    "  -c, --cert <CERT-FILE>    path to the full chain certificate file\n"
