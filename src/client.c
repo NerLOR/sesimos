@@ -281,6 +281,9 @@ int client_connection_handler(sock *client) {
     char buf[16];
 
     clock_gettime(CLOCK_MONOTONIC, &begin);
+
+    // TODO get geoip data for ip address
+
     print("Connection accepted from %s (%s) [%s]", client_addr_str, client_addr_str, "N/A");
 
     client_timeout.tv_sec = CLIENT_TIMEOUT;

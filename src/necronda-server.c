@@ -264,6 +264,9 @@ int main(int argc, const char *argv[]) {
     if (cache_init() != 0) {
         return 1;
     }
+
+    // TODO init geoip database
+
     openssl_init();
 
     client.ctx = SSL_CTX_new(TLS_server_method());
