@@ -10,8 +10,8 @@
 
 char *log_prefix;
 
-#define out_1(fmt) fprintf(parent_stdout, "%s" fmt "\n", log_prefix)
-#define out_2(fmt, args...) fprintf(parent_stdout, "%s" fmt "\n", log_prefix, args)
+#define out_1(fmt) fprintf(stdout, "%s" fmt "\n", log_prefix)
+#define out_2(fmt, args...) fprintf(stdout, "%s" fmt "\n", log_prefix, args)
 
 #define out_x(x, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, FUNC, ...) FUNC
 

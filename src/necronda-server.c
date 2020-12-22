@@ -172,9 +172,6 @@ int main(int argc, const char *argv[]) {
 
     struct timeval timeout;
 
-    parent_stdout = stdout;
-    parent_stderr = stderr;
-
     const struct sockaddr_in6 addresses[2] = {
             {.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_ANY_INIT, .sin6_port = htons(80)},
             {.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_ANY_INIT, .sin6_port = htons(443)}
@@ -190,6 +187,7 @@ int main(int argc, const char *argv[]) {
                    "\n"
                    "Options:\n"
                    "  -c, --cert <CERT-FILE>    path to the full chain certificate file\n"
+                   "  -g, --geoip <DB-FILE>     path to a Maxmind GeoIP Database file\n"
                    "  -h, --help                print this dialogue\n"
                    "  -p, --privkey <KEY-FILE>  path to the private key file\n"
                    "  -w, --webroot <PATH>      path to the web root directory\n");
@@ -212,6 +210,12 @@ int main(int argc, const char *argv[]) {
                 return 1;
             }
             key_file = argv[++i];
+        } else if ((len == 2 && strncmp(arg, "-g", 2) == 0) || (len == 7 && strncmp(arg, "--geoip", 7) == 0)) {
+            if (i == argc - 1) {
+                fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --geoip <DB-FILE>" CLR_STR "\n", arg);
+                return 1;
+            }
+            geoip_file = argv[++i];
         } else {
             fprintf(stderr, ERR_STR "Unable to parse argument '%s'" CLR_STR "\n", arg);
             return 1;
@@ -312,7 +316,7 @@ int main(int argc, const char *argv[]) {
             if (FD_ISSET(sockets[i], &read_socket_fds)) {
                 client_fd = accept(sockets[i], (struct sockaddr *) &client_addr, &client_addr_len);
                 if (client_fd == -1) {
-                    fprintf(parent_stderr, ERR_STR "Unable to accept connection: %s" CLR_STR "\n", strerror(errno));
+                    fprintf(stderr, ERR_STR "Unable to accept connection: %s" CLR_STR "\n", strerror(errno));
                     continue;
                 }
 
