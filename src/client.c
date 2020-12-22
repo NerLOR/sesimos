@@ -181,13 +181,28 @@ int client_request_handler(sock *client, int req_num) {
             sprintf(err_msg, "Unable to communicate with internal file cache.");
             goto respond;
         }
+        http_add_header_field(&res.hdr, "Last-Modified",
+                              http_format_date(uri.meta->stat.st_mtime, buf0, sizeof(buf0)));
         sprintf(buf0, "%s, charset=%s", uri.meta->type, uri.meta->charset);
         http_add_header_field(&res.hdr, "Content-Type", buf0);
+        if (uri.meta->etag[0] != 0) {
+            http_add_header_field(&res.hdr, "ETag", uri.meta->etag);
+        }
+        if (strncmp(uri.meta->type, "text/", 5) == 0) {
+            http_add_header_field(&res.hdr, "Cache-Control", "public, max-age=3600");
+        } else {
+            http_add_header_field(&res.hdr, "Cache-Control", "public, max-age=86400");
+        }
 
-        file = fopen(uri.filename, "rb");
-        fseek(file, 0, 2);
-        content_length = ftell(file);
-        fseek(file, 0, 0);
+        char *if_none_match = http_get_header_field(&req.hdr, "If-None-Match", HTTP_LOWER);
+        if (if_none_match != NULL && strncmp(if_none_match, uri.meta->etag, sizeof(uri.meta->etag)) == 0) {
+            res.status = http_get_status(304);
+        } else {
+            file = fopen(uri.filename, "rb");
+            fseek(file, 0, 2);
+            content_length = ftell(file);
+            fseek(file, 0, 0);
+        }
     }
 
     respond:

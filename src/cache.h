@@ -11,25 +11,32 @@
 #include <magic.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include "uri.h"
 
 magic_t magic;
 
 typedef struct {
-    char etag[64];
-    char type[24];
-    char charset[16];
-    char filename_comp[256];
-    struct stat stat;
-} meta_data;
-
-typedef struct {
     char filename[256];
-    unsigned short filename_len;
-    unsigned char is_valid_etag:1;
     unsigned char is_updating:1;
     meta_data meta;
 } cache_entry;
 
 cache_entry *cache;
+
+int cache_continue = 1;
+
+int magic_init();
+
+void cache_process_term();
+
+int cache_process();
+
+int cache_init();
+
+int cache_unload();
+
+int cache_update_entry(int entry_num, const char *filename);
+
+int uri_cache_init(http_uri *uri);
 
 #endif //NECRONDA_SERVER_CACHE_H

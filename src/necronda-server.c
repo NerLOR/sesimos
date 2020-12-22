@@ -164,6 +164,7 @@ int main(int argc, const char *argv[]) {
     int ready_sockets_num;
     long client_num = 0;
     char buf[1024];
+    int ret;
 
     int client_fd;
     sock client;
@@ -261,8 +262,11 @@ int main(int argc, const char *argv[]) {
     signal(SIGINT, terminate);
     signal(SIGTERM, terminate);
 
-    if (cache_init() != 0) {
+    ret = cache_init();
+    if (ret < 0) {
         return 1;
+    } else if (ret != 0) {
+        return 0;
     }
 
     // TODO init geoip database
@@ -349,7 +353,6 @@ int main(int argc, const char *argv[]) {
         }
 
         int status = 0;
-        int ret;
         for (int i = 0; i < MAX_CHILDREN; i++) {
             if (children[i] != 0) {
                 ret = waitpid(children[i], &status, WNOHANG);
