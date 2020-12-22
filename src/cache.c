@@ -121,7 +121,7 @@ int uri_cache_init(http_uri *uri) {
     } else {
         struct stat statbuf;
         stat(uri->filename, &statbuf);
-        if (uri->meta->stat.st_mtimensec != statbuf.st_mtimensec) {
+        if (memcmp(&uri->meta->stat.st_mtime, &statbuf.st_mtime, sizeof(statbuf.st_mtime)) != 0) {
             if (cache_update_entry(i, uri->filename) != 0) {
                 return -1;
             }

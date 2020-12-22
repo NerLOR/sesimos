@@ -65,14 +65,19 @@ void destroy() {
     int ret;
     int kills = 0;
     for (int i = 0; i < MAX_CHILDREN; i++) {
-        if (CHILDREN[i] != 0) {
-            ret = waitpid(CHILDREN[i], &status, WNOHANG);
+        if (children[i] != 0) {
+            ret = waitpid(children[i], &status, WNOHANG);
             if (ret < 0) {
-                fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n", CHILDREN[i], strerror(errno));
-            } else if (ret == CHILDREN[i]) {
-                CHILDREN[i] = 0;
+                fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n",
+                        children[i], strerror(errno));
+            } else if (ret == children[i]) {
+                children[i] = 0;
+                if (status != 0) {
+                    fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n",
+                            ret, status);
+                }
             } else {
-                kill(CHILDREN[i], SIGKILL);
+                kill(children[i], SIGKILL);
                 kills++;
             }
         }
@@ -92,22 +97,27 @@ void terminate() {
     signal(SIGTERM, destroy);
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
-        shutdown(SOCKETS[i], SHUT_RDWR);
-        close(SOCKETS[i]);
+        shutdown(sockets[i], SHUT_RDWR);
+        close(sockets[i]);
     }
 
     int status = 0;
     int wait_num = 0;
     int ret;
     for (int i = 0; i < MAX_CHILDREN; i++) {
-        if (CHILDREN[i] != 0) {
-            ret = waitpid(CHILDREN[i], &status, WNOHANG);
+        if (children[i] != 0) {
+            ret = waitpid(children[i], &status, WNOHANG);
             if (ret < 0) {
-                fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n", CHILDREN[i], strerror(errno));
-            } else if (ret == CHILDREN[i]) {
-                CHILDREN[i] = 0;
+                fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n",
+                        children[i], strerror(errno));
+            } else if (ret == children[i]) {
+                children[i] = 0;
+                if (status != 0) {
+                    fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n",
+                            ret, status);
+                }
             } else {
-                kill(CHILDREN[i], SIGTERM);
+                kill(children[i], SIGTERM);
                 wait_num++;
             }
         }
@@ -118,12 +128,17 @@ void terminate() {
     }
 
     for (int i = 0; i < MAX_CHILDREN; i++) {
-        if (CHILDREN[i] != 0) {
-            ret = waitpid(CHILDREN[i], &status, 0);
+        if (children[i] != 0) {
+            ret = waitpid(children[i], &status, 0);
             if (ret < 0) {
-                fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n", CHILDREN[i], strerror(errno));
-            } else if (ret == CHILDREN[i]) {
-                CHILDREN[i] = 0;
+                fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n",
+                        children[i], strerror(errno));
+            } else if (ret == children[i]) {
+                children[i] = 0;
+                if (status != 0) {
+                    fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n",
+                            ret, status);
+                }
             }
         }
     }
@@ -146,8 +161,9 @@ int main(int argc, const char *argv[]) {
     const int YES = 1;
     fd_set socket_fds, read_socket_fds;
     int max_socket_fd = 0;
-    int ready_sockets_num = 0;
+    int ready_sockets_num;
     long client_num = 0;
+    char buf[1024];
 
     int client_fd;
     sock client;
@@ -215,24 +231,24 @@ int main(int argc, const char *argv[]) {
         return 1;
     }
 
-    SOCKETS[0] = socket(AF_INET6, SOCK_STREAM, 0);
-    if (SOCKETS[0] == -1) goto socket_err;
-    SOCKETS[1] = socket(AF_INET6, SOCK_STREAM, 0);
-    if (SOCKETS[1] == -1) {
+    sockets[0] = socket(AF_INET6, SOCK_STREAM, 0);
+    if (sockets[0] == -1) goto socket_err;
+    sockets[1] = socket(AF_INET6, SOCK_STREAM, 0);
+    if (sockets[1] == -1) {
         socket_err:
         fprintf(stderr, ERR_STR "Unable to create socket: %s" CLR_STR "\n", strerror(errno));
         return 1;
     }
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
-        if (setsockopt(SOCKETS[i], SOL_SOCKET, SO_REUSEADDR, &YES, sizeof(YES)) == -1) {
+        if (setsockopt(sockets[i], SOL_SOCKET, SO_REUSEADDR, &YES, sizeof(YES)) == -1) {
             fprintf(stderr, ERR_STR "Unable to set options for socket %i: %s" CLR_STR "\n", i, strerror(errno));
             return 1;
         }
     }
 
-    if (bind(SOCKETS[0], (struct sockaddr *) &addresses[0], sizeof(addresses[0])) == -1) goto bind_err;
-    if (bind(SOCKETS[1], (struct sockaddr *) &addresses[1], sizeof(addresses[1])) == -1) {
+    if (bind(sockets[0], (struct sockaddr *) &addresses[0], sizeof(addresses[0])) == -1) goto bind_err;
+    if (bind(sockets[1], (struct sockaddr *) &addresses[1], sizeof(addresses[1])) == -1) {
         bind_err:
         fprintf(stderr, ERR_STR "Unable to bind socket to address: %s" CLR_STR "\n", strerror(errno));
         return 1;
@@ -255,16 +271,18 @@ int main(int argc, const char *argv[]) {
     SSL_CTX_set_ecdh_auto(client.ctx, 1);
 
     if (SSL_CTX_use_certificate_chain_file(client.ctx, cert_file) != 1) {
-        fprintf(stderr, ERR_STR "Unable to load certificate chain file: %s: %s" CLR_STR "\n", ERR_reason_error_string(ERR_get_error()), cert_file);
+        fprintf(stderr, ERR_STR "Unable to load certificate chain file: %s: %s" CLR_STR "\n",
+                ERR_reason_error_string(ERR_get_error()), cert_file);
         return 1;
     }
     if (SSL_CTX_use_PrivateKey_file(client.ctx, key_file, SSL_FILETYPE_PEM) != 1) {
-        fprintf(stderr, ERR_STR "Unable to load private key file: %s: %s" CLR_STR "\n", ERR_reason_error_string(ERR_get_error()), key_file);
+        fprintf(stderr, ERR_STR "Unable to load private key file: %s: %s" CLR_STR "\n",
+                ERR_reason_error_string(ERR_get_error()), key_file);
         return 1;
     }
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
-        if (listen(SOCKETS[i], LISTEN_BACKLOG) == -1) {
+        if (listen(sockets[i], LISTEN_BACKLOG) == -1) {
             fprintf(stderr, ERR_STR "Unable to listen on socket %i: %s" CLR_STR "\n", i, strerror(errno));
             return 1;
         }
@@ -272,9 +290,9 @@ int main(int argc, const char *argv[]) {
 
     FD_ZERO(&socket_fds);
     for (int i = 0; i < NUM_SOCKETS; i++) {
-        FD_SET(SOCKETS[i], &socket_fds);
-        if (SOCKETS[i] > max_socket_fd) {
-            max_socket_fd = SOCKETS[i];
+        FD_SET(sockets[i], &socket_fds);
+        if (sockets[i] > max_socket_fd) {
+            max_socket_fd = sockets[i];
         }
     }
 
@@ -291,8 +309,8 @@ int main(int argc, const char *argv[]) {
         }
 
         for (int i = 0; i < NUM_SOCKETS; i++) {
-            if (FD_ISSET(SOCKETS[i], &read_socket_fds)) {
-                client_fd = accept(SOCKETS[i], (struct sockaddr *) &client_addr, &client_addr_len);
+            if (FD_ISSET(sockets[i], &read_socket_fds)) {
+                client_fd = accept(sockets[i], (struct sockaddr *) &client_addr, &client_addr_len);
                 if (client_fd == -1) {
                     fprintf(parent_stderr, ERR_STR "Unable to accept connection: %s" CLR_STR "\n", strerror(errno));
                     continue;
@@ -306,15 +324,14 @@ int main(int argc, const char *argv[]) {
 
                     client.socket = client_fd;
                     client.enc = i == 1;
-
                     return client_handler(&client, client_num, &client_addr);
                 } else if (pid > 0) {
                     // parent
                     client_num++;
                     close(client_fd);
                     for (int j = 0; j < MAX_CHILDREN; j++) {
-                        if (CHILDREN[j] == 0) {
-                            CHILDREN[j] = pid;
+                        if (children[j] == 0) {
+                            children[j] = pid;
                             break;
                         }
                     }
@@ -327,12 +344,17 @@ int main(int argc, const char *argv[]) {
         int status = 0;
         int ret;
         for (int i = 0; i < MAX_CHILDREN; i++) {
-            if (CHILDREN[i] != 0) {
-                ret = waitpid(CHILDREN[i], &status, WNOHANG);
+            if (children[i] != 0) {
+                ret = waitpid(children[i], &status, WNOHANG);
                 if (ret < 0) {
-                    fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n", CHILDREN[i], strerror(errno));
-                } else if (ret == CHILDREN[i]) {
-                    CHILDREN[i] = 0;
+                    fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n",
+                            children[i], strerror(errno));
+                } else if (ret == children[i]) {
+                    children[i] = 0;
+                    if (status != 0) {
+                        fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n",
+                                ret, status);
+                    }
                 }
             }
         }

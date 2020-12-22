@@ -56,8 +56,8 @@
 
 #define MAGIC_FILE "/usr/share/file/misc/magic.mgc"
 
-int SOCKETS[NUM_SOCKETS];
-pid_t CHILDREN[MAX_CHILDREN];
+int sockets[NUM_SOCKETS];
+pid_t children[MAX_CHILDREN];
 
 FILE *parent_stdout, *parent_stderr;
 

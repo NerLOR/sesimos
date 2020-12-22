@@ -366,6 +366,8 @@ int client_handler(sock *client, long client_num, struct sockaddr_in6 *client_ad
     sprintf(log_conn_prefix, "[%24s]%s ", server_addr_str, log_client_prefix);
     log_prefix = log_conn_prefix;
 
+    print("Started child process with PID %i", getpid());
+
     ret = client_connection_handler(client);
     free(client_addr_str_ptr);
     free(server_addr_str_ptr);
