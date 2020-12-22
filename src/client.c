@@ -197,12 +197,20 @@ int client_request_handler(sock *client, int req_num) {
         char *if_none_match = http_get_header_field(&req.hdr, "If-None-Match", HTTP_LOWER);
         if (if_none_match != NULL && strncmp(if_none_match, uri.meta->etag, sizeof(uri.meta->etag)) == 0) {
             res.status = http_get_status(304);
+            goto respond;
+        }
+
+        // TODO Ranges
+        char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding", HTTP_LOWER);
+        if (uri.meta->filename_comp[0] != 0 && accept_encoding != NULL && strstr(accept_encoding, "deflate") != NULL) {
+            file = fopen(uri.meta->filename_comp, "rb");
+            http_add_header_field(&res.hdr, "Content-Encoding", "deflate");
         } else {
             file = fopen(uri.filename, "rb");
-            fseek(file, 0, 2);
-            content_length = ftell(file);
-            fseek(file, 0, 0);
         }
+        fseek(file, 0, 2);
+        content_length = ftell(file);
+        fseek(file, 0, 0);
     }
 
     respond:
