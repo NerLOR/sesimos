@@ -164,4 +164,11 @@ void uri_free(http_uri *uri) {
     if (uri->query != NULL) free(uri->query);
     if (uri->filename != NULL) free(uri->filename);
     if (uri->uri != NULL) free(uri->uri);
+    uri->webroot = NULL;
+    uri->req_path = NULL;
+    uri->path = NULL;
+    uri->pathinfo = NULL;
+    uri->query = NULL;
+    uri->filename = NULL;
+    uri->uri = NULL;
 }

@@ -28,10 +28,12 @@ void http_free_hdr(http_hdr *hdr) {
         free(hdr->fields[i][0]);
         free(hdr->fields[i][1]);
     }
+    hdr->field_num = 0;
 }
 
 void http_free_req(http_req *req) {
-    free(req->uri);
+    if (req->uri == NULL) free(req->uri);
+    req->uri = NULL;
     http_free_hdr(&req->hdr);
 }
 
@@ -42,8 +44,8 @@ void http_free_res(http_res *res) {
 int http_receive_request(sock *client, http_req *req) {
     ssize_t rcv_len, len;
     char *ptr, *pos0, *pos1, *pos2;
-    char *buf = malloc(CLIENT_MAX_HEADER_SIZE);
-    memset(buf, 0, sizeof(&buf));
+    char buf[CLIENT_MAX_HEADER_SIZE];
+    memset(buf, 0, sizeof(buf));
     memset(req->method, 0, sizeof(req->method));
     memset(req->version, 0, sizeof(req->version));
     req->uri = NULL;
@@ -74,7 +76,6 @@ int http_receive_request(sock *client, http_req *req) {
             pos0 = memchr(ptr, '\r', rcv_len - (ptr - buf));
             if (pos0 == NULL || pos0[1] != '\n') {
                 print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);
-                free(buf);
                 return 1;
             }
 
@@ -97,7 +98,6 @@ int http_receive_request(sock *client, http_req *req) {
                     strcpy(req->method, "TRACE");
                 } else {
                     print(ERR_STR "Unable to parse header: Invalid method" CLR_STR);
-                    free(buf);
                     return 2;
                 }
 
@@ -107,13 +107,11 @@ int http_receive_request(sock *client, http_req *req) {
                 if (pos2 == NULL) {
                     err_hdr_fmt:
                     print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);
-                    free(buf);
                     return 1;
                 }
 
                 if (memcmp(pos2, "HTTP/", 5) != 0 || memcmp(pos2 + 8, "\r\n", 2) != 0) {
                     print(ERR_STR "Unable to parse header: Invalid version" CLR_STR);
-                    free(buf);
                     return 3;
                 }
 
@@ -125,7 +123,6 @@ int http_receive_request(sock *client, http_req *req) {
                 pos1 = memchr(ptr, ':', pos0 - ptr);
                 if (pos1 == NULL) {
                     print(ERR_STR "Unable to parse header: Invalid version" CLR_STR);
-                    free(buf);
                     return 3;
                 }
 
@@ -145,7 +142,6 @@ int http_receive_request(sock *client, http_req *req) {
                 req->hdr.field_num++;
             }
             if (pos0[2] == '\r' && pos0[3] == '\n') {
-                free(buf);
                 return 0;
             }
             ptr = pos0 + 2;
@@ -182,7 +178,7 @@ void http_add_header_field(http_hdr *hdr, const char *field_name, const char *fi
 }
 
 int http_send_response(sock *client, http_res *res) {
-    char *buf = malloc(CLIENT_MAX_HEADER_SIZE);
+    char buf[CLIENT_MAX_HEADER_SIZE];
     int len = 0;
     int snd_len = 0;
 
@@ -197,7 +193,7 @@ int http_send_response(sock *client, http_res *res) {
     } else {
         snd_len = send(client->socket, buf, len, 0);
     }
-    free(buf);
+
     return 0;
 }
 
