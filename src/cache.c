@@ -45,8 +45,10 @@ int cache_process() {
     mkdir("/var/necronda-server", 0655);
 
     FILE *cache_file = fopen("/var/necronda-server/cache", "rb");
-    fread(cache, sizeof(cache_entry), FILE_CACHE_SIZE , cache_file);
-    fclose(cache_file);
+    if (cache_file != NULL) {
+        fread(cache, sizeof(cache_entry), FILE_CACHE_SIZE, cache_file);
+        fclose(cache_file);
+    }
 
     for (int i = 0; i < FILE_CACHE_SIZE; i++) {
         cache[i].is_updating = 0;
