@@ -53,6 +53,7 @@
 #define NECRONDA_VERSION "4.0"
 #define SERVER_STR "Necronda/" NECRONDA_VERSION
 #define NECRONDA_DEFAULT "www.necronda.net"
+#define NECRONDA_ZLIB_LEVEL 9
 
 #define MAGIC_FILE "/usr/share/file/misc/magic.mgc"
 

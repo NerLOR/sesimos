@@ -5,6 +5,7 @@
  * Lorenz Stechauner, 2020-12-19
  */
 
+#include <zlib.h>
 #include "cache.h"
 #include "uri.h"
 
@@ -42,7 +43,7 @@ int cache_process() {
     }
     cache = shm_rw;
 
-    mkdir("/var/necronda-server", 0655);
+    mkdir("/var/necronda-server", 0755);
 
     FILE *cache_file = fopen("/var/necronda-server/cache", "rb");
     if (cache_file != NULL) {
@@ -56,6 +57,8 @@ int cache_process() {
 
     FILE *file;
     char buf[16384];
+    char comp_buf[16384];
+    char filename_comp[256];
     unsigned long read;
     int compress;
     SHA_CTX ctx;
@@ -67,11 +70,64 @@ int cache_process() {
                 SHA1_Init(&ctx);
                 file = fopen(cache[i].filename, "rb");
                 compress = strncmp(cache[i].meta.type, "text/", 5) == 0;
+
+                int level = NECRONDA_ZLIB_LEVEL;
+                z_stream strm;
+                FILE *comp_file = NULL;
+                if (compress) {
+                    sprintf(buf, "%.*s/.necronda-server", cache[i].webroot_len, cache[i].filename);
+                    mkdir(buf, 0755);
+                    sprintf(buf, "%.*s/.necronda-server/cache", cache[i].webroot_len, cache[i].filename);
+                    mkdir(buf, 0700);
+                    char *rel_path = cache[i].filename + cache[i].webroot_len + 1;
+                    for (int j = 0; j < strlen(rel_path); j++) {
+                        char ch = rel_path[j];
+                        if (ch == '/') {
+                            ch = '_';
+                        }
+                        buf[j] = ch;
+                    }
+                    buf[strlen(rel_path)] = 0;
+                    sprintf(filename_comp, "%.*s/.necronda-server/cache/%s.z", cache[i].webroot_len, cache[i].filename, buf);
+                    comp_file = fopen(filename_comp, "wb");
+                    if (comp_file == NULL) {
+                        compress = 0;
+                        fprintf(stderr, ERR_STR "Unable to open cache file: %s" CLR_STR "\n", strerror(errno));
+                    } else {
+                        strm.zalloc = Z_NULL;
+                        strm.zfree = Z_NULL;
+                        strm.opaque = Z_NULL;
+                        if (deflateInit(&strm, level) != Z_OK) {
+                            fprintf(stderr, ERR_STR "Unable to init deflate: %s" CLR_STR "\n", strerror(errno));
+                            compress = 0;
+                            fclose(comp_file);
+                        }
+                    }
+                }
+
                 while ((read = fread(buf, 1, sizeof(buf), file)) > 0) {
                     SHA1_Update(&ctx, buf, read);
                     if (compress) {
-                        // TODO compress text/* files
+                        strm.avail_in = read;
+                        strm.next_in = (unsigned char *) buf;
+                        strm.avail_out = sizeof(comp_buf);
+                        strm.next_out = (unsigned char *) comp_buf;
+                        do {
+                            strm.avail_out = sizeof(comp_buf);
+                            strm.next_out = (unsigned char *) comp_buf;
+                            deflate(&strm, feof(file) ? Z_FINISH : Z_NO_FLUSH);
+                            fwrite(comp_buf, 1, sizeof(comp_buf) - strm.avail_out, comp_file);
+                            strm.avail_in = 0;
+                        } while (strm.avail_out == 0);
                     }
+                }
+
+                if (compress) {
+                    deflateEnd(&strm);
+                    fclose(comp_file);
+                    strcpy(cache[i].meta.filename_comp, filename_comp);
+                } else {
+                    memset(cache[i].meta.filename_comp, 0, sizeof(cache[i].meta.filename_comp));
                 }
                 SHA1_Final(hash, &ctx);
                 memset(cache[i].meta.etag, 0, sizeof(cache[i].meta.etag));
@@ -150,7 +206,7 @@ int cache_unload() {
     return 0;
 }
 
-int cache_update_entry(int entry_num, const char *filename) {
+int cache_update_entry(int entry_num, const char *filename, const char *webroot) {
     void *cache_ro = cache;
     int shm_id = shmget(SHM_KEY, 0, 0);
     void *shm_rw = shmat(shm_id, NULL, 0);
@@ -164,23 +220,59 @@ int cache_update_entry(int entry_num, const char *filename) {
     stat(filename, &statbuf);
     memcpy(&cache[entry_num].meta.stat, &statbuf, sizeof(statbuf));
 
+    cache[entry_num].webroot_len = (unsigned char) strlen(webroot);
     strcpy(cache[entry_num].filename, filename);
+
     magic_setflags(magic, MAGIC_MIME_TYPE);
     const char *type = magic_file(magic, filename);
     char type_new[24];
     sprintf(type_new, "%s", type);
-    if (strncmp(type, "text/plain", 10) == 0) {
+    if (strcmp(type, "text/plain") == 0) {
         if (strncmp(filename + strlen(filename) - 4, ".css", 4) == 0) {
             sprintf(type_new, "text/css");
-        } else if (strncmp(filename + strlen(filename) - 3, ".js", 3) == 0) {
+        } else if (strcmp(filename + strlen(filename) - 3, ".js") == 0) {
             sprintf(type_new, "text/javascript");
         }
     }
     strcpy(cache[entry_num].meta.type, type_new);
+
     magic_setflags(magic, MAGIC_MIME_ENCODING);
     strcpy(cache[entry_num].meta.charset, magic_file(magic, filename));
+
     memset(cache[entry_num].meta.etag, 0, sizeof(cache[entry_num].meta.etag));
+    memset(cache[entry_num].meta.filename_comp, 0, sizeof(cache[entry_num].meta.filename_comp));
     cache[entry_num].is_updating = 0;
+
+    shmdt(shm_rw);
+    cache = cache_ro;
+    return 0;
+}
+
+int cache_filename_comp_invalid(const char *filename) {
+    void *cache_ro = cache;
+    int shm_id = shmget(SHM_KEY, 0, 0);
+    void *shm_rw = shmat(shm_id, NULL, 0);
+    if (shm_rw == (void *) -1) {
+        print(ERR_STR "Unable to attach shared memory (rw): %s" CLR_STR, strerror(errno));
+        return -1;
+    }
+    cache = shm_rw;
+
+    int i;
+    for (i = 0; i < FILE_CACHE_SIZE; i++) {
+        if (cache[i].filename[0] != 0 && strlen(cache[i].filename) == strlen(filename) &&
+            strcmp(cache[i].filename, filename) == 0) {
+            if (cache[i].is_updating) {
+                return 0;
+            } else {
+                break;
+            }
+        }
+    }
+
+    memset(cache[i].meta.etag, 0, sizeof(cache[i].meta.etag));
+    memset(cache[i].meta.filename_comp, 0, sizeof(cache[i].meta.filename_comp));
+    cache[i].is_updating = 0;
 
     shmdt(shm_rw);
     cache = cache_ro;
@@ -208,7 +300,7 @@ int uri_cache_init(http_uri *uri) {
     if (uri->meta == NULL) {
         for (i = 0; i < FILE_CACHE_SIZE; i++) {
             if (cache[i].filename[0] == 0) {
-                if (cache_update_entry(i, uri->filename) != 0) {
+                if (cache_update_entry(i, uri->filename, uri->webroot) != 0) {
                     return -1;
                 }
                 uri->meta = &cache[i].meta;
@@ -219,7 +311,7 @@ int uri_cache_init(http_uri *uri) {
         struct stat statbuf;
         stat(uri->filename, &statbuf);
         if (memcmp(&uri->meta->stat.st_mtime, &statbuf.st_mtime, sizeof(statbuf.st_mtime)) != 0) {
-            if (cache_update_entry(i, uri->filename) != 0) {
+            if (cache_update_entry(i, uri->filename, uri->webroot) != 0) {
                 return -1;
             }
         }

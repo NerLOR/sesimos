@@ -17,6 +17,7 @@ magic_t magic;
 
 typedef struct {
     char filename[256];
+    unsigned char webroot_len;
     unsigned char is_updating:1;
     meta_data meta;
 } cache_entry;
@@ -35,7 +36,9 @@ int cache_init();
 
 int cache_unload();
 
-int cache_update_entry(int entry_num, const char *filename);
+int cache_update_entry(int entry_num, const char *filename, const char *webroot);
+
+int cache_filename_comp_invalid(const char *filename);
 
 int uri_cache_init(http_uri *uri);
 

@@ -209,8 +209,13 @@ int client_request_handler(sock *client, int req_num) {
         char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding", HTTP_LOWER);
         if (uri.meta->filename_comp[0] != 0 && accept_encoding != NULL && strstr(accept_encoding, "deflate") != NULL) {
             file = fopen(uri.meta->filename_comp, "rb");
+            if (file == NULL) {
+                cache_filename_comp_invalid(uri.filename);
+                goto not_compressed;
+            }
             http_add_header_field(&res.hdr, "Content-Encoding", "deflate");
         } else {
+            not_compressed:
             file = fopen(uri.filename, "rb");
         }
         fseek(file, 0, SEEK_END);
