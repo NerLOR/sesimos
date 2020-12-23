@@ -84,6 +84,8 @@ int client_request_handler(sock *client, int req_num) {
             sprintf(err_msg, "Unable to parse header: Invalid method.");
         } else if (ret == 3) {
             sprintf(err_msg, "Unable to parse header: Invalid version");
+        } else if (ret == 4) {
+            sprintf(err_msg, "Unable to parse header: Header contains illegal characters");
         }
         res.status = http_get_status(400);
         goto respond;

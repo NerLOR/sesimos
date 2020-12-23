@@ -71,6 +71,13 @@ int http_receive_request(sock *client, http_req *req) {
             return -1;
         }
 
+        for (int i = 0; i < rcv_len; i++) {
+            if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {
+                print(ERR_STR "Unable to parse header: Header contains illegal characters" CLR_STR);
+                return 4;
+            }
+        }
+
         ptr = buf;
         while (rcv_len != (ptr - buf)) {
             pos0 = memchr(ptr, '\r', rcv_len - (ptr - buf));
