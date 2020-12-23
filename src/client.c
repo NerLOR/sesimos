@@ -210,9 +210,9 @@ int client_request_handler(sock *client, int req_num) {
         } else {
             file = fopen(uri.filename, "rb");
         }
-        fseek(file, 0, 2);
+        fseek(file, 0, SEEK_END);
         content_length = ftell(file);
-        fseek(file, 0, 0);
+        fseek(file, 0, SEEK_SET);
     }
 
     respond:
