@@ -46,6 +46,7 @@ int client_request_handler(sock *client, int req_num) {
     unsigned long content_length = 0;
     FILE *file = NULL;
     msg_buf[0] = 0;
+    int accept_if_modified_since = 0;
 
     http_res res;
     sprintf(res.version, "1.1");
@@ -183,10 +184,10 @@ int client_request_handler(sock *client, int req_num) {
             sprintf(err_msg, "Unable to communicate with internal file cache.");
             goto respond;
         }
-        http_add_header_field(&res.hdr, "Last-Modified",
-                              http_format_date(uri.meta->stat.st_mtime, buf0, sizeof(buf0)));
-        sprintf(buf0, "%s, charset=%s", uri.meta->type, uri.meta->charset);
-        http_add_header_field(&res.hdr, "Content-Type", buf0);
+        char *last_modified = http_format_date(uri.meta->stat.st_mtime, buf0, sizeof(buf0));
+        http_add_header_field(&res.hdr, "Last-Modified", last_modified);
+        sprintf(buf1, "%s, charset=%s", uri.meta->type, uri.meta->charset);
+        http_add_header_field(&res.hdr, "Content-Type", buf1);
         if (uri.meta->etag[0] != 0) {
             http_add_header_field(&res.hdr, "ETag", uri.meta->etag);
         }
@@ -196,8 +197,10 @@ int client_request_handler(sock *client, int req_num) {
             http_add_header_field(&res.hdr, "Cache-Control", "public, max-age=86400");
         }
 
+        char *if_modified_since = http_get_header_field(&req.hdr, "If-Modified-Since", HTTP_LOWER);
         char *if_none_match = http_get_header_field(&req.hdr, "If-None-Match", HTTP_LOWER);
-        if (if_none_match != NULL && strncmp(if_none_match, uri.meta->etag, sizeof(uri.meta->etag)) == 0) {
+        if ((if_none_match != NULL && strstr(if_none_match, uri.meta->etag) == NULL) || (accept_if_modified_since &&
+            if_modified_since != NULL && strncmp(if_modified_since, last_modified, strlen(last_modified)) == 0)) {
             res.status = http_get_status(304);
             goto respond;
         }
