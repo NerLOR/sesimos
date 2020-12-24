@@ -69,7 +69,9 @@ int cache_process() {
                 cache[i].is_updating = 1;
                 SHA1_Init(&ctx);
                 file = fopen(cache[i].filename, "rb");
-                compress = strncmp(cache[i].meta.type, "text/", 5) == 0;
+                compress = strncmp(cache[i].meta.type, "text/", 5) == 0 ||
+                        (strncmp(cache[i].meta.type, "application/", 12) == 0 &&
+                        strstr(cache[i].meta.type, "+xml") != NULL);
 
                 int level = NECRONDA_ZLIB_LEVEL;
                 z_stream strm;
