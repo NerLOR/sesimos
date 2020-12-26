@@ -14,6 +14,7 @@
 #include "cache.c"
 #include "http.c"
 #include "client.c"
+#include "fastcgi.c"
 
 
 int active = 1;
