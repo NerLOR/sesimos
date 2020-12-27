@@ -468,7 +468,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
                         if (flags & FASTCGI_CHUNKED) send(client->socket, "\r\n", 2, 0);
                     }
                 }
-            } while (!(flags & FASTCGI_COMPRESS) || strm.avail_out == 0);
+            } while ((flags & FASTCGI_COMPRESS) && strm.avail_out == 0);
             if (finish_comp) goto finish;
         } else {
             fprintf(stderr, ERR_STR "Unknown FastCGI type: %i" CLR_STR "\n", header.type);
