@@ -30,6 +30,8 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg);
 
 int fastcgi_send(fastcgi_conn *conn, sock *client, int flags);
 
+int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len);
+
 
 /*
  * Listening socket file number

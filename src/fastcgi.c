@@ -476,3 +476,44 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
         free(content);
     }
 }
+
+int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len) {
+    unsigned long rcv_len = 0;
+    char *buf[16384];
+    int ret;
+    FCGI_Header header = {
+            .version = FCGI_VERSION_1,
+            .type = FCGI_STDIN,
+            .requestIdB1 = conn->req_id >> 8,
+            .requestIdB0 = conn->req_id & 0xFF,
+            .contentLengthB1 = 0,
+            .contentLengthB0 = 0,
+            .paddingLength = 0,
+            .reserved = 0
+    };
+    while (rcv_len < len) {
+        if (client->enc) {
+            ret = SSL_read(client->ssl, buf, sizeof(buf));
+            if (ret <= 0) {
+                print(ERR_STR "Unable to receive: %s" CLR_STR, ssl_get_error(client->ssl, rcv_len));
+                return -1;
+            }
+        } else {
+            ret = recv(client->socket, buf, sizeof(buf), 0);
+            if (ret <= 0) {
+                print(ERR_STR "Unable to receive: %s" CLR_STR, strerror(errno));
+                return -1;
+            }
+        }
+        rcv_len += ret;
+        header.contentLengthB1 = (ret >> 8) & 0xFF;
+        header.contentLengthB0 = ret & 0xFF;
+        if (send(conn->socket, &header, sizeof(header), 0) != sizeof(header)) goto err;
+        if (send(conn->socket, buf, ret, 0) != ret) {
+            err:
+            fprintf(stderr, ERR_STR "Unable to send to PHP-FPM: %s" CLR_STR "\n", strerror(errno));
+            return -2;
+        }
+    }
+    return 0;
+}

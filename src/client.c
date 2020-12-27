@@ -238,10 +238,23 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         }
 
         if (strncmp(req.method, "POST", 4) == 0 || strncmp(req.method, "PUT", 3) == 0) {
-            // TODO send content to fastcgi
-        } else {
-            fastcgi_close_stdin(&php_fpm);
+            char *client_content_length = http_get_header_field(&req.hdr, "Content-Length");
+            unsigned long client_content_len = 0;
+            if (client_content_length == NULL) {
+                goto fastcgi_end;
+            }
+            client_content_len = strtoul(client_content_length, NULL, 10);
+            ret = fastcgi_receive(&php_fpm, client, client_content_len);
+            if (ret != 0) {
+                if (ret < 0) {
+                    goto abort;
+                }
+                res.status = http_get_status(502);
+                goto respond;
+            }
         }
+        fastcgi_end:
+        fastcgi_close_stdin(&php_fpm);
 
         char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
         if (accept_encoding != NULL && strstr(accept_encoding, "deflate") != NULL) {
@@ -350,6 +363,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
     uri_free(&uri);
     abort:
+    if (php_fpm.socket != 0) close(php_fpm.socket);
     http_free_req(&req);
     http_free_res(&res);
     return !client_keep_alive;
