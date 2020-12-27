@@ -238,23 +238,23 @@ int main(int argc, const char *argv[]) {
     }
 
     sockets[0] = socket(AF_INET6, SOCK_STREAM, 0);
-    if (sockets[0] == -1) goto socket_err;
+    if (sockets[0] < 0) goto socket_err;
     sockets[1] = socket(AF_INET6, SOCK_STREAM, 0);
-    if (sockets[1] == -1) {
+    if (sockets[1] < 0) {
         socket_err:
         fprintf(stderr, ERR_STR "Unable to create socket: %s" CLR_STR "\n", strerror(errno));
         return 1;
     }
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
-        if (setsockopt(sockets[i], SOL_SOCKET, SO_REUSEADDR, &YES, sizeof(YES)) == -1) {
+        if (setsockopt(sockets[i], SOL_SOCKET, SO_REUSEADDR, &YES, sizeof(YES)) < 0) {
             fprintf(stderr, ERR_STR "Unable to set options for socket %i: %s" CLR_STR "\n", i, strerror(errno));
             return 1;
         }
     }
 
-    if (bind(sockets[0], (struct sockaddr *) &addresses[0], sizeof(addresses[0])) == -1) goto bind_err;
-    if (bind(sockets[1], (struct sockaddr *) &addresses[1], sizeof(addresses[1])) == -1) {
+    if (bind(sockets[0], (struct sockaddr *) &addresses[0], sizeof(addresses[0])) < 0) goto bind_err;
+    if (bind(sockets[1], (struct sockaddr *) &addresses[1], sizeof(addresses[1])) < 0) {
         bind_err:
         fprintf(stderr, ERR_STR "Unable to bind socket to address: %s" CLR_STR "\n", strerror(errno));
         return 1;
@@ -294,7 +294,7 @@ int main(int argc, const char *argv[]) {
     }
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
-        if (listen(sockets[i], LISTEN_BACKLOG) == -1) {
+        if (listen(sockets[i], LISTEN_BACKLOG) < 0) {
             fprintf(stderr, ERR_STR "Unable to listen on socket %i: %s" CLR_STR "\n", i, strerror(errno));
             return 1;
         }
@@ -315,7 +315,7 @@ int main(int argc, const char *argv[]) {
         timeout.tv_usec = 0;
         read_socket_fds = socket_fds;
         ready_sockets_num = select(max_socket_fd + 1, &read_socket_fds, NULL, NULL, &timeout);
-        if (ready_sockets_num == -1) {
+        if (ready_sockets_num < 0) {
             fprintf(stderr, ERR_STR "Unable to select sockets: %s" CLR_STR "\n", strerror(errno));
             return 1;
         }
@@ -323,7 +323,7 @@ int main(int argc, const char *argv[]) {
         for (int i = 0; i < NUM_SOCKETS; i++) {
             if (FD_ISSET(sockets[i], &read_socket_fds)) {
                 client_fd = accept(sockets[i], (struct sockaddr *) &client_addr, &client_addr_len);
-                if (client_fd == -1) {
+                if (client_fd < 0) {
                     fprintf(stderr, ERR_STR "Unable to accept connection: %s" CLR_STR "\n", strerror(errno));
                     continue;
                 }

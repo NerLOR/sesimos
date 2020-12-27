@@ -9,6 +9,7 @@
 #include "utils.h"
 #include "uri.h"
 #include "http.h"
+#include "fastcgi.h"
 
 
 int server_keep_alive = 1;
@@ -22,7 +23,7 @@ char *get_webroot(const char *http_host) {
     unsigned long len = strlen(webroot_base);
     while (webroot_base[len - 1] == '/') len--;
     long pos = strchr(http_host, ':') - http_host;
-    sprintf(webroot, "%.*s/%.*s", (int) len, webroot_base, (int) (pos == -1 ? strlen(http_host) : pos), http_host);
+    sprintf(webroot, "%.*s/%.*s", (int) len, webroot_base, (int) (pos < 0 ? strlen(http_host) : pos), http_host);
     return webroot;
 }
 
@@ -35,7 +36,7 @@ int client_websocket_handler() {
     return 0;
 }
 
-int client_request_handler(sock *client, int req_num) {
+int client_request_handler(sock *client, unsigned long client_num, unsigned int req_num) {
     struct timespec begin, end;
     int ret, client_keep_alive, dir_mode;
     char buf0[1024], buf1[1024];
@@ -43,10 +44,12 @@ int client_request_handler(sock *client, int req_num) {
     char buffer[CHUNK_SIZE];
     err_msg[0] = 0;
     char *host, *hdr_connection, *webroot;
-    unsigned long content_length = 0;
+    long content_length = 0;
     FILE *file = NULL;
     msg_buf[0] = 0;
     int accept_if_modified_since = 0;
+    int use_fastcgi = 0;
+    fastcgi_conn php_fpm = {.socket = 0, .req_id = 0};
 
     http_res res;
     sprintf(res.version, "1.1");
@@ -221,21 +224,42 @@ int client_request_handler(sock *client, int req_num) {
         fseek(file, 0, SEEK_END);
         content_length = ftell(file);
         fseek(file, 0, SEEK_SET);
+    } else {
+        res.status = http_get_status(200);
+        if (fastcgi_init(&php_fpm, client_num, req_num, client, &req, &uri) != 0) {
+            res.status = http_get_status(502);
+            sprintf(err_msg, "Unable to communicate with PHP-FPM.");
+            goto respond;
+        }
+
+        if (strncmp(req.method, "POST", 4) == 0 || strncmp(req.method, "PUT", 3) == 0) {
+            // TODO send content to fastcgi
+        } else {
+            fastcgi_close_stdin(&php_fpm);
+        }
+
+        char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding", HTTP_LOWER);
+        if (accept_encoding != NULL && strstr(accept_encoding, "deflate") != NULL) {
+            //http_add_header_field(&res.hdr, "Content-Encoding", "deflate");
+        }
+
+        if (fastcgi_header(&php_fpm, &res, err_msg) != 0) {
+            goto respond;
+        }
+
+        content_length = -1;
+        use_fastcgi = 1;
+        if (http_get_header_field(&res.hdr, "Content-Length", HTTP_PRESERVE_UPPER) == NULL) {
+            http_add_header_field(&res.hdr, "Transfer-Encoding", "chunked");
+        }
+
     }
 
     respond:
-    if (server_keep_alive && client_keep_alive) {
-        http_add_header_field(&res.hdr, "Connection", "keep-alive");
-        sprintf(buf0, "timeout=%i, max=%i", CLIENT_TIMEOUT, REQ_PER_CONNECTION);
-        http_add_header_field(&res.hdr, "Keep-Alive", buf0);
-    } else {
-        http_add_header_field(&res.hdr, "Connection", "close");
-    }
     if (http_get_header_field(&res.hdr, "Accept-Ranges", HTTP_PRESERVE_UPPER) == NULL) {
         http_add_header_field(&res.hdr, "Accept-Ranges", "none");
     }
-
-    if (res.status->code >= 400 && res.status->code < 600) {
+    if (!use_fastcgi && file == NULL && res.status->code >= 400 && res.status->code < 600) {
         http_error_msg *http_msg = http_get_error_msg(res.status->code);
         sprintf(msg_pre_buf, http_error_document, res.status->code, res.status->msg,
                 http_msg != NULL ? http_msg->err_msg : "", err_msg[0] != 0 ? err_msg : "");
@@ -244,8 +268,19 @@ int client_request_handler(sock *client, int req_num) {
                                  http_error_icon, "#C00000");
         http_add_header_field(&res.hdr, "Content-Type", "text/html; charset=UTF-8");
     }
-    sprintf(buf0, "%li", content_length);
-    http_add_header_field(&res.hdr, "Content-Length", buf0);
+    if (content_length >= 0) {
+        sprintf(buf0, "%li", content_length);
+        http_add_header_field(&res.hdr, "Content-Length", buf0);
+    } else if (http_get_header_field(&res.hdr, "Transfer-Encoding", HTTP_PRESERVE_UPPER) == NULL) {
+        server_keep_alive = 0;
+    }
+    if (server_keep_alive && client_keep_alive) {
+        http_add_header_field(&res.hdr, "Connection", "keep-alive");
+        sprintf(buf0, "timeout=%i, max=%i", CLIENT_TIMEOUT, REQ_PER_CONNECTION);
+        http_add_header_field(&res.hdr, "Keep-Alive", buf0);
+    } else {
+        http_add_header_field(&res.hdr, "Connection", "close");
+    }
 
     http_send_response(client, &res);
     clock_gettime(CLOCK_MONOTONIC, &end);
@@ -294,6 +329,12 @@ int client_request_handler(sock *client, int req_num) {
                 }
                 snd_len += ret;
             }
+        } else if (use_fastcgi) {
+            char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding", HTTP_PRESERVE_UPPER);
+            int chunked = transfer_encoding != NULL && strncmp(transfer_encoding, "chunked", 7) == 0;
+            char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding", HTTP_PRESERVE_UPPER);
+            int comp = content_encoding != NULL && strncmp(content_encoding, "deflate", 7) == 0;
+            fastcgi_send(&php_fpm, client, (chunked ? FASTCGI_CHUNKED : 0) | (comp ? FASTCGI_COMPRESS : 0));
         }
     }
 
@@ -308,7 +349,7 @@ int client_request_handler(sock *client, int req_num) {
     return !client_keep_alive;
 }
 
-int client_connection_handler(sock *client) {
+int client_connection_handler(sock *client, unsigned long client_num) {
     struct timespec begin, end;
     int ret, req_num;
     char buf[16];
@@ -344,7 +385,7 @@ int client_connection_handler(sock *client) {
     req_num = 0;
     ret = 0;
     while (ret == 0 && server_keep_alive && req_num < REQ_PER_CONNECTION) {
-        ret = client_request_handler(client, req_num++);
+        ret = client_request_handler(client, client_num, req_num++);
         log_prefix = log_conn_prefix;
     }
 
@@ -363,7 +404,7 @@ int client_connection_handler(sock *client) {
     return 0;
 }
 
-int client_handler(sock *client, long client_num, struct sockaddr_in6 *client_addr) {
+int client_handler(sock *client, unsigned long client_num, struct sockaddr_in6 *client_addr) {
     int ret;
     struct sockaddr_in6 *server_addr;
     struct sockaddr_storage server_addr_storage;
@@ -404,7 +445,7 @@ int client_handler(sock *client, long client_num, struct sockaddr_in6 *client_ad
 
     print("Started child process with PID %i", getpid());
 
-    ret = client_connection_handler(client);
+    ret = client_connection_handler(client, client_num);
     free(client_addr_str_ptr);
     free(server_addr_str_ptr);
     free(log_conn_prefix);

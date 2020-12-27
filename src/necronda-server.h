@@ -41,6 +41,7 @@
 #define ERR_STR "\x1B[1;31m"
 #define CLR_STR "\x1B[0m"
 #define BLD_STR "\x1B[1m"
+#define WRN_STR "\x1B[1;33m"
 #define HTTP_STR "\x1B[1;31m"
 #define HTTPS_STR "\x1B[1;32m"
 
@@ -56,6 +57,7 @@
 #define NECRONDA_ZLIB_LEVEL 9
 
 #define MAGIC_FILE "/usr/share/file/misc/magic.mgc"
+#define PHP_FPM_SOCKET "/var/run/php-fpm/php-fpm.sock"
 
 int sockets[NUM_SOCKETS];
 pid_t children[MAX_CHILDREN];

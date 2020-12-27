@@ -164,7 +164,7 @@ void http_free_res(http_res *res);
 
 int http_receive_request(sock *client, http_req *req);
 
-char *http_get_header_field(http_hdr *hdr, const char *field_name, int strict);
+char *http_get_header_field(const http_hdr *hdr, const char *field_name, int strict);
 
 void http_add_header_field(http_hdr *hdr, const char *field_name, const char *field_value);
 
