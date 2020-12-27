@@ -225,6 +225,11 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         content_length = ftell(file);
         fseek(file, 0, SEEK_SET);
     } else {
+        struct stat statbuf;
+        stat(uri.filename, &statbuf);
+        char *last_modified = http_format_date(statbuf.st_mtime, buf0, sizeof(buf0));
+        http_add_header_field(&res.hdr, "Last-Modified", last_modified);
+
         res.status = http_get_status(200);
         if (fastcgi_init(&php_fpm, client_num, req_num, client, &req, &uri) != 0) {
             res.status = http_get_status(502);
