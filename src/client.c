@@ -240,7 +240,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
         char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
         if (accept_encoding != NULL && strstr(accept_encoding, "deflate") != NULL) {
-            //http_add_header_field(&res.hdr, "Content-Encoding", "deflate");
+            http_add_header_field(&res.hdr, "Content-Encoding", "deflate");
         }
 
         if (fastcgi_header(&php_fpm, &res, err_msg) != 0) {
@@ -334,7 +334,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             int chunked = transfer_encoding != NULL && strncmp(transfer_encoding, "chunked", 7) == 0;
             char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding");
             int comp = content_encoding != NULL && strncmp(content_encoding, "deflate", 7) == 0;
-            fastcgi_send(&php_fpm, client, (chunked ? FASTCGI_CHUNKED : 0) | (comp ? FASTCGI_COMPRESS : 0));
+            int flags = (chunked ? FASTCGI_CHUNKED : 0) | (comp ? FASTCGI_COMPRESS : 0);
+            fastcgi_send(&php_fpm, client, flags);
         }
     }
 

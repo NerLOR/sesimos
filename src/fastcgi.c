@@ -361,6 +361,20 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
     int len;
     char *content, *ptr;
     unsigned short req_id, content_len;
+    char comp_out[4096];
+    int finish_comp = 0;
+
+    z_stream strm;
+    if (flags & FASTCGI_COMPRESS) {
+        int level = NECRONDA_ZLIB_LEVEL;
+        strm.zalloc = Z_NULL;
+        strm.zfree = Z_NULL;
+        strm.opaque = Z_NULL;
+        if (deflateInit(&strm, level) != Z_OK) {
+            fprintf(stderr, ERR_STR "Unable to init deflate: %s" CLR_STR "\n", strerror(errno));
+            flags &= !FASTCGI_COMPRESS;
+        }
+    }
 
     if (conn->out_buf != NULL && conn->out_len > conn->out_off) {
         content = conn->out_buf;
@@ -407,6 +421,13 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
             conn->socket = 0;
             free(content);
 
+            if (flags & FASTCGI_COMPRESS) {
+                finish_comp = 1;
+                goto out;
+                finish:
+                deflateEnd(&strm);
+            }
+
             if (flags & FASTCGI_CHUNKED) {
                 if (client->enc) {
                     SSL_write(client->ssl, "0\r\n\r\n", 5);
@@ -420,16 +441,34 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
             print(ERR_STR "%.*s" CLR_STR, content_len, content);
         } else if (header.type == FCGI_STDOUT) {
             out:
-            len = sprintf(buf0, "%X\r\n", content_len);
-            if (client->enc) {
-                if (flags & FASTCGI_CHUNKED) SSL_write(client->ssl, buf0, len);
-                SSL_write(client->ssl, ptr, content_len);
-                if (flags & FASTCGI_CHUNKED) SSL_write(client->ssl, "\r\n", 2);
-            } else {
-                if (flags & FASTCGI_CHUNKED) send(client->socket, buf0, len, 0);
-                send(client->socket, ptr, content_len, 0);
-                if (flags & FASTCGI_CHUNKED) send(client->socket, "\r\n", 2, 0);
+            if (flags & FASTCGI_COMPRESS) {
+                strm.avail_in = content_len;
+                strm.next_in = (unsigned char *) ptr;
             }
+            do {
+                int buf_len = content_len;
+                if (flags & FASTCGI_COMPRESS) {
+                    strm.avail_out = sizeof(comp_out);
+                    strm.next_out = (unsigned char *) comp_out;
+                    deflate(&strm, finish_comp ? Z_FINISH : Z_NO_FLUSH);
+                    strm.avail_in = 0;
+                    ptr = comp_out;
+                    buf_len = (int) (sizeof(comp_out) - strm.avail_out);
+                }
+                if (buf_len != 0) {
+                    len = sprintf(buf0, "%X\r\n", buf_len);
+                    if (client->enc) {
+                        if (flags & FASTCGI_CHUNKED) SSL_write(client->ssl, buf0, len);
+                        SSL_write(client->ssl, ptr, buf_len);
+                        if (flags & FASTCGI_CHUNKED) SSL_write(client->ssl, "\r\n", 2);
+                    } else {
+                        if (flags & FASTCGI_CHUNKED) send(client->socket, buf0, len, 0);
+                        send(client->socket, ptr, buf_len, 0);
+                        if (flags & FASTCGI_CHUNKED) send(client->socket, "\r\n", 2, 0);
+                    }
+                }
+            } while (!(flags & FASTCGI_COMPRESS) || strm.avail_out == 0);
+            if (finish_comp) goto finish;
         } else {
             fprintf(stderr, ERR_STR "Unknown FastCGI type: %i" CLR_STR "\n", header.type);
         }

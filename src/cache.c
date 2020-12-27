@@ -112,8 +112,6 @@ int cache_process() {
                     if (compress) {
                         strm.avail_in = read;
                         strm.next_in = (unsigned char *) buf;
-                        strm.avail_out = sizeof(comp_buf);
-                        strm.next_out = (unsigned char *) comp_buf;
                         do {
                             strm.avail_out = sizeof(comp_buf);
                             strm.next_out = (unsigned char *) comp_buf;
