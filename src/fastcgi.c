@@ -423,6 +423,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
 
             if (flags & FASTCGI_COMPRESS) {
                 finish_comp = 1;
+                content_len = 0;
                 goto out;
                 finish:
                 deflateEnd(&strm);
