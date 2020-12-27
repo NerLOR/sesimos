@@ -129,19 +129,6 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         goto respond;
     }
 
-    /*
-    print("webroot:       %s", uri.webroot);
-    print("req_path:      %s", uri.req_path);
-    print("path:          %s", uri.path);
-    print("pathinfo:      %s", uri.pathinfo);
-    print("query:         %s", uri.query);
-    print("filename:      %s", uri.filename);
-    print("filename_comp: %s", uri.filename_comp);
-    print("uri:           %s", uri.uri);
-    print("is_static:     %i", uri.is_static);
-    print("is_dir:        %i", uri.is_dir);
-     */
-
     ssize_t size = sizeof(buf0);
     url_decode(req.uri, buf0, &size);
     int change_proto = strncmp(uri.uri, "/.well-known/", 13) != 0 && !client->enc;

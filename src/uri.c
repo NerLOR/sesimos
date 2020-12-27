@@ -28,7 +28,6 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     char buf1[1024];
     char buf2[1024];
     char buf3[1024];
-    char buf4[1024];
     uri->webroot = NULL;
     uri->req_path = NULL;
     uri->path = NULL;
