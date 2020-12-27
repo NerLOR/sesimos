@@ -95,9 +95,9 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         goto respond;
     }
 
-    hdr_connection = http_get_header_field(&req.hdr, "Connection", HTTP_LOWER);
+    hdr_connection = http_get_header_field(&req.hdr, "Connection");
     client_keep_alive = hdr_connection != NULL && strncmp(hdr_connection, "keep-alive", 10) == 0;
-    host = http_get_header_field(&req.hdr, "Host", HTTP_LOWER);
+    host = http_get_header_field(&req.hdr, "Host");
     if (host == NULL || strchr(host, '/') != NULL) {
         res.status = http_get_status(400);
         sprintf(err_msg, "The client provided no or an invalid Host header field.");
@@ -200,8 +200,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             http_add_header_field(&res.hdr, "Cache-Control", "public, max-age=86400");
         }
 
-        char *if_modified_since = http_get_header_field(&req.hdr, "If-Modified-Since", HTTP_LOWER);
-        char *if_none_match = http_get_header_field(&req.hdr, "If-None-Match", HTTP_LOWER);
+        char *if_modified_since = http_get_header_field(&req.hdr, "If-Modified-Since");
+        char *if_none_match = http_get_header_field(&req.hdr, "If-None-Match");
         if ((if_none_match != NULL && strstr(if_none_match, uri.meta->etag) == NULL) || (accept_if_modified_since &&
             if_modified_since != NULL && strncmp(if_modified_since, last_modified, strlen(last_modified)) == 0)) {
             res.status = http_get_status(304);
@@ -209,7 +209,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         }
 
         // TODO Ranges
-        char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding", HTTP_LOWER);
+        char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
         if (uri.meta->filename_comp[0] != 0 && accept_encoding != NULL && strstr(accept_encoding, "deflate") != NULL) {
             file = fopen(uri.meta->filename_comp, "rb");
             if (file == NULL) {
@@ -238,7 +238,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             fastcgi_close_stdin(&php_fpm);
         }
 
-        char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding", HTTP_LOWER);
+        char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
         if (accept_encoding != NULL && strstr(accept_encoding, "deflate") != NULL) {
             //http_add_header_field(&res.hdr, "Content-Encoding", "deflate");
         }
@@ -249,14 +249,14 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
         content_length = -1;
         use_fastcgi = 1;
-        if (http_get_header_field(&res.hdr, "Content-Length", HTTP_PRESERVE_UPPER) == NULL) {
+        if (http_get_header_field(&res.hdr, "Content-Length") == NULL) {
             http_add_header_field(&res.hdr, "Transfer-Encoding", "chunked");
         }
 
     }
 
     respond:
-    if (http_get_header_field(&res.hdr, "Accept-Ranges", HTTP_PRESERVE_UPPER) == NULL) {
+    if (http_get_header_field(&res.hdr, "Accept-Ranges") == NULL) {
         http_add_header_field(&res.hdr, "Accept-Ranges", "none");
     }
     if (!use_fastcgi && file == NULL && res.status->code >= 400 && res.status->code < 600) {
@@ -271,7 +271,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     if (content_length >= 0) {
         sprintf(buf0, "%li", content_length);
         http_add_header_field(&res.hdr, "Content-Length", buf0);
-    } else if (http_get_header_field(&res.hdr, "Transfer-Encoding", HTTP_PRESERVE_UPPER) == NULL) {
+    } else if (http_get_header_field(&res.hdr, "Transfer-Encoding") == NULL) {
         server_keep_alive = 0;
     }
     if (server_keep_alive && client_keep_alive) {
@@ -284,7 +284,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
     http_send_response(client, &res);
     clock_gettime(CLOCK_MONOTONIC, &end);
-    char *location = http_get_header_field(&res.hdr, "Location", HTTP_PRESERVE_UPPER);
+    char *location = http_get_header_field(&res.hdr, "Location");
     unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
     print("%s%03i %s%s%s (%s)%s", http_get_status_color(res.status), res.status->code, res.status->msg,
           location != NULL ? " -> " : "", location != NULL ? location : "", format_duration(micros, buf0), CLR_STR);
@@ -330,9 +330,9 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 snd_len += ret;
             }
         } else if (use_fastcgi) {
-            char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding", HTTP_PRESERVE_UPPER);
+            char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
             int chunked = transfer_encoding != NULL && strncmp(transfer_encoding, "chunked", 7) == 0;
-            char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding", HTTP_PRESERVE_UPPER);
+            char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding");
             int comp = content_encoding != NULL && strncmp(content_encoding, "deflate", 7) == 0;
             fastcgi_send(&php_fpm, client, (chunked ? FASTCGI_CHUNKED : 0) | (comp ? FASTCGI_COMPRESS : 0));
         }

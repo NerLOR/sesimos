@@ -156,18 +156,17 @@ int http_receive_request(sock *client, http_req *req) {
     }
 }
 
-char *http_get_header_field(const http_hdr *hdr, const char *field_name, int strict) {
-    size_t len = strlen(field_name);
-    char *_field_name = malloc(len + 1);
-    strcpy(_field_name, field_name);
-    http_to_camel_case(_field_name, strict);
+char *http_get_header_field(const http_hdr *hdr, const char *field_name) {
+    char field_name_1[256], field_name_2[256];
+    strcpy(field_name_1, field_name);
+    http_to_camel_case(field_name_1, HTTP_LOWER);
     for (int i = 0; i < hdr->field_num; i++) {
-        if (strncmp(hdr->fields[i][0], _field_name, len) == 0) {
-            free(_field_name);
+        strcpy(field_name_2, hdr->fields[i][0]);
+        http_to_camel_case(field_name_2, HTTP_LOWER);
+        if (strcmp(field_name_1, field_name_2) == 0) {
             return hdr->fields[i][1];
         }
     }
-    free(_field_name);
     return NULL;
 }
 
