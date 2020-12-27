@@ -180,10 +180,6 @@ int fastcgi_init(fastcgi_conn *conn, unsigned int client_num, unsigned int req_n
         return -2;
     }
 
-    FILE *f = fopen("/home/lorenz/Desktop/test.dmp", "wb");
-    fwrite(param_buf, 1, param_len, f);
-    fclose(f);
-
     header.type = FCGI_PARAMS;
     header.contentLengthB1 = 0;
     header.contentLengthB0 = 0;
