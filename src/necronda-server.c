@@ -62,6 +62,7 @@ char *ssl_get_error(SSL *ssl, int ret) {
 
 void destroy() {
     fprintf(stderr, "\n" ERR_STR "Terminating forcefully!" CLR_STR "\n");
+    fflush(stderr);
     int status = 0;
     int ret;
     int kills = 0;
@@ -71,11 +72,13 @@ void destroy() {
             if (ret < 0) {
                 fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n",
                         children[i], strerror(errno));
+                fflush(stderr);
             } else if (ret == children[i]) {
                 children[i] = 0;
                 if (status != 0) {
                     fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n",
                             ret, status);
+                    fflush(stderr);
                 }
             } else {
                 kill(children[i], SIGKILL);
@@ -85,6 +88,7 @@ void destroy() {
     }
     if (kills > 0) {
         fprintf(stderr, ERR_STR "Killed %i child process(es)" CLR_STR "\n", kills);
+        fflush(stderr);
     }
     cache_unload();
     exit(2);
@@ -92,6 +96,7 @@ void destroy() {
 
 void terminate() {
     fprintf(stderr, "\nTerminating gracefully...\n");
+    fflush(stderr);
     active = 0;
 
     signal(SIGINT, destroy);
@@ -111,11 +116,13 @@ void terminate() {
             if (ret < 0) {
                 fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n",
                         children[i], strerror(errno));
+                fflush(stderr);
             } else if (ret == children[i]) {
                 children[i] = 0;
                 if (status != 0) {
                     fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n",
                             ret, status);
+                    fflush(stderr);
                 }
             } else {
                 kill(children[i], SIGTERM);
@@ -126,6 +133,7 @@ void terminate() {
 
     if (wait_num > 0) {
         fprintf(stderr, "Waiting for %i child process(es)...\n", wait_num);
+        fflush(stderr);
     }
 
     for (int i = 0; i < MAX_CHILDREN; i++) {
@@ -134,11 +142,13 @@ void terminate() {
             if (ret < 0) {
                 fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n",
                         children[i], strerror(errno));
+                fflush(stderr);
             } else if (ret == children[i]) {
                 children[i] = 0;
                 if (status != 0) {
                     fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n",
                             ret, status);
+                    fflush(stderr);
                 }
             }
         }
@@ -151,8 +161,10 @@ void terminate() {
         struct timespec ts = {.tv_sec = 0, .tv_nsec = 50000000};
         nanosleep(&ts, &ts);
         fprintf(stderr, "\nGoodbye\n");
+        fflush(stderr);
     } else {
         fprintf(stderr, "Goodbye\n");
+        fflush(stderr);
     }
     cache_unload();
     exit(0);
@@ -180,6 +192,7 @@ int main(int argc, const char *argv[]) {
     };
 
     printf("Necronda Web Server\n");
+    fflush(stdout);
 
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
@@ -197,43 +210,51 @@ int main(int argc, const char *argv[]) {
         } else if ((len == 2 && strncmp(arg, "-w", 2) == 0) || (len == 9 && strncmp(arg, "--webroot", 9) == 0)) {
             if (i == argc - 1) {
                 fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --webroot <WEBROOT>" CLR_STR "\n", arg);
+                fflush(stderr);
                 return 1;
             }
             webroot_base = argv[++i];
         } else if ((len == 2 && strncmp(arg, "-c", 2) == 0) || (len == 6 && strncmp(arg, "--cert", 6) == 0)) {
             if (i == argc - 1) {
                 fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --cert <CERT-FILE>" CLR_STR "\n", arg);
+                fflush(stderr);
                 return 1;
             }
             cert_file = argv[++i];
         } else if ((len == 2 && strncmp(arg, "-p", 2) == 0) || (len == 9 && strncmp(arg, "--privkey", 9) == 0)) {
             if (i == argc - 1) {
                 fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --privkey <KEY-FILE>" CLR_STR "\n", arg);
+                fflush(stderr);
                 return 1;
             }
             key_file = argv[++i];
         } else if ((len == 2 && strncmp(arg, "-g", 2) == 0) || (len == 7 && strncmp(arg, "--geoip", 7) == 0)) {
             if (i == argc - 1) {
                 fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --geoip <DB-FILE>" CLR_STR "\n", arg);
+                fflush(stderr);
                 return 1;
             }
             geoip_file = argv[++i];
         } else {
             fprintf(stderr, ERR_STR "Unable to parse argument '%s'" CLR_STR "\n", arg);
+            fflush(stderr);
             return 1;
         }
     }
 
     if (webroot_base == NULL) {
         fprintf(stderr, ERR_STR "Error: --webroot is missing" CLR_STR "\n");
+        fflush(stderr);
         return 1;
     }
     if (cert_file == NULL) {
         fprintf(stderr, ERR_STR "Error: --cert is missing" CLR_STR "\n");
+        fflush(stderr);
         return 1;
     }
     if (key_file == NULL) {
         fprintf(stderr, ERR_STR "Error: --privkey is missing" CLR_STR "\n");
+        fflush(stderr);
         return 1;
     }
 
@@ -243,12 +264,14 @@ int main(int argc, const char *argv[]) {
     if (sockets[1] < 0) {
         socket_err:
         fprintf(stderr, ERR_STR "Unable to create socket: %s" CLR_STR "\n", strerror(errno));
+        fflush(stderr);
         return 1;
     }
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         if (setsockopt(sockets[i], SOL_SOCKET, SO_REUSEADDR, &YES, sizeof(YES)) < 0) {
             fprintf(stderr, ERR_STR "Unable to set options for socket %i: %s" CLR_STR "\n", i, strerror(errno));
+            fflush(stderr);
             return 1;
         }
     }
@@ -257,6 +280,7 @@ int main(int argc, const char *argv[]) {
     if (bind(sockets[1], (struct sockaddr *) &addresses[1], sizeof(addresses[1])) < 0) {
         bind_err:
         fprintf(stderr, ERR_STR "Unable to bind socket to address: %s" CLR_STR "\n", strerror(errno));
+        fflush(stderr);
         return 1;
     }
 
@@ -285,17 +309,20 @@ int main(int argc, const char *argv[]) {
     if (SSL_CTX_use_certificate_chain_file(client.ctx, cert_file) != 1) {
         fprintf(stderr, ERR_STR "Unable to load certificate chain file: %s: %s" CLR_STR "\n",
                 ERR_reason_error_string(ERR_get_error()), cert_file);
+        fflush(stderr);
         return 1;
     }
     if (SSL_CTX_use_PrivateKey_file(client.ctx, key_file, SSL_FILETYPE_PEM) != 1) {
         fprintf(stderr, ERR_STR "Unable to load private key file: %s: %s" CLR_STR "\n",
                 ERR_reason_error_string(ERR_get_error()), key_file);
+        fflush(stderr);
         return 1;
     }
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         if (listen(sockets[i], LISTEN_BACKLOG) < 0) {
             fprintf(stderr, ERR_STR "Unable to listen on socket %i: %s" CLR_STR "\n", i, strerror(errno));
+            fflush(stderr);
             return 1;
         }
     }
@@ -309,6 +336,7 @@ int main(int argc, const char *argv[]) {
     }
 
     fprintf(stderr, "Ready to accept connections\n");
+    fflush(stderr);
 
     while (active) {
         timeout.tv_sec = 1;
@@ -317,6 +345,7 @@ int main(int argc, const char *argv[]) {
         ready_sockets_num = select(max_socket_fd + 1, &read_socket_fds, NULL, NULL, &timeout);
         if (ready_sockets_num < 0) {
             fprintf(stderr, ERR_STR "Unable to select sockets: %s" CLR_STR "\n", strerror(errno));
+            fflush(stderr);
             return 1;
         }
 
@@ -325,6 +354,7 @@ int main(int argc, const char *argv[]) {
                 client_fd = accept(sockets[i], (struct sockaddr *) &client_addr, &client_addr_len);
                 if (client_fd < 0) {
                     fprintf(stderr, ERR_STR "Unable to accept connection: %s" CLR_STR "\n", strerror(errno));
+                    fflush(stderr);
                     continue;
                 }
 
@@ -349,6 +379,7 @@ int main(int argc, const char *argv[]) {
                     }
                 } else {
                     fprintf(stderr, ERR_STR "Unable to create child process: %s" CLR_STR "\n", strerror(errno));
+                    fflush(stderr);
                 }
             }
         }
@@ -360,11 +391,13 @@ int main(int argc, const char *argv[]) {
                 if (ret < 0) {
                     fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n",
                             children[i], strerror(errno));
+                    fflush(stderr);
                 } else if (ret == children[i]) {
                     children[i] = 0;
                     if (status != 0) {
                         fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n",
                                 ret, status);
+                        fflush(stderr);
                     }
                 }
             }

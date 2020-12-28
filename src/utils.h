@@ -17,7 +17,7 @@ char *log_prefix;
 
 #define print(...) out_x(, ##__VA_ARGS__, out_2(__VA_ARGS__), out_2(__VA_ARGS__), out_2(__VA_ARGS__), \
                          out_2(__VA_ARGS__), out_2(__VA_ARGS__), out_2(__VA_ARGS__), out_2(__VA_ARGS__), \
-                         out_2(__VA_ARGS__), out_1(__VA_ARGS__))
+                         out_2(__VA_ARGS__), out_1(__VA_ARGS__)); fflush(stdout)
 
 
 char *format_duration(unsigned long micros, char *buf);
