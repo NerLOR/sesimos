@@ -2,12 +2,12 @@
 
 packages:
 	@echo "Installing packages..."
-	sudo apt-get install gcc libmagic-dev libssl-dev php-cgi
+	sudo apt-get install gcc libmagic-dev libssl-dev php-fpm
 	@echo "Finished downloading!"
 
 compile:
 	@mkdir -p bin
 	gcc src/necronda-server.c -o bin/necronda-server -std=c11 -lssl -lcrypto -lmagic -lz
 
-install: | packages update compile
+install: | packages compile
 	@echo "Finished!"
