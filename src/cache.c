@@ -153,19 +153,10 @@ int cache_init() {
         return -1;
     }
 
-    int shm_id = shmget(SHM_KEY, FILE_CACHE_SIZE * sizeof(cache_entry), IPC_CREAT | IPC_EXCL);
+    int shm_id = shmget(SHM_KEY, FILE_CACHE_SIZE * sizeof(cache_entry), IPC_CREAT | IPC_EXCL | 0600);
     if (shm_id < 0) {
         fprintf(stderr, ERR_STR "Unable to create shared memory: %s" CLR_STR "\n", strerror(errno));
         return -2;
-    }
-
-    struct shmid_ds info;
-    if (shmctl(shm_id, IPC_STAT, &info) < 0) goto shmctl_err;
-    info.shm_perm.mode = 0600;
-    if (shmctl(shm_id, IPC_SET, &info) < 0) {
-        shmctl_err:
-        fprintf(stderr, ERR_STR "Unable to update permissions for shared memory: %s" CLR_STR "\n", strerror(errno));
-        return -6;
     }
 
     void *shm = shmat(shm_id, NULL, SHM_RDONLY);
