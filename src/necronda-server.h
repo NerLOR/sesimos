@@ -56,8 +56,12 @@
 #define NECRONDA_DEFAULT "www.necronda.net"
 #define NECRONDA_ZLIB_LEVEL 9
 
+#ifndef MAGIC_FILE
 #define MAGIC_FILE "/usr/share/file/misc/magic.mgc"
+#endif
+#ifndef PHP_FPM_SOCKET
 #define PHP_FPM_SOCKET "/var/run/php-fpm/php-fpm.sock"
+#endif
 
 int sockets[NUM_SOCKETS];
 pid_t children[MAX_CHILDREN];
