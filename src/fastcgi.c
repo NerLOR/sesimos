@@ -60,14 +60,14 @@ int fastcgi_init(fastcgi_conn *conn, unsigned int client_num, unsigned int req_n
 
     int php_fpm = socket(AF_UNIX, SOCK_STREAM, 0);
     if (php_fpm < 0) {
-        fprintf(stderr, ERR_STR "Unable to create unix socket: %s" CLR_STR "\n", strerror(errno));
+        print(ERR_STR "Unable to create unix socket: %s" CLR_STR, strerror(errno));
         return -1;
     }
     conn->socket = php_fpm;
 
     struct sockaddr_un php_fpm_addr = {AF_UNIX, PHP_FPM_SOCKET};
     if (connect(conn->socket, (struct sockaddr *) &php_fpm_addr, sizeof(php_fpm_addr)) < 0) {
-        fprintf(stderr, ERR_STR "Unable to connect to unix socket of PHP-FPM: %s" CLR_STR "\n", strerror(errno));
+        print(ERR_STR "Unable to connect to unix socket of PHP-FPM: %s" CLR_STR, strerror(errno));
         return -1;
     }
 
@@ -87,7 +87,7 @@ int fastcgi_init(fastcgi_conn *conn, unsigned int client_num, unsigned int req_n
             {.roleB1 = (FCGI_RESPONDER >> 8) & 0xFF, .roleB0 = FCGI_RESPONDER & 0xFF, .flags = 0}
     };
     if (send(conn->socket, &begin, sizeof(begin), 0) != sizeof(begin)) {
-        fprintf(stderr, ERR_STR "Unable to send to PHP-FPM: %s" CLR_STR "\n", strerror(errno));
+        print(ERR_STR "Unable to send to PHP-FPM: %s" CLR_STR, strerror(errno));
         return -2;
     }
 
@@ -176,7 +176,7 @@ int fastcgi_init(fastcgi_conn *conn, unsigned int client_num, unsigned int req_n
     header.contentLengthB0 = param_len & 0xFF;
     memcpy(param_buf, &header, sizeof(header));
     if (send(conn->socket, param_buf, param_len + sizeof(header), 0) != param_len + sizeof(header)) {
-        fprintf(stderr, ERR_STR "Unable to send to PHP-FPM: %s" CLR_STR "\n", strerror(errno));
+        print(ERR_STR "Unable to send to PHP-FPM: %s" CLR_STR, strerror(errno));
         return -2;
     }
 
@@ -184,7 +184,7 @@ int fastcgi_init(fastcgi_conn *conn, unsigned int client_num, unsigned int req_n
     header.contentLengthB1 = 0;
     header.contentLengthB0 = 0;
     if (send(conn->socket, &header, sizeof(header), 0) != sizeof(header)) {
-        fprintf(stderr, ERR_STR "Unable to send to PHP-FPM: %s" CLR_STR "\n", strerror(errno));
+        print(ERR_STR "Unable to send to PHP-FPM: %s" CLR_STR, strerror(errno));
         return -2;
     }
 
@@ -204,7 +204,7 @@ int fastcgi_close_stdin(fastcgi_conn *conn) {
     };
 
     if (send(conn->socket, &header, sizeof(header), 0) != sizeof(header)) {
-        fprintf(stderr, ERR_STR "Unable to send to PHP-FPM: %s" CLR_STR "\n", strerror(errno));
+        print(ERR_STR "Unable to send to PHP-FPM: %s" CLR_STR, strerror(errno));
         return -2;
     }
 
@@ -286,12 +286,12 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
         if (ret < 0) {
             res->status = http_get_status(502);
             sprintf(err_msg, "Unable to communicate with PHP-FPM.");
-            fprintf(stderr, ERR_STR "Unable to receive from PHP-FPM: %s" CLR_STR "\n", strerror(errno));
+            print(ERR_STR "Unable to receive from PHP-FPM: %s" CLR_STR, strerror(errno));
             return -1;
         } else if (ret != sizeof(header)) {
             res->status = http_get_status(502);
             sprintf(err_msg, "Unable to communicate with PHP-FPM.");
-            fprintf(stderr, ERR_STR "Unable to receive from PHP-FPM" CLR_STR "\n");
+            print(ERR_STR "Unable to receive from PHP-FPM" CLR_STR);
             return -1;
         }
         req_id = (header.requestIdB1 << 8) | header.requestIdB0;
@@ -301,13 +301,13 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
         if (ret < 0) {
             res->status = http_get_status(502);
             sprintf(err_msg, "Unable to communicate with PHP-FPM.");
-            fprintf(stderr, ERR_STR "Unable to receive from PHP-FPM: %s" CLR_STR "\n", strerror(errno));
+            print(ERR_STR "Unable to receive from PHP-FPM: %s" CLR_STR, strerror(errno));
             free(content);
             return -1;
         } else if (ret != (content_len + header.paddingLength)) {
             res->status = http_get_status(502);
             sprintf(err_msg, "Unable to communicate with PHP-FPM.");
-            fprintf(stderr, ERR_STR "Unable to receive from PHP-FPM" CLR_STR "\n");
+            print(ERR_STR "Unable to receive from PHP-FPM" CLR_STR);
             free(content);
             return -1;
         }
@@ -335,7 +335,7 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
         } else if (header.type == FCGI_STDOUT) {
             break;
         } else {
-            fprintf(stderr, ERR_STR "Unknown FastCGI type: %i" CLR_STR "\n", header.type);
+            print(ERR_STR "Unknown FastCGI type: %i" CLR_STR, header.type);
         }
 
         free(content);
@@ -371,7 +371,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
         strm.zfree = Z_NULL;
         strm.opaque = Z_NULL;
         if (deflateInit(&strm, level) != Z_OK) {
-            fprintf(stderr, ERR_STR "Unable to init deflate: %s" CLR_STR "\n", strerror(errno));
+            print(ERR_STR "Unable to init deflate: %s" CLR_STR, strerror(errno));
             flags &= !FASTCGI_COMPRESS;
         }
     }
@@ -386,10 +386,10 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
     while (1) {
         ret = recv(conn->socket, &header, sizeof(header), 0);
         if (ret < 0) {
-            fprintf(stderr, ERR_STR "Unable to receive from PHP-FPM: %s" CLR_STR "\n", strerror(errno));
+            print(ERR_STR "Unable to receive from PHP-FPM: %s" CLR_STR, strerror(errno));
             return -1;
         } else if (ret != sizeof(header)) {
-            fprintf(stderr, ERR_STR "Unable to receive from PHP-FPM" CLR_STR "\n");
+            print(ERR_STR "Unable to receive from PHP-FPM" CLR_STR);
             return -1;
         }
         req_id = (header.requestIdB1 << 8) | header.requestIdB0;
@@ -398,11 +398,11 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
         ptr = content;
         ret = recv(conn->socket, content, content_len + header.paddingLength, 0);
         if (ret < 0) {
-            fprintf(stderr, ERR_STR "Unable to receive from PHP-FPM: %s" CLR_STR "\n", strerror(errno));
+            print(ERR_STR "Unable to receive from PHP-FPM: %s" CLR_STR, strerror(errno));
             free(content);
             return -1;
         } else if (ret != (content_len + header.paddingLength)) {
-            fprintf(stderr, ERR_STR "Unable to receive from PHP-FPM" CLR_STR "\n");
+            print(ERR_STR "Unable to receive from PHP-FPM" CLR_STR);
             free(content);
             return -1;
         }
@@ -471,7 +471,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
             } while ((flags & FASTCGI_COMPRESS) && strm.avail_out == 0);
             if (finish_comp) goto finish;
         } else {
-            fprintf(stderr, ERR_STR "Unknown FastCGI type: %i" CLR_STR "\n", header.type);
+            print(ERR_STR "Unknown FastCGI type: %i" CLR_STR, header.type);
         }
         free(content);
     }
@@ -511,7 +511,7 @@ int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len) {
         if (send(conn->socket, &header, sizeof(header), 0) != sizeof(header)) goto err;
         if (send(conn->socket, buf, ret, 0) != ret) {
             err:
-            fprintf(stderr, ERR_STR "Unable to send to PHP-FPM: %s" CLR_STR "\n", strerror(errno));
+            print(ERR_STR "Unable to send to PHP-FPM: %s" CLR_STR, strerror(errno));
             return -2;
         }
     }
