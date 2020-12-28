@@ -58,6 +58,9 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     ssize_t size = strlen(uri_str) + 1;
     uri->req_path = malloc(size);
     url_decode(uri_str, uri->req_path, &size);
+    if (query != NULL) {
+        query[-1] = '?';
+    }
     if (strstr(uri->req_path, "/../") != NULL || strstr(uri->req_path, "/./") != NULL) {
         return 2;
     }
