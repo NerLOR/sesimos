@@ -87,9 +87,11 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         } else if (ret == 2) {
             sprintf(err_msg, "Unable to parse header: Invalid method.");
         } else if (ret == 3) {
-            sprintf(err_msg, "Unable to parse header: Invalid version");
+            sprintf(err_msg, "Unable to parse header: Invalid version.");
         } else if (ret == 4) {
-            sprintf(err_msg, "Unable to parse header: Header contains illegal characters");
+            sprintf(err_msg, "Unable to parse header: Header contains illegal characters.");
+        } else if (ret == 5) {
+            sprintf(err_msg, "Unable to parse header: End of header not found.");
         }
         res.status = http_get_status(400);
         goto respond;
@@ -235,6 +237,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             if (ret != 0) {
                 if (ret < 0) {
                     goto abort;
+                } else {
+                    sprintf(err_msg, "Unable to communicate with PHP-FPM.");
                 }
                 res.status = http_get_status(502);
                 goto respond;
@@ -243,13 +247,30 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         fastcgi_end:
         fastcgi_close_stdin(&php_fpm);
 
+        ret = fastcgi_header(&php_fpm, &res, err_msg);
+        if (ret != 0) {
+            if (ret < 0) {
+                goto abort;
+            } else {
+                sprintf(err_msg, "Unable to communicate with PHP-FPM.");
+            }
+            res.status = http_get_status(502);
+            goto respond;
+        }
+        char *status = http_get_header_field(&res.hdr, "Status");
+        if (status != NULL) {
+            res.status = http_get_status(strtoul(status, NULL, 10));
+            http_remove_header_field(&res.hdr, "Status", HTTP_REMOVE_ALL);
+            if (res.status == NULL){
+                res.status = http_get_status(500);
+                sprintf(err_msg, "The status code was set to an invalid or unknown value.");
+                goto respond;
+            }
+        }
+
         char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
         if (accept_encoding != NULL && strstr(accept_encoding, "deflate") != NULL) {
             http_add_header_field(&res.hdr, "Content-Encoding", "deflate");
-        }
-
-        if (fastcgi_header(&php_fpm, &res, err_msg) != 0) {
-            goto respond;
         }
 
         content_length = -1;

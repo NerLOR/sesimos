@@ -9,14 +9,14 @@
 #include "utils.h"
 
 
-void http_to_camel_case(char *str, int strict) {
+void http_to_camel_case(char *str, int mode) {
     char last = '-';
     char ch;
     for (int i = 0; i < strlen(str); i++) {
         ch = str[i];
-        if (last == '-' && ch >= 'a' && ch <= 'z') {
+        if (mode == HTTP_CAMEL && last == '-' && ch >= 'a' && ch <= 'z') {
             str[i] = (char) ((int) ch & 0x5F);
-        } else if (last != '-' && ch >= 'A' && ch <= 'Z' && strict == HTTP_LOWER) {
+        } else if (mode == HTTP_LOWER && ch >= 'A' && ch <= 'Z') {
             str[i] = (char) ((int) ch | 0x20);
         }
         last = str[i];
@@ -41,8 +41,33 @@ void http_free_res(http_res *res) {
     http_free_hdr(&res->hdr);
 }
 
+int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr) {
+    char *pos1 = memchr(buf, ':', end_ptr - buf);
+    char *pos2;
+    if (pos1 == NULL) {
+        print(ERR_STR "Unable to parse header: Invalid version" CLR_STR);
+        return 3;
+    }
+
+    unsigned long len = pos1 - buf;
+    hdr->fields[hdr->field_num][0] = malloc(len + 1);
+    sprintf(hdr->fields[hdr->field_num][0], "%.*s", (int) len, buf);
+    http_to_camel_case(hdr->fields[hdr->field_num][0], HTTP_CAMEL);
+
+    pos1++;
+    pos2 = (char *) end_ptr - 1;
+    while (pos1[0] == ' ') pos1++;
+    while (pos2[0] == ' ') pos2--;
+    len = pos2 - pos1 + 1;
+    hdr->fields[hdr->field_num][1] = malloc(len + 1);
+    sprintf(hdr->fields[hdr->field_num][1], "%.*s", (int) len, pos1);
+    hdr->field_num++;
+
+    return 0;
+}
+
 int http_receive_request(sock *client, http_req *req) {
-    ssize_t rcv_len, len;
+    unsigned long rcv_len, len;
     char *ptr, *pos0, *pos1, *pos2;
     char buf[CLIENT_MAX_HEADER_SIZE];
     memset(buf, 0, sizeof(buf));
@@ -71,7 +96,13 @@ int http_receive_request(sock *client, http_req *req) {
             return -1;
         }
 
-        for (int i = 0; i < rcv_len; i++) {
+        unsigned long header_len = strstr(buf, "\r\n\r\n") - buf + 4;
+        if (header_len <= 0) {
+            print(ERR_STR "Unable to parse header: End of header not found" CLR_STR);
+            return 5;
+        }
+
+        for (int i = 0; i < header_len; i++) {
             if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {
                 print(ERR_STR "Unable to parse header: Header contains illegal characters" CLR_STR);
                 return 4;
@@ -79,9 +110,9 @@ int http_receive_request(sock *client, http_req *req) {
         }
 
         ptr = buf;
-        while (rcv_len != (ptr - buf)) {
-            pos0 = memchr(ptr, '\r', rcv_len - (ptr - buf));
-            if (pos0 == NULL || pos0[1] != '\n') {
+        while (header_len != (ptr - buf)) {
+            pos0 = strstr(ptr, "\r\n");
+            if (pos0 == NULL) {
                 print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);
                 return 1;
             }
@@ -127,26 +158,8 @@ int http_receive_request(sock *client, http_req *req) {
                 sprintf(req->uri, "%.*s", (int) len, pos1);
                 sprintf(req->version, "%.3s", pos2 + 5);
             } else {
-                pos1 = memchr(ptr, ':', pos0 - ptr);
-                if (pos1 == NULL) {
-                    print(ERR_STR "Unable to parse header: Invalid version" CLR_STR);
-                    return 3;
-                }
-
-                len = pos1 - ptr;
-                req->hdr.fields[req->hdr.field_num][0] = malloc(len + 1);
-                sprintf(req->hdr.fields[req->hdr.field_num][0], "%.*s", (int) len, ptr);
-                http_to_camel_case(req->hdr.fields[req->hdr.field_num][0], HTTP_LOWER);
-
-                pos1++;
-                pos2 = pos0 - 1;
-                while (pos1[0] == ' ') pos1++;
-                while (pos2[0] == ' ') pos2--;
-                len = pos2 - pos1 + 1;
-                req->hdr.fields[req->hdr.field_num][1] = malloc(len + 1);
-                sprintf(req->hdr.fields[req->hdr.field_num][1], "%.*s", (int) len, pos1);
-
-                req->hdr.field_num++;
+                int ret = http_parse_header_field(&req->hdr, ptr, pos0);
+                if (ret != 0) return ret;
             }
             if (pos0[2] == '\r' && pos0[3] == '\n') {
                 return 0;
@@ -177,10 +190,31 @@ void http_add_header_field(http_hdr *hdr, const char *field_name, const char *fi
     char *_field_value = malloc(len_value + 1);
     strcpy(_field_name, field_name);
     strcpy(_field_value, field_value);
-    http_to_camel_case(_field_name, HTTP_PRESERVE_UPPER);
+    http_to_camel_case(_field_name, HTTP_PRESERVE);
     hdr->fields[hdr->field_num][0] = _field_name;
     hdr->fields[hdr->field_num][1] = _field_value;
     hdr->field_num++;
+}
+
+void http_remove_header_field(http_hdr *hdr, const char *field_name, int mode) {
+    char field_name_1[256], field_name_2[256];
+    strcpy(field_name_1, field_name);
+    http_to_camel_case(field_name_1, HTTP_LOWER);
+    for (int i = 0; i < hdr->field_num; i++) {
+        strcpy(field_name_2, hdr->fields[i][0]);
+        http_to_camel_case(field_name_2, HTTP_LOWER);
+        if (strcmp(field_name_1, field_name_2) == 0) {
+            for (int j = i; j < hdr->field_num - 1; j++) {
+                memcpy(hdr->fields[j], hdr->fields[j + 1], sizeof(hdr->fields[0]));
+            }
+            hdr->field_num--;
+            if (mode == HTTP_REMOVE_ONE) {
+                return;
+            } else if (mode == HTTP_REMOVE_ALL) {
+                i--;
+            }
+        }
+    }
 }
 
 int http_send_response(sock *client, http_res *res) {

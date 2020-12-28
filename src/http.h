@@ -8,8 +8,12 @@
 #ifndef NECRONDA_SERVER_HTTP_H
 #define NECRONDA_SERVER_HTTP_H
 
+#define HTTP_PRESERVE 0
 #define HTTP_LOWER 1
-#define HTTP_PRESERVE_UPPER 0
+#define HTTP_CAMEL 2
+
+#define HTTP_REMOVE_ONE 0
+#define HTTP_REMOVE_ALL 1
 
 typedef struct {
     unsigned short code;
@@ -154,7 +158,7 @@ const char *http_error_icon =
         "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjooPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
 
 
-void http_to_camel_case(char *str, int strict);
+void http_to_camel_case(char *str, int mode);
 
 void http_free_hdr(http_hdr *hdr);
 
@@ -164,9 +168,13 @@ void http_free_res(http_res *res);
 
 int http_receive_request(sock *client, http_req *req);
 
+int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr) ;
+
 char *http_get_header_field(const http_hdr *hdr, const char *field_name);
 
 void http_add_header_field(http_hdr *hdr, const char *field_name, const char *field_value);
+
+void http_remove_header_field(http_hdr *hdr, const char *field_name, int mode);
 
 int http_send_response(sock *client, http_res *res);
 

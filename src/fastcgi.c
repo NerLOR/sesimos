@@ -349,7 +349,35 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
     conn->out_len = content_len;
     conn->out_off = (unsigned short) (strstr(content, "\r\n\r\n") - content + 4);
 
-    // TODO process headers and add fields to res
+    char *buf = content;
+    unsigned short header_len = conn->out_off;
+    if (header_len <= 0) {
+        print(ERR_STR "Unable to parse header: End of header not found" CLR_STR);
+        return 1;
+    }
+
+    for (int i = 0; i < header_len; i++) {
+        if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {
+            print(ERR_STR "Unable to parse header: Header contains illegal characters" CLR_STR);
+            return 2;
+        }
+    }
+
+    char *ptr = buf;
+    while (header_len != (ptr - buf)) {
+        char *pos0 = strstr(ptr, "\r\n");
+        if (pos0 == NULL) {
+            print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);
+            return 1;
+        }
+
+        ret = http_parse_header_field(&res->hdr, ptr, pos0);
+        if (ret != 0) return ret;
+        if (pos0[2] == '\r' && pos0[3] == '\n') {
+            return 0;
+        }
+        ptr = pos0 + 2;
+    }
 
     return 0;
 }
