@@ -45,11 +45,11 @@ int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr)
     char *pos1 = memchr(buf, ':', end_ptr - buf);
     char *pos2;
     if (pos1 == NULL) {
-        print(ERR_STR "Unable to parse header: Invalid version" CLR_STR);
+        print(ERR_STR "Unable to parse header" CLR_STR);
         return 3;
     }
 
-    unsigned long len = pos1 - buf;
+    long len = pos1 - buf;
     hdr->fields[hdr->field_num][0] = malloc(len + 1);
     sprintf(hdr->fields[hdr->field_num][0], "%.*s", (int) len, buf);
     http_to_camel_case(hdr->fields[hdr->field_num][0], HTTP_CAMEL);
@@ -59,10 +59,15 @@ int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr)
     while (pos1[0] == ' ') pos1++;
     while (pos2[0] == ' ') pos2--;
     len = pos2 - pos1 + 1;
-    hdr->fields[hdr->field_num][1] = malloc(len + 1);
-    sprintf(hdr->fields[hdr->field_num][1], "%.*s", (int) len, pos1);
-    hdr->field_num++;
 
+    if (len <= 0) {
+        hdr->fields[hdr->field_num][1] = malloc(1);
+        hdr->fields[hdr->field_num][1][0] = 0;
+    } else {
+        hdr->fields[hdr->field_num][1] = malloc(len + 1);
+        sprintf(hdr->fields[hdr->field_num][1], "%.*s", (int) len, pos1);
+    }
+    hdr->field_num++;
     return 0;
 }
 
@@ -247,7 +252,7 @@ http_status *http_get_status(unsigned short status_code) {
 }
 
 http_error_msg *http_get_error_msg(unsigned short status_code) {
-    for (int i = 0; i < sizeof(http_error_messages) / sizeof(http_get_error_msg); i++) {
+    for (int i = 0; i < sizeof(http_error_messages) / sizeof(http_error_msg); i++) {
         if (http_error_messages[i].code == status_code) {
             return &http_error_messages[i];
         }

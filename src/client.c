@@ -198,7 +198,50 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             goto respond;
         }
 
-        // TODO Ranges
+        char *range = http_get_header_field(&req.hdr, "Range");
+        if (range != NULL) {
+            if (strlen(range) <= 6 || strncmp(range, "bytes=", 6) != 0) {
+                res.status = http_get_status(416);
+                http_remove_header_field(&res.hdr, "Content-Type", HTTP_REMOVE_ALL);
+                http_remove_header_field(&res.hdr, "Last-Modified", HTTP_REMOVE_ALL);
+                http_remove_header_field(&res.hdr, "ETag", HTTP_REMOVE_ALL);
+                http_remove_header_field(&res.hdr, "Cache-Control", HTTP_REMOVE_ALL);
+                goto respond;
+            }
+            range += 6;
+            char *ptr = strchr(range, '-');
+            if (ptr == NULL) {
+                res.status = http_get_status(416);
+                goto respond;
+            }
+            file = fopen(uri.filename, "rb");
+            fseek(file, 0, SEEK_END);
+            unsigned long file_len = ftell(file);
+            fseek(file, 0, SEEK_SET);
+            if (file_len == 0) {
+                content_length = 0;
+                goto respond;
+            }
+            long num1 = 0;
+            long num2 = (long) file_len - 1;
+
+            if (ptr != range) num1 = (long) strtoul(range, NULL, 10);
+            if (ptr[1] != 0) num2 = (long) strtoul(ptr + 1, NULL, 10);
+
+            if (num1 >= file_len || num2 >= file_len || num1 > num2) {
+                res.status = http_get_status(416);
+                goto respond;
+            }
+            sprintf(buf0, "bytes %li-%li/%li", num1, num2, file_len);
+            http_add_header_field(&res.hdr, "Content-Range", buf0);
+
+            res.status = http_get_status(206);
+            fseek(file, num1, SEEK_SET);
+            content_length = num2 - num1 + 1;
+
+            goto respond;
+        }
+
         char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
         if (uri.meta->filename_comp[0] != 0 && accept_encoding != NULL && strstr(accept_encoding, "deflate") != NULL) {
             file = fopen(uri.meta->filename_comp, "rb");
@@ -340,6 +383,9 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         } else if (file != NULL) {
             while (snd_len < content_length) {
                 len = fread(&buffer, 1, CHUNK_SIZE, file);
+                if (snd_len + len > content_length) {
+                    len = content_length - snd_len;
+                }
                 if (client->enc) {
                     ret = SSL_write(client->ssl, buffer, (int) len);
                     if (ret <= 0) {

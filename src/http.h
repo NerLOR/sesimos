@@ -81,7 +81,7 @@ http_status http_statuses[] = {
         {413, "Client Error",  "Request Entity Too Large"},
         {414, "Client Error",  "Request-URI Too Long"},
         {415, "Client Error",  "Unsupported Media Type"},
-        {416, "Client Error",  "Requested Range Not Satisfiable"},
+        {416, "Client Error",  "Range Not Satisfiable"},
         {417, "Client Error",  "Expectation Failed"},
 
         {500, "Server Error",  "Internal Server Error"},
@@ -108,6 +108,7 @@ http_error_msg http_error_messages[] = {
         {413, "The server is refusing to process a request because the request entity is larger than the server is willing or able to process."},
         {414, "The server is refusing to service the request because the Request-URI is longer than the server is willing to interpret."},
         {415, "The server is refusing to service the request because the entity of the request is in a format not supported by the requested resource for the requested method."},
+        {416, "None of the ranges in the request's Range header field overlap the current extent of the selected resource or that the set of ranges requested has been rejected due to invalid ranges or an excessive request of small or overlapping ranges."},
         {417, "The expectation given in an Expect request-header field could not be met by this server, or, if the server is a proxy, the server has unambiguous evidence that the request could not be met by the next-hop server."},
 
         {500, "The server encountered an unexpected condition which prevented it from fulfilling the request."},
