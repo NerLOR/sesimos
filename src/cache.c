@@ -13,12 +13,10 @@ int magic_init() {
     magic = magic_open(MAGIC_MIME);
     if (magic == NULL) {
         fprintf(stderr, ERR_STR "Unable to open magic cookie: %s" CLR_STR "\n", strerror(errno));
-        fflush(stderr);
         return -1;
     }
     if (magic_load(magic, MAGIC_FILE) != 0) {
         fprintf(stderr, ERR_STR "Unable to load magic cookie: %s" CLR_STR "\n", magic_error(magic));
-        fflush(stderr);
         return -2;
     }
     return 0;
@@ -35,7 +33,6 @@ int cache_process() {
     int shm_id = shmget(SHM_KEY, FILE_CACHE_SIZE * sizeof(cache_entry), 0);
     if (shm_id < 0) {
         fprintf(stderr, ERR_STR "Unable to create shared memory: %s" CLR_STR "\n", strerror(errno));
-        fflush(stderr);
         return -1;
     }
 
@@ -43,7 +40,6 @@ int cache_process() {
     void *shm_rw = shmat(shm_id, NULL, 0);
     if (shm_rw == (void *) -1) {
         fprintf(stderr, ERR_STR "Unable to attach shared memory (rw): %s" CLR_STR "\n", strerror(errno));
-        fflush(stderr);
         return -2;
     }
     cache = shm_rw;
@@ -51,7 +47,6 @@ int cache_process() {
     if (mkdir("/var/necronda-server/", 0755) < 0) {
         if (errno != EEXIST) {
             fprintf(stderr, ERR_STR "Unable to create directory '/var/necronda-server/': %s" CLR_STR "\n", strerror(errno));
-            fflush(stderr);
             return -3;
         }
     }
@@ -106,14 +101,12 @@ int cache_process() {
                     if (comp_file == NULL) {
                         compress = 0;
                         fprintf(stderr, ERR_STR "Unable to open cache file: %s" CLR_STR "\n", strerror(errno));
-                        fflush(stderr);
                     } else {
                         strm.zalloc = Z_NULL;
                         strm.zfree = Z_NULL;
                         strm.opaque = Z_NULL;
                         if (deflateInit(&strm, level) != Z_OK) {
                             fprintf(stderr, ERR_STR "Unable to init deflate: %s" CLR_STR "\n", strerror(errno));
-                            fflush(stderr);
                             compress = 0;
                             fclose(comp_file);
                         }
@@ -168,14 +161,12 @@ int cache_init() {
     int shm_id = shmget(SHM_KEY, FILE_CACHE_SIZE * sizeof(cache_entry), IPC_CREAT | IPC_EXCL | 0600);
     if (shm_id < 0) {
         fprintf(stderr, ERR_STR "Unable to create shared memory: %s" CLR_STR "\n", strerror(errno));
-        fflush(stderr);
         return -2;
     }
 
     void *shm = shmat(shm_id, NULL, SHM_RDONLY);
     if (shm == (void *) -1) {
         fprintf(stderr, ERR_STR "Unable to attach shared memory (ro): %s" CLR_STR "\n", strerror(errno));
-        fflush(stderr);
         return -3;
     }
     cache = shm;
@@ -183,7 +174,6 @@ int cache_init() {
     void *shm_rw = shmat(shm_id, NULL, 0);
     if (shm_rw == (void *) -1) {
         fprintf(stderr, ERR_STR "Unable to attach shared memory (rw): %s" CLR_STR "\n", strerror(errno));
-        fflush(stderr);
         return -4;
     }
     cache = shm_rw;
@@ -202,11 +192,9 @@ int cache_init() {
     } else if (pid > 0) {
         // parent
         fprintf(stderr, "Started child process with PID %i as cache-updater\n", pid);
-        fflush(stderr);
         children[0] = pid;
     } else {
         fprintf(stderr, ERR_STR "Unable to create child process: %s" CLR_STR "\n", strerror(errno));
-        fflush(stderr);
         return -5;
     }
 
@@ -217,10 +205,8 @@ int cache_unload() {
     int shm_id = shmget(SHM_KEY, 0, 0);
     if (shm_id < 0) {
         fprintf(stderr, ERR_STR "Unable to create shared memory: %s" CLR_STR "\n", strerror(errno));
-        fflush(stderr);
     } else if (shmctl(shm_id, IPC_RMID, NULL) < 0) {
         fprintf(stderr, ERR_STR "Unable to configure shared memory: %s" CLR_STR "\n", strerror(errno));
-        fflush(stderr);
     }
     shmdt(cache);
     return 0;
