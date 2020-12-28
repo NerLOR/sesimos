@@ -14,7 +14,8 @@
 
 int server_keep_alive = 1;
 char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr,
-        *log_client_prefix, *log_conn_prefix, *log_req_prefix;
+        *log_client_prefix, *log_conn_prefix, *log_req_prefix,
+        *client_host_str;
 
 struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
 
@@ -385,8 +386,10 @@ int client_connection_handler(sock *client, unsigned long client_num) {
     clock_gettime(CLOCK_MONOTONIC, &begin);
 
     // TODO get geoip data for ip address
+    // TODO Reverse DNS request
+    client_host_str = client_addr_str;
 
-    print("Connection accepted from %s (%s) [%s]", client_addr_str, client_addr_str, "N/A");
+    print("Connection accepted from %s (%s) [%s]", client_addr_str, client_host_str, "N/A");
 
     client_timeout.tv_sec = CLIENT_TIMEOUT;
     client_timeout.tv_usec = 0;
