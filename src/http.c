@@ -79,13 +79,13 @@ int http_receive_request(sock *client, http_req *req) {
     while (1) {
         if (client->enc) {
             rcv_len = SSL_read(client->ssl, buf, CLIENT_MAX_HEADER_SIZE);
-            if (rcv_len <= 0) {
+            if (rcv_len < 0) {
                 print(ERR_STR "Unable to receive: %s" CLR_STR, ssl_get_error(client->ssl, rcv_len));
                 return -1;
             }
         } else {
             rcv_len = recv(client->socket, buf, CLIENT_MAX_HEADER_SIZE, 0);
-            if (rcv_len <= 0) {
+            if (rcv_len < 0) {
                 print(ERR_STR "Unable to receive: %s" CLR_STR, strerror(errno));
                 return -1;
             }
