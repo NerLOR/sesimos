@@ -179,7 +179,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         }
         char *last_modified = http_format_date(uri.meta->stat.st_mtime, buf0, sizeof(buf0));
         http_add_header_field(&res.hdr, "Last-Modified", last_modified);
-        sprintf(buf1, "%s, charset=%s", uri.meta->type, uri.meta->charset);
+        sprintf(buf1, "%s; charset=%s", uri.meta->type, uri.meta->charset);
         http_add_header_field(&res.hdr, "Content-Type", buf1);
         if (uri.meta->etag[0] != 0) {
             http_add_header_field(&res.hdr, "ETag", uri.meta->etag);
