@@ -44,7 +44,12 @@ int cache_process() {
     }
     cache = shm_rw;
 
-    mkdir("/var/necronda-server", 0755);
+    if (mkdir("/var/necronda-server/", 0755) < 0) {
+        if (errno != EEXIST) {
+            fprintf(stderr, ERR_STR "Unable to create directory '/var/necronda-server/': %s" CLR_STR "\n", strerror(errno));
+            return -3;
+        }
+    }
 
     FILE *cache_file = fopen("/var/necronda-server/cache", "rb");
     if (cache_file != NULL) {
