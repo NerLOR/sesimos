@@ -9,5 +9,11 @@ compile:
 	@mkdir -p bin
 	gcc src/necronda-server.c -o bin/necronda-server -std=c11 -lssl -lcrypto -lmagic -lz
 
+compile-debian:
+	@mkdir -p bin
+	gcc src/necronda-server.c -o bin/necronda-server -std=c11 -lssl -lcrypto -lmagic -lz \
+		-D MAGIC_FILE="\"/usr/share/file/magic.mgc\"" \
+		-D PHP_FPM_SOCKET="\"/var/run/php/php7.3-fpm.sock\""
+
 install: | packages compile
 	@echo "Finished!"
