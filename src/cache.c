@@ -39,6 +39,7 @@ int cache_process() {
     void *shm_rw = shmat(shm_id, NULL, 0);
     if (shm_rw == (void *) -1) {
         fprintf(stderr, ERR_STR "Unable to attach shared memory (rw): %s" CLR_STR "\n", strerror(errno));
+        shmctl(shm_id, IPC_RMID, NULL);
         return -2;
     }
     cache = shm_rw;
