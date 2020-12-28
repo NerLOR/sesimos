@@ -118,17 +118,8 @@ int fastcgi_init(fastcgi_conn *conn, unsigned int client_num, unsigned int req_n
     addr = (struct sockaddr_in6 *) &addr_storage;
     sprintf(buf0, "%i", addr->sin6_port);
     param_ptr = fastcgi_add_param(param_ptr, "REMOTE_PORT", buf0);
-
-    char addr_str[INET6_ADDRSTRLEN];
-    char *addr_ptr;
-    inet_ntop(addr->sin6_family, (void *) &addr->sin6_addr, addr_str, INET6_ADDRSTRLEN);
-    if (strncmp(addr_str, "::ffff:", 7) == 0) {
-        addr_ptr = addr_str + 7;
-    } else {
-        addr_ptr = addr_str;
-    }
-    param_ptr = fastcgi_add_param(param_ptr, "REMOTE_ADDR", addr_ptr);
-    param_ptr = fastcgi_add_param(param_ptr, "REMOTE_HOST", addr_ptr);
+    param_ptr = fastcgi_add_param(param_ptr, "REMOTE_ADDR", client_addr_str);
+    param_ptr = fastcgi_add_param(param_ptr, "REMOTE_HOST", client_host_str != NULL ? client_host_str : client_addr_str);
     //param_ptr = fastcgi_add_param(param_ptr, "REMOTE_IDENT", "");
     //param_ptr = fastcgi_add_param(param_ptr, "REMOTE_USER", "");
 
@@ -287,12 +278,12 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
             res->status = http_get_status(502);
             sprintf(err_msg, "Unable to communicate with PHP-FPM.");
             print(ERR_STR "Unable to receive from PHP-FPM: %s" CLR_STR, strerror(errno));
-            return -1;
+            return 1;
         } else if (ret != sizeof(header)) {
             res->status = http_get_status(502);
             sprintf(err_msg, "Unable to communicate with PHP-FPM.");
             print(ERR_STR "Unable to receive from PHP-FPM" CLR_STR);
-            return -1;
+            return 1;
         }
         req_id = (header.requestIdB1 << 8) | header.requestIdB0;
         content_len = (header.contentLengthB1 << 8) | header.contentLengthB0;
@@ -303,13 +294,13 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
             sprintf(err_msg, "Unable to communicate with PHP-FPM.");
             print(ERR_STR "Unable to receive from PHP-FPM: %s" CLR_STR, strerror(errno));
             free(content);
-            return -1;
+            return 1;
         } else if (ret != (content_len + header.paddingLength)) {
             res->status = http_get_status(502);
             sprintf(err_msg, "Unable to communicate with PHP-FPM.");
             print(ERR_STR "Unable to receive from PHP-FPM" CLR_STR);
             free(content);
-            return -1;
+            return 1;
         }
 
         if (req_id != conn->req_id) {
@@ -329,7 +320,7 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
             close(conn->socket);
             conn->socket = 0;
             free(content);
-            return -2;
+            return 1;
         } else if (header.type == FCGI_STDERR) {
             err = err || fastcgi_php_error(content, content_len, err_msg);
         } else if (header.type == FCGI_STDOUT) {
@@ -342,7 +333,7 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
     }
     if (err) {
         res->status = http_get_status(500);
-        return -3;
+        return 2;
     }
 
     conn->out_buf = content;

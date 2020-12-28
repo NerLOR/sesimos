@@ -295,10 +295,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         if (ret != 0) {
             if (ret < 0) {
                 goto abort;
-            } else {
-                sprintf(err_msg, "Unable to communicate with PHP-FPM.");
             }
-            res.status = http_get_status(502);
             goto respond;
         }
         char *status = http_get_header_field(&res.hdr, "Status");
@@ -427,15 +424,39 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 int client_connection_handler(sock *client, unsigned long client_num) {
     struct timespec begin, end;
     int ret, req_num;
-    char buf[16];
+    char buf[1024];
 
     clock_gettime(CLOCK_MONOTONIC, &begin);
 
-    // TODO get geoip data for ip address
-    // TODO Reverse DNS request
-    client_host_str = client_addr_str;
+    if (dns_server != NULL) {
+        sprintf(buf, "dig @%s +short +time=1 -x %s", dns_server, client_addr_str);
+        FILE *dig = popen(buf, "r");
+        if (dig == NULL) {
+            fprintf(stderr, ERR_STR "Unable to start dig: %s" CLR_STR "\n", strerror(errno));
+            goto dig_err;
+        }
+        unsigned long read = fread(buf, 1, sizeof(buf), dig);
+        ret = pclose(dig);
+        if (ret != 0) {
+            fprintf(stderr, ERR_STR "Dig terminated with exit code %i" CLR_STR "\n", ret);
+            goto dig_err;
+        }
+        char *ptr = memchr(buf, '\n', read);
+        if (ptr == buf || ptr == NULL) {
+            goto dig_err;
+        }
+        ptr[-1] = 0;
+        client_host_str = malloc(strlen(buf) + 1);
+        strcpy(client_host_str, buf);
+    } else {
+        dig_err:
+        client_host_str = NULL;
+    }
 
-    print("Connection accepted from %s (%s) [%s]", client_addr_str, client_host_str, "N/A");
+    // TODO get geoip data for ip address
+
+    print("Connection accepted from %s %s%s%s[%s]", client_addr_str, client_host_str != NULL ? "(" : "",
+          client_host_str != NULL ? client_host_str : "", client_host_str != NULL ? ") " : "", "N/A");
 
     client_timeout.tv_sec = CLIENT_TIMEOUT;
     client_timeout.tv_usec = 0;
@@ -524,9 +545,18 @@ int client_handler(sock *client, unsigned long client_num, struct sockaddr_in6 *
 
     ret = client_connection_handler(client, client_num);
     free(client_addr_str_ptr);
+    client_addr_str_ptr = NULL;
     free(server_addr_str_ptr);
+    server_addr_str_ptr = NULL;
+    if (client_host_str != NULL) {
+        free(client_host_str);
+        client_host_str = NULL;
+    }
     free(log_conn_prefix);
+    log_conn_prefix = NULL;
     free(log_req_prefix);
+    log_req_prefix = NULL;
     free(log_client_prefix);
+    log_client_prefix = NULL;
     return ret;
 }

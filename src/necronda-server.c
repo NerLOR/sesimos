@@ -189,10 +189,11 @@ int main(int argc, const char *argv[]) {
         const char *arg = argv[i];
         unsigned long len = strlen(arg);
         if ((len == 2 && strncmp(arg, "-h", 2) == 0) || (len == 6 && strncmp(arg, "--help", 6) == 0)) {
-            printf("Usage: necronda-server [-h] -w <PATH> -c <CERT-FILE> -p <KEY-FILE> [-g <DB-FILE>]\n"
+            printf("Usage: necronda-server [-h] -w <PATH> -c <CERT-FILE> -p <KEY-FILE> [-g <DB-FILE>] [-d <DNS-SERVER>]\n"
                    "\n"
                    "Options:\n"
                    "  -c, --cert <CERT-FILE>    path to the full chain certificate file\n"
+                   "  -d, --dns <DNS-SERVER>    ip address or hostname of a DNS server for dig\n"
                    "  -g, --geoip <DB-FILE>     path to a Maxmind GeoIP Database file\n"
                    "  -h, --help                print this dialogue\n"
                    "  -p, --privkey <KEY-FILE>  path to the private key file\n"
@@ -222,6 +223,12 @@ int main(int argc, const char *argv[]) {
                 return 1;
             }
             geoip_file = argv[++i];
+        } else if ((len == 2 && strncmp(arg, "-d", 2) == 0) || (len == 5 && strncmp(arg, "--dns", 5) == 0)) {
+            if (i == argc - 1) {
+                fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --dns <DNS-SERVER>" CLR_STR "\n", arg);
+                return 1;
+            }
+            dns_server = argv[++i];
         } else {
             fprintf(stderr, ERR_STR "Unable to parse argument '%s'" CLR_STR "\n", arg);
             return 1;

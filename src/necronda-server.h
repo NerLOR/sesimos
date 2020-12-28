@@ -66,7 +66,7 @@
 int sockets[NUM_SOCKETS];
 pid_t children[MAX_CHILDREN];
 
-const char *cert_file, *key_file, *webroot_base, *geoip_file;
+const char *cert_file, *key_file, *webroot_base, *geoip_file, *dns_server;
 
 typedef struct {
     unsigned int enc:1;
