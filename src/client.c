@@ -15,7 +15,7 @@
 int server_keep_alive = 1;
 char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr,
         *log_client_prefix, *log_conn_prefix, *log_req_prefix,
-        *client_host_str;
+        *client_host_str, *client_geoip;
 
 struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
 
@@ -460,10 +460,56 @@ int client_connection_handler(sock *client, unsigned long client_num) {
         client_host_str = NULL;
     }
 
-    // TODO get geoip data for ip address
+    client_geoip = malloc(GEOIP_MAX_SIZE);
+    long str_off = 0;
+    for (int i = 0; i < MAX_MMDB && mmdbs[i].filename != NULL; i++) {
+        int gai_error, mmdb_res;
+        MMDB_lookup_result_s result = MMDB_lookup_string(&mmdbs[i], "62.47.28.246", &gai_error, &mmdb_res);
+        if (mmdb_res != MMDB_SUCCESS) {
+            print(ERR_STR "Unable to lookup geoip info: %s" CLR_STR "\n", MMDB_strerror(mmdb_res));
+            continue;
+        } else if (gai_error != 0) {
+            print(ERR_STR "Unable to lookup geoip info" CLR_STR "\n");
+            continue;
+        } else if (!result.found_entry) {
+            continue;
+        }
+
+        MMDB_entry_data_list_s *list;
+        mmdb_res = MMDB_get_entry_data_list(&result.entry, &list);
+        if (mmdb_res != MMDB_SUCCESS) {
+            print(ERR_STR "Unable to lookup geoip info: %s" CLR_STR "\n", MMDB_strerror(mmdb_res));
+            continue;
+        }
+
+        long prev = str_off;
+        if (str_off != 0) {
+            str_off--;
+        }
+        mmdb_json(list, client_geoip, &str_off, GEOIP_MAX_SIZE);
+        if (prev != 0) {
+            client_geoip[prev - 1] = ',';
+        }
+
+        MMDB_free_entry_data_list(list);
+    }
+
+    char client_cc[3];
+    client_cc[0] = 0;
+    if (str_off == 0) {
+        free(client_geoip);
+        client_geoip = NULL;
+    } else {
+        char *pos = strstr(client_geoip, "\"iso_code\":\"");
+        if (pos != NULL) {
+            pos += 12;
+            strncpy(client_cc, pos, 2);
+        }
+    }
 
     print("Connection accepted from %s %s%s%s[%s]", client_addr_str, client_host_str != NULL ? "(" : "",
-          client_host_str != NULL ? client_host_str : "", client_host_str != NULL ? ") " : "", "N/A");
+          client_host_str != NULL ? client_host_str : "", client_host_str != NULL ? ") " : "",
+          client_cc[0] != 0 ? client_cc : "N/A");
 
     client_timeout.tv_sec = CLIENT_TIMEOUT;
     client_timeout.tv_usec = 0;

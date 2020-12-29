@@ -25,10 +25,13 @@
 #include <openssl/conf.h>
 #include <openssl/engine.h>
 #include <openssl/dh.h>
+#include <maxminddb.h>
+#include <dirent.h>
 
 
 #define NUM_SOCKETS 2
 #define MAX_CHILDREN 1024
+#define MAX_MMDB 3
 #define LISTEN_BACKLOG 16
 #define REQ_PER_CONNECTION 100
 #define CLIENT_TIMEOUT 3600
@@ -37,6 +40,7 @@
 #define CLIENT_MAX_HEADER_SIZE 8192
 #define FILE_CACHE_SIZE 1024
 #define SHM_KEY 255641
+#define GEOIP_MAX_SIZE 8192
 
 #define ERR_STR "\x1B[1;31m"
 #define CLR_STR "\x1B[0m"
@@ -67,8 +71,9 @@
 
 int sockets[NUM_SOCKETS];
 pid_t children[MAX_CHILDREN];
+MMDB_s mmdbs[MAX_MMDB];
 
-const char *cert_file, *key_file, *webroot_base, *geoip_file, *dns_server;
+const char *cert_file, *key_file, *webroot_base, *geoip_dir, *dns_server;
 
 typedef struct {
     unsigned int enc:1;

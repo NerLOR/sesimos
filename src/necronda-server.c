@@ -172,6 +172,10 @@ int main(int argc, const char *argv[]) {
     struct sockaddr_in6 client_addr;
     unsigned int client_addr_len = sizeof(client_addr);
 
+    memset(sockets, 0, sizeof(sockets));
+    memset(children, 0, sizeof(children));
+    memset(mmdbs, 0, sizeof(mmdbs));
+
     struct timeval timeout;
 
     const struct sockaddr_in6 addresses[2] = {
@@ -189,12 +193,12 @@ int main(int argc, const char *argv[]) {
         const char *arg = argv[i];
         unsigned long len = strlen(arg);
         if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
-            printf("Usage: necronda-server [-h] -w <PATH> -c <CERT-FILE> -p <KEY-FILE> [-g <DB-FILE>] [-d <DNS-SERVER>]\n"
+            printf("Usage: necronda-server [-h] -w <PATH> -c <CERT-FILE> -p <KEY-FILE> [-g <DB-DIR>] [-d <DNS-SERVER>]\n"
                    "\n"
                    "Options:\n"
                    "  -c, --cert <CERT-FILE>    path to the full chain certificate file\n"
                    "  -d, --dns <DNS-SERVER>    ip address or hostname of a DNS server for dig\n"
-                   "  -g, --geoip <DB-FILE>     path to a Maxmind GeoIP Database file\n"
+                   "  -g, --geoip <DB-DIR>      path to a Maxmind GeoIP Database file\n"
                    "  -h, --help                print this dialogue\n"
                    "  -p, --privkey <KEY-FILE>  path to the private key file\n"
                    "  -w, --webroot <PATH>      path to the web root directory\n");
@@ -219,10 +223,10 @@ int main(int argc, const char *argv[]) {
             key_file = argv[++i];
         } else if (strcmp(arg, "-g") == 0 || strcmp(arg, "--geoip") == 0) {
             if (i == argc - 1) {
-                fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --geoip <DB-FILE>" CLR_STR "\n", arg);
+                fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --geoip <DB-DIR>" CLR_STR "\n", arg);
                 return 1;
             }
-            geoip_file = argv[++i];
+            geoip_dir = argv[++i];
         } else if (strcmp(arg, "-d") == 0 || strcmp(arg, "--dns") == 0) {
             if (i == argc - 1) {
                 fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --dns <DNS-SERVER>" CLR_STR "\n", arg);
@@ -274,14 +278,34 @@ int main(int argc, const char *argv[]) {
     signal(SIGINT, terminate);
     signal(SIGTERM, terminate);
 
-    ret = cache_init();
-    if (ret < 0) {
-        return 1;
-    } else if (ret != 0) {
-        return 0;
+    if (geoip_dir != NULL) {
+        DIR *geoip = opendir(geoip_dir);
+        if (geoip == NULL) {
+            fprintf(stderr, ERR_STR "Unable to open GeoIP dir: %s" CLR_STR "\n", strerror(errno));
+            return 1;
+        }
+        struct dirent *dir;
+        int i = 0;
+        while ((dir = readdir(geoip)) != NULL) {
+            if (strcmp(dir->d_name + strlen(dir->d_name) - 5, ".mmdb") != 0) continue;
+            if (i >= MAX_MMDB) {
+                fprintf(stderr, ERR_STR "Too many .mmdb files" CLR_STR "\n");
+                return 1;
+            }
+            sprintf(buf, "%s/%s", geoip_dir, dir->d_name);
+            ret = MMDB_open(buf, 0, &mmdbs[i]);
+            if (ret != MMDB_SUCCESS) {
+                fprintf(stderr, ERR_STR "Unable to open .mmdb file: %s" CLR_STR "\n", MMDB_strerror(ret));
+                return 1;
+            }
+            i++;
+        }
+        if (i == 0) {
+            fprintf(stderr, ERR_STR "No .mmdb files found in %s" CLR_STR "\n", geoip_dir);
+            return 1;
+        }
+        closedir(geoip);
     }
-
-    // TODO init geoip database
 
     openssl_init();
 
@@ -320,6 +344,13 @@ int main(int argc, const char *argv[]) {
         if (sockets[i] > max_socket_fd) {
             max_socket_fd = sockets[i];
         }
+    }
+
+    ret = cache_init();
+    if (ret < 0) {
+        return 1;
+    } else if (ret != 0) {
+        return 0;
     }
 
     fprintf(stderr, "Ready to accept connections\n");
