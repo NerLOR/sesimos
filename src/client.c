@@ -111,6 +111,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     log_prefix = log_req_prefix;
     print(BLD_STR "%s %s" CLR_STR, req.method, req.uri);
 
+    // TODO Reverse Proxy
     webroot = get_webroot(host);
     if (webroot == NULL) {
         res.status = http_get_status(307);
