@@ -115,7 +115,7 @@ int http_receive_request(sock *client, http_req *req) {
         }
 
         ptr = buf;
-        while (header_len != (ptr - buf)) {
+        while (header_len > (ptr - buf + 2)) {
             pos0 = strstr(ptr, "\r\n");
             if (pos0 == NULL) {
                 print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);
@@ -159,12 +159,21 @@ int http_receive_request(sock *client, http_req *req) {
                 int ret = http_parse_header_field(&req->hdr, ptr, pos0);
                 if (ret != 0) return ret;
             }
-            if (pos0[2] == '\r' && pos0[3] == '\n') {
-                return 0;
-            }
             ptr = pos0 + 2;
         }
+        if (pos0[2] == '\r' && pos0[3] == '\n') {
+            break;
+        }
     }
+
+    client->buf_len = rcv_len - (pos0 - buf + 4);
+    if (client->buf_len > 0) {
+        client->buf = malloc(client->buf_len);
+        client->buf_off = 0;
+        memcpy(client->buf, pos0 + 4, client->buf_len);
+    }
+
+    return 0;
 }
 
 char *http_get_header_field(const http_hdr *hdr, const char *field_name) {

@@ -75,6 +75,9 @@ typedef struct {
     int socket;
     SSL_CTX *ctx;
     SSL *ssl;
+    char *buf;
+    unsigned long buf_len;
+    unsigned long buf_off;
 } sock;
 
 char *ssl_get_error(SSL *ssl, int ret);

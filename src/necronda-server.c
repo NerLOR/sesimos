@@ -285,6 +285,9 @@ int main(int argc, const char *argv[]) {
 
     openssl_init();
 
+    client.buf = NULL;
+    client.buf_len = 0;
+    client.buf_off = 0;
     client.ctx = SSL_CTX_new(TLS_server_method());
     SSL_CTX_set_options(client.ctx, SSL_OP_SINGLE_DH_USE);
     SSL_CTX_set_verify(client.ctx, SSL_VERIFY_NONE, NULL);

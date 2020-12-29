@@ -419,6 +419,11 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     if (php_fpm.socket != 0) close(php_fpm.socket);
     http_free_req(&req);
     http_free_res(&res);
+    if (client->buf != NULL) {
+        free(client->buf);
+        client->buf_off = 0;
+        client->buf_len = 0;
+    }
     return !client_keep_alive;
 }
 
