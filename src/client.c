@@ -500,8 +500,10 @@ int client_connection_handler(sock *client, unsigned long client_num) {
         free(client_geoip);
         client_geoip = NULL;
     } else {
-        char *pos = strstr(client_geoip, "\"iso_code\":\"");
+        char *pos = client_geoip;
+        pos = strstr(pos, "\"country\":");
         if (pos != NULL) {
+            pos = strstr(pos, "\"iso_code\":");
             pos += 12;
             strncpy(client_cc, pos, 2);
         }
