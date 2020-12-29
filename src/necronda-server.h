@@ -55,7 +55,7 @@
 #define HTTP_4XX_STR "\x1B[1;31m"
 #define HTTP_5XX_STR "\x1B[1;31m"
 
-#define NECRONDA_VERSION "4.0"
+#define NECRONDA_VERSION "4.1"
 #define SERVER_STR "Necronda/" NECRONDA_VERSION
 #define NECRONDA_ZLIB_LEVEL 9
 

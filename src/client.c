@@ -120,7 +120,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         goto respond;
     }
 
-    dir_mode = URI_DIR_MODE_FORBIDDEN;
+    dir_mode = URI_DIR_MODE_INFO;
     http_uri uri;
     ret = uri_init(&uri, webroot, req.uri, dir_mode);
     if (ret != 0) {
