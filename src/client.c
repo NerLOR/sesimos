@@ -421,6 +421,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     http_free_res(&res);
     if (client->buf != NULL) {
         free(client->buf);
+        client->buf = NULL;
         client->buf_off = 0;
         client->buf_len = 0;
     }
