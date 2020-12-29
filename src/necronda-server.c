@@ -188,7 +188,7 @@ int main(int argc, const char *argv[]) {
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
         unsigned long len = strlen(arg);
-        if ((len == 2 && strncmp(arg, "-h", 2) == 0) || (len == 6 && strncmp(arg, "--help", 6) == 0)) {
+        if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
             printf("Usage: necronda-server [-h] -w <PATH> -c <CERT-FILE> -p <KEY-FILE> [-g <DB-FILE>] [-d <DNS-SERVER>]\n"
                    "\n"
                    "Options:\n"
@@ -199,31 +199,31 @@ int main(int argc, const char *argv[]) {
                    "  -p, --privkey <KEY-FILE>  path to the private key file\n"
                    "  -w, --webroot <PATH>      path to the web root directory\n");
             return 0;
-        } else if ((len == 2 && strncmp(arg, "-w", 2) == 0) || (len == 9 && strncmp(arg, "--webroot", 9) == 0)) {
+        } else if (strcmp(arg, "-w") == 0 || strcmp(arg, "--webroot") == 0) {
             if (i == argc - 1) {
                 fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --webroot <WEBROOT>" CLR_STR "\n", arg);
                 return 1;
             }
             webroot_base = argv[++i];
-        } else if ((len == 2 && strncmp(arg, "-c", 2) == 0) || (len == 6 && strncmp(arg, "--cert", 6) == 0)) {
+        } else if (strcmp(arg, "-c") == 0 || strcmp(arg, "--cert") == 0) {
             if (i == argc - 1) {
                 fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --cert <CERT-FILE>" CLR_STR "\n", arg);
                 return 1;
             }
             cert_file = argv[++i];
-        } else if ((len == 2 && strncmp(arg, "-p", 2) == 0) || (len == 9 && strncmp(arg, "--privkey", 9) == 0)) {
+        } else if (strcmp(arg, "-p") == 0 || strcmp(arg, "--privkey") == 0) {
             if (i == argc - 1) {
                 fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --privkey <KEY-FILE>" CLR_STR "\n", arg);
                 return 1;
             }
             key_file = argv[++i];
-        } else if ((len == 2 && strncmp(arg, "-g", 2) == 0) || (len == 7 && strncmp(arg, "--geoip", 7) == 0)) {
+        } else if (strcmp(arg, "-g") == 0 || strcmp(arg, "--geoip") == 0) {
             if (i == argc - 1) {
                 fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --geoip <DB-FILE>" CLR_STR "\n", arg);
                 return 1;
             }
             geoip_file = argv[++i];
-        } else if ((len == 2 && strncmp(arg, "-d", 2) == 0) || (len == 5 && strncmp(arg, "--dns", 5) == 0)) {
+        } else if (strcmp(arg, "-d") == 0 || strcmp(arg, "--dns") == 0) {
             if (i == argc - 1) {
                 fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --dns <DNS-SERVER>" CLR_STR "\n", arg);
                 return 1;

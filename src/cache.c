@@ -234,7 +234,7 @@ int cache_update_entry(int entry_num, const char *filename, const char *webroot)
     char type_new[24];
     sprintf(type_new, "%s", type);
     if (strcmp(type, "text/plain") == 0) {
-        if (strncmp(filename + strlen(filename) - 4, ".css", 4) == 0) {
+        if (strcmp(filename + strlen(filename) - 4, ".css") == 0) {
             sprintf(type_new, "text/css");
         } else if (strcmp(filename + strlen(filename) - 3, ".js") == 0) {
             sprintf(type_new, "text/javascript");

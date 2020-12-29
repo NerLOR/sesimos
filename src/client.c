@@ -99,7 +99,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     }
 
     hdr_connection = http_get_header_field(&req.hdr, "Connection");
-    client_keep_alive = hdr_connection != NULL && strncmp(hdr_connection, "keep-alive", 10) == 0;
+    client_keep_alive = hdr_connection != NULL && strcmp(hdr_connection, "keep-alive") == 0;
     host = http_get_header_field(&req.hdr, "Host");
     if (host == NULL || strchr(host, '/') != NULL) {
         res.status = http_get_status(400);
@@ -193,7 +193,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         char *if_modified_since = http_get_header_field(&req.hdr, "If-Modified-Since");
         char *if_none_match = http_get_header_field(&req.hdr, "If-None-Match");
         if ((if_none_match != NULL && strstr(if_none_match, uri.meta->etag) == NULL) || (accept_if_modified_since &&
-            if_modified_since != NULL && strncmp(if_modified_since, last_modified, strlen(last_modified)) == 0)) {
+            if_modified_since != NULL && strcmp(if_modified_since, last_modified) == 0)) {
             res.status = http_get_status(304);
             goto respond;
         }
@@ -401,9 +401,9 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             }
         } else if (use_fastcgi) {
             char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
-            int chunked = transfer_encoding != NULL && strncmp(transfer_encoding, "chunked", 7) == 0;
+            int chunked = transfer_encoding != NULL && strcmp(transfer_encoding, "chunked") == 0;
             char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding");
-            int comp = content_encoding != NULL && strncmp(content_encoding, "deflate", 7) == 0;
+            int comp = content_encoding != NULL && strcmp(content_encoding, "deflate") == 0;
             int flags = (chunked ? FASTCGI_CHUNKED : 0) | (comp ? FASTCGI_COMPRESS : 0);
             fastcgi_send(&php_fpm, client, flags);
         }
