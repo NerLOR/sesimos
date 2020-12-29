@@ -32,7 +32,7 @@ typedef struct {
 } http_hdr;
 
 typedef struct {
-    char method[8];
+    char method[16];
     char *uri;
     char version[3];
     http_hdr hdr;

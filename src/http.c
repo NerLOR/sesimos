@@ -123,29 +123,22 @@ int http_receive_request(sock *client, http_req *req) {
             }
 
             if (req->version[0] == 0) {
-                if (memcmp(ptr, "GET ", 4) == 0) {
-                    strcpy(req->method, "GET");
-                } else if (memcmp(ptr, "HEAD ", 5) == 0) {
-                    strcpy(req->method, "HEAD");
-                } else if (memcmp(ptr, "POST ", 5) == 0) {
-                    strcpy(req->method, "POST");
-                } else if (memcmp(ptr, "PUT ", 4) == 0) {
-                    strcpy(req->method, "PUT");
-                } else if (memcmp(ptr, "DELETE ", 7) == 0) {
-                    strcpy(req->method, "DELETE");
-                } else if (memcmp(ptr, "CONNECT ", 7) == 0) {
-                    strcpy(req->method, "CONNECT");
-                } else if (memcmp(ptr, "OPTIONS ", 7) == 0) {
-                    strcpy(req->method, "OPTIONS");
-                } else if (memcmp(ptr, "TRACE ", 6) == 0) {
-                    strcpy(req->method, "TRACE");
-                } else {
-                    print(ERR_STR "Unable to parse header: Invalid method" CLR_STR);
+                pos1 = memchr(ptr, ' ', rcv_len - (ptr - buf)) + 1;
+                if (pos1 == NULL) goto err_hdr_fmt;
+
+                if (pos1 - ptr - 1 >= sizeof(req->method)) {
+                    print(ERR_STR "Unable to parse header: Method name too long" CLR_STR);
                     return 2;
                 }
 
-                pos1 = memchr(ptr, ' ', rcv_len - (ptr - buf)) + 1;
-                if (pos1 == NULL) goto err_hdr_fmt;
+                for (int i = 0; i < (pos1 - ptr - 1); i++) {
+                    if (ptr[i] < 'A' || ptr[i] > 'Z') {
+                        print(ERR_STR "Unable to parse header: Invalid method" CLR_STR);
+                        return 2;
+                    }
+                }
+                strncpy(req->method, ptr, pos1 - ptr - 1);
+
                 pos2 = memchr(pos1, ' ', rcv_len - (pos1 - buf)) + 1;
                 if (pos2 == NULL) {
                     err_hdr_fmt:

@@ -166,7 +166,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         res.status = http_get_status(200);
         http_add_header_field(&res.hdr, "Allow", "GET, HEAD");
         http_add_header_field(&res.hdr, "Accept-Ranges", "bytes");
-        if (strncmp(req.method, "GET", 3) != 0 && strncmp(req.method, "HEAD", 4) != 0) {
+        if (strcmp(req.method, "GET") != 0 && strcmp(req.method, "HEAD") != 0) {
             res.status = http_get_status(405);
             goto respond;
         }
@@ -270,7 +270,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             goto respond;
         }
 
-        if (strncmp(req.method, "POST", 4) == 0 || strncmp(req.method, "PUT", 3) == 0) {
+        if (strcmp(req.method, "POST") == 0 || strcmp(req.method, "PUT") == 0) {
             char *client_content_length = http_get_header_field(&req.hdr, "Content-Length");
             unsigned long client_content_len = 0;
             if (client_content_length == NULL) {
@@ -356,7 +356,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     print("%s%03i %s%s%s (%s)%s", http_get_status_color(res.status), res.status->code, res.status->msg,
           location != NULL ? " -> " : "", location != NULL ? location : "", format_duration(micros, buf0), CLR_STR);
 
-    if (strncmp(req.method, "HEAD", 4) != 0) {
+    if (strcmp(req.method, "HEAD") != 0) {
         unsigned long snd_len = 0;
         unsigned long len = 0;
         if (msg_buf[0] != 0) {
