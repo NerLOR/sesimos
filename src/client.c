@@ -25,7 +25,7 @@ char *get_webroot(const char *http_host) {
     while (webroot_base[len - 1] == '/') len--;
     long pos = strchr(http_host, ':') - http_host;
     sprintf(webroot, "%.*s/%.*s", (int) len, webroot_base, (int) (pos < 0 ? strlen(http_host) : pos), http_host);
-    return webroot;
+    return path_is_directory(webroot) ? webroot : NULL;
 }
 
 void client_terminate() {
@@ -114,8 +114,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     webroot = get_webroot(host);
     if (webroot == NULL) {
         res.status = http_get_status(307);
-        sprintf(buf0, "https://%s%s", NECRONDA_DEFAULT, req.uri);
-        http_add_header_field(&req.hdr, "Location", buf0);
+        sprintf(buf0, "https://%s%s", DEFAULT_HOST, req.uri);
+        http_add_header_field(&res.hdr, "Location", buf0);
         goto respond;
     }
 
