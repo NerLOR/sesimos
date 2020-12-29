@@ -464,7 +464,7 @@ int client_connection_handler(sock *client, unsigned long client_num) {
     long str_off = 0;
     for (int i = 0; i < MAX_MMDB && mmdbs[i].filename != NULL; i++) {
         int gai_error, mmdb_res;
-        MMDB_lookup_result_s result = MMDB_lookup_string(&mmdbs[i], "62.47.28.246", &gai_error, &mmdb_res);
+        MMDB_lookup_result_s result = MMDB_lookup_string(&mmdbs[i], client_addr_str, &gai_error, &mmdb_res);
         if (mmdb_res != MMDB_SUCCESS) {
             print(ERR_STR "Unable to lookup geoip info: %s" CLR_STR "\n", MMDB_strerror(mmdb_res));
             continue;
