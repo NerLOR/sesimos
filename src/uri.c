@@ -75,7 +75,7 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     } else {
         strcpy(uri->pathinfo, "");
     }
-    while (1) {
+    while (dir_mode == URI_DIR_MODE_INFO) {
         sprintf(buf0, "%s%s", uri->webroot, uri->path);
         sprintf(buf1, "%s.php", buf0);
         sprintf(buf2, "%s.html", buf0);
