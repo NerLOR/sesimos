@@ -209,7 +209,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         char *if_modified_since = http_get_header_field(&req.hdr, "If-Modified-Since");
         char *if_none_match = http_get_header_field(&req.hdr, "If-None-Match");
         if ((if_none_match != NULL && strstr(if_none_match, uri.meta->etag) == NULL) || (accept_if_modified_since &&
-             if_modified_since != NULL && strcmp(if_modified_since, last_modified) == 0)) {
+            if_modified_since != NULL && strcmp(if_modified_since, last_modified) == 0)) {
             res.status = http_get_status(304);
             goto respond;
         }
