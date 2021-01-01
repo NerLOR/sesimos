@@ -75,12 +75,13 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     } else {
         strcpy(uri->pathinfo, "");
     }
-    while (dir_mode == URI_DIR_MODE_INFO) {
+    while (1) {
         sprintf(buf0, "%s%s", uri->webroot, uri->path);
         sprintf(buf1, "%s.php", buf0);
         sprintf(buf2, "%s.html", buf0);
 
-        if (strlen(uri->path) <= 1 || path_exists(buf0) || path_is_file(buf1) || path_is_file(buf2)) {
+        if (strlen(uri->path) <= 1 || path_exists(buf0) || path_is_file(buf1) || path_is_file(buf2) ||
+            dir_mode != URI_DIR_MODE_INFO) {
             break;
         }
 
@@ -103,7 +104,7 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
         ssize_t len = strlen(uri->path);
         if (strcmp(uri->path + len - 5, ".html") == 0) {
             uri->path[len - 5] = 0;
-        } else if (strcmp(uri->path + len - 4, ".php") ==  0) {
+        } else if (strcmp(uri->path + len - 4, ".php") == 0) {
             uri->path[len - 4] = 0;
             uri->is_static = 0;
         }
