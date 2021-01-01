@@ -80,8 +80,7 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
         sprintf(buf1, "%s.php", buf0);
         sprintf(buf2, "%s.html", buf0);
 
-        if (strlen(uri->path) <= 1 || path_exists(buf0) || path_is_file(buf1) || path_is_file(buf2) ||
-            dir_mode != URI_DIR_MODE_INFO) {
+        if (strlen(uri->path) <= 1 || path_exists(buf0) || path_is_file(buf1) || path_is_file(buf2)) {
             break;
         }
 

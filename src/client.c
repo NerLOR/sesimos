@@ -173,6 +173,9 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     } else if (uri.filename == NULL || (strlen(uri.pathinfo) > 0 && (int) uri.is_static)) {
         res.status = http_get_status(404);
         goto respond;
+    } else if (strlen(uri.pathinfo) != 0 && dir_mode != URI_DIR_MODE_INFO) {
+        res.status = http_get_status(404);
+        goto respond;
     }
 
     if (uri.is_static) {
