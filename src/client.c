@@ -102,6 +102,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     client_keep_alive = hdr_connection != NULL && strcmp(hdr_connection, "keep-alive") == 0;
     host = http_get_header_field(&req.hdr, "Host");
     if (host == NULL || strchr(host, '/') != NULL) {
+        // TODO fix IPv6 address in URL
+        host = client_addr_str;
         res.status = http_get_status(400);
         sprintf(err_msg, "The client provided no or an invalid Host header field.");
         goto respond;
@@ -333,7 +335,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 http_msg != NULL ? http_msg->err_msg : "", err_msg[0] != 0 ? err_msg : "");
         content_length = sprintf(msg_buf, http_default_document, res.status->code, res.status->msg,
                                  msg_pre_buf, res.status->code >= 300 && res.status->code < 400 ? "info" : "error",
-                                 http_error_icon, "#C00000");
+                                 http_error_icon, "#C00000", host);
         http_add_header_field(&res.hdr, "Content-Type", "text/html; charset=UTF-8");
     }
     if (content_length >= 0) {
