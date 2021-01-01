@@ -28,6 +28,16 @@ char *get_webroot(const char *http_host) {
     return path_is_directory(webroot) ? webroot : NULL;
 }
 
+int get_dir_mode(const char *webroot) {
+    char buf[256];
+    struct stat statbuf;
+    sprintf(buf, "%s/.necronda-server/dir_mode_info", webroot);
+    if (stat(buf, &statbuf) == 0) return URI_DIR_MODE_INFO;
+    sprintf(buf, "%s/.necronda-server/dir_mode_list", webroot);
+    if (stat(buf, &statbuf) == 0) return URI_DIR_MODE_LIST;
+    return URI_DIR_MODE_FORBIDDEN;
+}
+
 void client_terminate() {
     server_keep_alive = 0;
 }
@@ -122,7 +132,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         goto respond;
     }
 
-    dir_mode = URI_DIR_MODE_INFO;
+    dir_mode = get_dir_mode(webroot);
     http_uri uri;
     ret = uri_init(&uri, webroot, req.uri, dir_mode);
     if (ret != 0) {
@@ -196,7 +206,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         char *if_modified_since = http_get_header_field(&req.hdr, "If-Modified-Since");
         char *if_none_match = http_get_header_field(&req.hdr, "If-None-Match");
         if ((if_none_match != NULL && strstr(if_none_match, uri.meta->etag) == NULL) || (accept_if_modified_since &&
-            if_modified_since != NULL && strcmp(if_modified_since, last_modified) == 0)) {
+                                                                                         if_modified_since != NULL && strcmp(if_modified_since, last_modified) == 0)) {
             res.status = http_get_status(304);
             goto respond;
         }
