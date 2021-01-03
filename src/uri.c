@@ -64,6 +64,7 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     if (strstr(uri->req_path, "/../") != NULL || strstr(uri->req_path, "/./") != NULL) {
         return 2;
     }
+    // TODO handle double slashes in URI
 
     size = strlen(uri->req_path) + 1;
     uri->path = malloc(size);
