@@ -64,12 +64,21 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     if (strstr(uri->req_path, "/../") != NULL || strstr(uri->req_path, "/./") != NULL) {
         return 2;
     }
-    // TODO handle double slashes in URI
 
     size = strlen(uri->req_path) + 1;
     uri->path = malloc(size);
     uri->pathinfo = malloc(size);
-    strcpy(uri->path, uri->req_path);
+
+    char last = 0;
+    for (int i = 0, j = 0; i < size - 1; i++) {
+        char ch = uri->req_path[i];
+        if (last != '/' || ch != '/') {
+            uri->path[j++] = ch;
+            uri->path[j] = 0;
+        }
+        last = ch;
+    }
+
     if (uri->path[strlen(uri->path) - 1] == '/') {
         uri->path[strlen(uri->path) - 1] = 0;
         strcpy(uri->pathinfo, "/");
