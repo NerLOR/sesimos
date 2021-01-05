@@ -54,7 +54,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     char msg_buf[4096], msg_pre_buf[4096], err_msg[256];
     char buffer[CHUNK_SIZE];
     err_msg[0] = 0;
-    char *host, *hdr_connection, *webroot;
+    char host[256], *host_ptr, *hdr_connection, *webroot;
     long content_length = 0;
     FILE *file = NULL;
     msg_buf[0] = 0;
@@ -110,13 +110,23 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
     hdr_connection = http_get_header_field(&req.hdr, "Connection");
     client_keep_alive = hdr_connection != NULL && strcmp(hdr_connection, "keep-alive") == 0;
-    host = http_get_header_field(&req.hdr, "Host");
-    if (host == NULL || strchr(host, '/') != NULL) {
-        // TODO fix IPv6 address in URL
-        host = client_addr_str;
+    host_ptr = http_get_header_field(&req.hdr, "Host");
+    if (host_ptr != NULL && strlen(host_ptr) > 255) {
+        host[0] = 0;
+        res.status = http_get_status(400);
+        sprintf(err_msg, "Host header field is too long.");
+        goto respond;
+    } else if (host_ptr == NULL || strchr(host_ptr, '/') != NULL) {
+        if (strchr(client_addr_str, ':') == NULL) {
+            strcpy(host, client_addr_str);
+        } else {
+            sprintf(host, "[%s]", client_addr_str);
+        }
         res.status = http_get_status(400);
         sprintf(err_msg, "The client provided no or an invalid Host header field.");
         goto respond;
+    } else {
+        strcpy(host, host_ptr);
     }
 
     sprintf(log_req_prefix, "[%s%24s%s]%s ", BLD_STR, host, CLR_STR, log_client_prefix);
