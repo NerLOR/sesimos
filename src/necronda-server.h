@@ -39,8 +39,10 @@
 #define CHUNK_SIZE 4096
 #define CLIENT_MAX_HEADER_SIZE 8192
 #define FILE_CACHE_SIZE 1024
-#define SHM_KEY 255641
 #define GEOIP_MAX_SIZE 8192
+
+#define SHM_KEY_CACHE 255641
+#define SHM_KEY_CONFIG 255642
 
 #define ERR_STR "\x1B[1;31m"
 #define CLR_STR "\x1B[0m"

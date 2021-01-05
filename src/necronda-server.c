@@ -9,6 +9,7 @@
 
 #include "necronda-server.h"
 
+#include "config.c"
 #include "utils.c"
 #include "uri.c"
 #include "cache.c"

@@ -30,7 +30,7 @@ int cache_process() {
     signal(SIGINT, cache_process_term);
     signal(SIGTERM, cache_process_term);
 
-    int shm_id = shmget(SHM_KEY, FILE_CACHE_SIZE * sizeof(cache_entry), 0);
+    int shm_id = shmget(SHM_KEY_CACHE, FILE_CACHE_SIZE * sizeof(cache_entry), 0);
     if (shm_id < 0) {
         fprintf(stderr, ERR_STR "Unable to create shared memory: %s" CLR_STR "\n", strerror(errno));
         return -1;
@@ -158,7 +158,7 @@ int cache_init() {
         return -1;
     }
 
-    int shm_id = shmget(SHM_KEY, FILE_CACHE_SIZE * sizeof(cache_entry), IPC_CREAT | IPC_EXCL | 0600);
+    int shm_id = shmget(SHM_KEY_CACHE, FILE_CACHE_SIZE * sizeof(cache_entry), IPC_CREAT | IPC_EXCL | 0600);
     if (shm_id < 0) {
         fprintf(stderr, ERR_STR "Unable to create shared memory: %s" CLR_STR "\n", strerror(errno));
         return -2;
@@ -202,7 +202,7 @@ int cache_init() {
 }
 
 int cache_unload() {
-    int shm_id = shmget(SHM_KEY, 0, 0);
+    int shm_id = shmget(SHM_KEY_CACHE, 0, 0);
     if (shm_id < 0) {
         fprintf(stderr, ERR_STR "Unable to create shared memory: %s" CLR_STR "\n", strerror(errno));
     } else if (shmctl(shm_id, IPC_RMID, NULL) < 0) {
@@ -214,7 +214,7 @@ int cache_unload() {
 
 int cache_update_entry(int entry_num, const char *filename, const char *webroot) {
     void *cache_ro = cache;
-    int shm_id = shmget(SHM_KEY, 0, 0);
+    int shm_id = shmget(SHM_KEY_CACHE, 0, 0);
     void *shm_rw = shmat(shm_id, NULL, 0);
     if (shm_rw == (void *) -1) {
         print(ERR_STR "Unable to attach shared memory (rw): %s" CLR_STR, strerror(errno));
@@ -256,7 +256,7 @@ int cache_update_entry(int entry_num, const char *filename, const char *webroot)
 
 int cache_filename_comp_invalid(const char *filename) {
     void *cache_ro = cache;
-    int shm_id = shmget(SHM_KEY, 0, 0);
+    int shm_id = shmget(SHM_KEY_CACHE, 0, 0);
     void *shm_rw = shmat(shm_id, NULL, 0);
     if (shm_rw == (void *) -1) {
         print(ERR_STR "Unable to attach shared memory (rw): %s" CLR_STR, strerror(errno));
