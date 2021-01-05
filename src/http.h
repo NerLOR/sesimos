@@ -135,7 +135,7 @@ const char *http_default_document =
         "        main{max-width:600px;margin:2em auto;background-color:#FFFFFF;border: 1px solid var(--color);border-radius:4px;padding:1em 2em;}\n"
         "        h1,h2,h3,h4,h5,h6,h7{text-align:center;color:var(--color);font-weight:normal;}\n"
         "        h1{font-size:3em;margin:0.125em 0 0.125em 0;}\n"
-        "        h2{font-size:1.5em;margin:0.25em 0 1em 0;}"
+        "        h2{font-size:1.5em;margin:0.25em 0 1em 0;}\n"
         "        p{text-align:center;font-size:0.875em;}\n"
         "        div.footer{color:#808080;font-size:0.75em;text-align:center;margin:2em 0 0.5em 0;}\n"
         "        div.footer a{color:#808080;}\n"
