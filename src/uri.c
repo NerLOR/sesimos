@@ -79,6 +79,10 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
         last = ch;
     }
 
+    if (dir_mode == URI_DIR_MODE_NO_VALIDATION) {
+        return 0;
+    }
+
     if (uri->path[strlen(uri->path) - 1] == '/') {
         uri->path[strlen(uri->path) - 1] = 0;
         strcpy(uri->pathinfo, "/");

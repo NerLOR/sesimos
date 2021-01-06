@@ -10,9 +10,10 @@
 
 #include <sys/stat.h>
 
-#define URI_DIR_MODE_FORBIDDEN 0
-#define URI_DIR_MODE_LIST 1
-#define URI_DIR_MODE_INFO 2
+#define URI_DIR_MODE_NO_VALIDATION 0
+#define URI_DIR_MODE_FORBIDDEN 1
+#define URI_DIR_MODE_LIST 2
+#define URI_DIR_MODE_INFO 3
 
 typedef struct {
     char etag[64];

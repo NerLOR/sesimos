@@ -14,6 +14,7 @@
 
 #define HTTP_REMOVE_ONE 0
 #define HTTP_REMOVE_ALL 1
+#define HTTP_REMOVE_LAST 2
 
 typedef struct {
     unsigned short code;

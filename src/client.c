@@ -18,6 +18,10 @@ char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_
         *client_host_str, *client_geoip;
 
 struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
+struct timeval server_timeout = {.tv_sec = SERVER_TIMEOUT, .tv_usec = 0};
+
+int rev_proxy_sock = 0;
+char *rev_proxy_host = NULL;
 
 host_config *get_host_config(const char *host) {
     for (int i = 0; i < MAX_HOST_CONFIG; i++) {
@@ -45,12 +49,12 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     char buffer[CHUNK_SIZE];
     err_msg[0] = 0;
     char host[256], *host_ptr, *hdr_connection;
-    host_config *conf;
+    host_config *conf = NULL;
     long content_length = 0;
     FILE *file = NULL;
     msg_buf[0] = 0;
     int accept_if_modified_since = 0;
-    int use_fastcgi = 0;
+    int use_fastcgi, use_rev_proxy = 0;
     fastcgi_conn php_fpm = {.socket = 0, .req_id = 0};
 
     http_res res;
@@ -134,34 +138,34 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     }
 
     http_uri uri;
+    ret = uri_init(&uri, conf->local.webroot, req.uri, conf->local.dir_mode);
+    if (ret != 0) {
+        if (ret == 1) {
+            sprintf(err_msg, "Invalid URI: has to start with slash.");
+        } else if (ret == 2) {
+            sprintf(err_msg, "Invalid URI: contains relative path change (/../).");
+        }
+        res.status = http_get_status(400);
+        goto respond;
+    }
+
+    ssize_t size = sizeof(buf0);
+    url_decode(req.uri, buf0, &size);
+    int change_proto = strncmp(uri.uri, "/.well-known/", 13) != 0 && !client->enc;
+    if (strcmp(uri.uri, buf0) != 0 || change_proto) {
+        res.status = http_get_status(308);
+        size = sizeof(buf0);
+        encode_url(uri.uri, buf0, &size);
+        if (change_proto) {
+            sprintf(buf1, "https://%s%s", host, buf0);
+            http_add_header_field(&res.hdr, "Location", buf1);
+        } else {
+            http_add_header_field(&res.hdr, "Location", buf0);
+        }
+        goto respond;
+    }
+
     if (conf->type == CONFIG_TYPE_LOCAL) {
-        ret = uri_init(&uri, conf->local.webroot, req.uri, conf->local.dir_mode);
-        if (ret != 0) {
-            if (ret == 1) {
-                sprintf(err_msg, "Invalid URI: has to start with slash.");
-            } else if (ret == 2) {
-                sprintf(err_msg, "Invalid URI: contains relative path change (/../).");
-            }
-            res.status = http_get_status(400);
-            goto respond;
-        }
-
-        ssize_t size = sizeof(buf0);
-        url_decode(req.uri, buf0, &size);
-        int change_proto = strncmp(uri.uri, "/.well-known/", 13) != 0 && !client->enc;
-        if (strcmp(uri.uri, buf0) != 0 || change_proto) {
-            res.status = http_get_status(308);
-            size = sizeof(buf0);
-            encode_url(uri.uri, buf0, &size);
-            if (change_proto) {
-                sprintf(buf1, "https://%s%s", host, buf0);
-                http_add_header_field(&res.hdr, "Location", buf1);
-            } else {
-                http_add_header_field(&res.hdr, "Location", buf0);
-            }
-            goto respond;
-        }
-
         if (uri.filename == NULL && (int) uri.is_static && (int) uri.is_dir && strlen(uri.pathinfo) == 0) {
             res.status = http_get_status(403);
             sprintf(err_msg, "It is not allowed to list the contents of this directory.");
@@ -340,32 +344,194 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         }
     } else if (conf->type != CONFIG_TYPE_LOCAL) {
         print("Reverse proxy for " BLD_STR "%s:%i" CLR_STR, conf->rev_proxy.hostname, conf->rev_proxy.port);
-        // TODO Reverse Proxy
-        res.status = http_get_status(501);
+        int tries = 0;
+        int off = 0;
+
+        if (rev_proxy_sock != 0 && rev_proxy_host == conf->name) {
+            goto rev_proxy;
+        } else if (rev_proxy_sock != 0) {
+            shutdown(rev_proxy_sock, SHUT_RDWR);
+            close(rev_proxy_sock);
+            rev_proxy_sock = 0;
+        }
+
+        rev_proxy_sock = socket(AF_INET6, SOCK_STREAM, 0);
+        if (rev_proxy_sock < 0) {
+            print(ERR_STR "Unable to create socket: %s" CLR_STR, strerror(errno));
+            res.status = http_get_status(500);
+            goto respond;
+        }
+
+        server_timeout.tv_sec = SERVER_TIMEOUT;
+        server_timeout.tv_usec = 0;
+        if (setsockopt(client->socket, SOL_SOCKET, SO_RCVTIMEO, &server_timeout, sizeof(server_timeout)) < 0)
+            goto rev_proxy_timeout_err;
+        if (setsockopt(client->socket, SOL_SOCKET, SO_SNDTIMEO, &server_timeout, sizeof(server_timeout)) < 0) {
+            rev_proxy_timeout_err:
+            res.status = http_get_status(502);
+            print(ERR_STR "Unable to set timeout for socket: %s" CLR_STR, strerror(errno));
+            sprintf(err_msg, "Unable to set timeout for socket: %s", strerror(errno));
+            goto proxy_err;
+        }
+
+        struct hostent *host_ent = gethostbyname(conf->rev_proxy.hostname);
+        if (host_ent == NULL) {
+            res.status = http_get_status(502);
+            print(ERR_STR "Unable to connect to server: Name or service not known" CLR_STR);
+            sprintf(err_msg, "Unable to connect to server: Name or service not known.");
+            goto proxy_err;
+        }
+
+        struct sockaddr_in6 address = {.sin6_family = AF_INET6, .sin6_port = htons(conf->rev_proxy.port)};
+        if (host_ent->h_addrtype == AF_INET6) {
+            memcpy(&address.sin6_addr, host_ent->h_addr_list[0], host_ent->h_length);
+        } else if (host_ent->h_addrtype == AF_INET) {
+            unsigned char addr[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 0, 0, 0, 0};
+            memcpy(addr + 12, host_ent->h_addr_list[0], host_ent->h_length);
+            memcpy(&address.sin6_addr, addr, 16);
+        }
+
+        if (connect(rev_proxy_sock, (struct sockaddr *) &address, sizeof(address)) < 0) {
+            res.status = http_get_status(502);
+            print(ERR_STR "Unable to connect to server: %s" CLR_STR, strerror(errno));
+            sprintf(err_msg, "Unable to connect to server: %s.", strerror(errno));
+            goto proxy_err;
+        }
+        rev_proxy_host = conf->name;
+        inet_ntop(address.sin6_family, (void *) &address.sin6_addr, buf0, sizeof(buf0));
+        print("Established new connection with " BLD_STR "[%s]:%i" CLR_STR, buf0, conf->rev_proxy.port);
+
+        rev_proxy:
+        off += sprintf(buffer + off, "%s %s HTTP/%s\r\n", req.method, req.uri, req.version);
+        for (int i = 0; i < req.hdr.field_num; i++) {
+            off += sprintf(buffer + off, "%s: %s\r\n", req.hdr.fields[i][0], req.hdr.fields[i][1]);
+        }
+        off += sprintf(buffer + off, "\r\n");
+
+        ret = send(rev_proxy_sock, buffer, off, 0);
+        if (ret < 0) {
+            res.status = http_get_status(502);
+            print(ERR_STR "Unable to send request to server: %s" CLR_STR, strerror(errno));
+            sprintf(err_msg, "Unable to send request to server: %s.", strerror(errno));
+            goto proxy_err;
+        } else if (ret != off) {
+            res.status = http_get_status(502);
+            print(ERR_STR "Unable to send request to server" CLR_STR);
+            sprintf(err_msg, "Unable to send response to server.");
+            goto proxy_err;
+        }
+
+        // TODO send request body
+
+        ret = recv(rev_proxy_sock, buffer, sizeof(buffer), MSG_PEEK);
+        if (ret < 0) {
+            res.status = http_get_status(502);
+            print(ERR_STR "Unable to receive response from server: %s" CLR_STR, strerror(errno));
+            sprintf(err_msg, "Unable to receive response from server: %s.", strerror(errno));
+            goto proxy_err;
+        }
+
+        char *buf = buffer;
+        unsigned short header_len = (unsigned short) (strstr(buffer, "\r\n\r\n") - buffer + 4);
+
+        if (header_len <= 0) {
+            res.status = http_get_status(502);
+            print(ERR_STR "Unable to parse header: End of header not found" CLR_STR);
+            sprintf(err_msg, "Unable to parser header: End of header not found.");
+            goto proxy_err;
+        }
+
+        for (int i = 0; i < header_len; i++) {
+            if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {
+                res.status = http_get_status(502);
+                print(ERR_STR "Unable to parse header: Header contains illegal characters" CLR_STR);
+                sprintf(err_msg, "Unable to parse header: Header contains illegal characters.");
+                goto proxy_err;
+            }
+        }
+
+        char *ptr = buf;
+        while (header_len != (ptr - buf)) {
+            char *pos0 = strstr(ptr, "\r\n");
+            if (pos0 == NULL) {
+                res.status = http_get_status(502);
+                print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);
+                sprintf(err_msg, "Unable to parse header: Invalid header format.");
+                goto proxy_err;
+            }
+            if (ptr == buf) {
+                if (strncmp(ptr, "HTTP/", 5) != 0) {
+                    res.status = http_get_status(502);
+                    print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);
+                    sprintf(err_msg, "Unable to parse header: Invalid header format.");
+                    goto proxy_err;
+                }
+                res.status = http_get_status((unsigned short) strtol(ptr + 9, NULL, 10));
+                if (res.status == NULL) {
+                    res.status = http_get_status(502);
+                    print(ERR_STR "Unable to parse header: Invalid or unknown status code" CLR_STR);
+                    sprintf(err_msg, "Unable to parse header: Invalid or unknown status code.");
+                    goto proxy_err;
+                }
+            } else {
+                ret = http_parse_header_field(&res.hdr, ptr, pos0);
+                if (ret != 0) {
+                    res.status = http_get_status(502);
+                    print(ERR_STR "Unable to parse header" CLR_STR);
+                    sprintf(err_msg, "Unable to parse header.");
+                    goto proxy_err;
+                }
+            }
+            if (pos0[2] == '\r' && pos0[3] == '\n') {
+                break;
+            }
+            ptr = pos0 + 2;
+        }
+        recv(rev_proxy_sock, buffer, header_len, 0);
+        use_rev_proxy = 1;
+
+        if (0) {
+            proxy_err:
+            print("Closing proxy connection");
+            shutdown(rev_proxy_sock, SHUT_RDWR);
+            close(rev_proxy_sock);
+            rev_proxy_sock = 0;
+        }
     } else {
         print(ERR_STR "Unknown host type: %i" CLR_STR, conf->type);
         res.status = http_get_status(501);
     }
 
     respond:
-    if (http_get_header_field(&res.hdr, "Accept-Ranges") == NULL) {
-        http_add_header_field(&res.hdr, "Accept-Ranges", "none");
+    if (!use_rev_proxy) {
+        if (http_get_header_field(&res.hdr, "Accept-Ranges") == NULL) {
+            http_add_header_field(&res.hdr, "Accept-Ranges", "none");
+        }
+        if (!use_fastcgi && !use_rev_proxy && file == NULL &&
+            res.status->code >= 400 && res.status->code < 600) {
+            http_error_msg *http_msg = http_get_error_msg(res.status->code);
+            sprintf(msg_pre_buf, http_error_document, res.status->code, res.status->msg,
+                    http_msg != NULL ? http_msg->err_msg : "", err_msg[0] != 0 ? err_msg : "");
+            content_length = sprintf(msg_buf, http_default_document, res.status->code, res.status->msg,
+                                     msg_pre_buf, res.status->code >= 300 && res.status->code < 400 ? "info" : "error",
+                                     http_error_icon, "#C00000", host);
+            http_add_header_field(&res.hdr, "Content-Type", "text/html; charset=UTF-8");
+        }
+        if (content_length >= 0) {
+            sprintf(buf0, "%li", content_length);
+            http_add_header_field(&res.hdr, "Content-Length", buf0);
+        } else if (http_get_header_field(&res.hdr, "Transfer-Encoding") == NULL) {
+            server_keep_alive = 0;
+        }
+    } else {
+        http_remove_header_field(&res.hdr, "Server", HTTP_REMOVE_ALL);
+        http_remove_header_field(&res.hdr, "Date", HTTP_REMOVE_ALL);
+        http_add_header_field(&res.hdr, "Date", http_get_date(buf0, sizeof(buf0)));
+        http_add_header_field(&res.hdr, "Server", SERVER_STR);
     }
-    if (!use_fastcgi && file == NULL && res.status->code >= 400 && res.status->code < 600) {
-        http_error_msg *http_msg = http_get_error_msg(res.status->code);
-        sprintf(msg_pre_buf, http_error_document, res.status->code, res.status->msg,
-                http_msg != NULL ? http_msg->err_msg : "", err_msg[0] != 0 ? err_msg : "");
-        content_length = sprintf(msg_buf, http_default_document, res.status->code, res.status->msg,
-                                 msg_pre_buf, res.status->code >= 300 && res.status->code < 400 ? "info" : "error",
-                                 http_error_icon, "#C00000", host);
-        http_add_header_field(&res.hdr, "Content-Type", "text/html; charset=UTF-8");
-    }
-    if (content_length >= 0) {
-        sprintf(buf0, "%li", content_length);
-        http_add_header_field(&res.hdr, "Content-Length", buf0);
-    } else if (http_get_header_field(&res.hdr, "Transfer-Encoding") == NULL) {
-        server_keep_alive = 0;
-    }
+    char *conn = http_get_header_field(&res.hdr, "Connection");
+    http_remove_header_field(&res.hdr, "Connection", HTTP_REMOVE_ALL);
+    http_remove_header_field(&res.hdr, "Keep-Alive", HTTP_REMOVE_ALL);
     if (server_keep_alive && client_keep_alive) {
         http_add_header_field(&res.hdr, "Connection", "keep-alive");
         sprintf(buf0, "timeout=%i, max=%i", CLIENT_TIMEOUT, REQ_PER_CONNECTION);
@@ -397,14 +563,12 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                         print(ERR_STR "Unable to send: %s" CLR_STR, strerror(errno));
                     }
                 }
-                if (ret <= 0) {
-                    break;
-                }
+                if (ret <= 0) break;
                 snd_len += ret;
             }
         } else if (file != NULL) {
             while (snd_len < content_length) {
-                len = fread(&buffer, 1, CHUNK_SIZE, file);
+                len = fread(buffer, 1, CHUNK_SIZE, file);
                 if (snd_len + len > content_length) {
                     len = content_length - snd_len;
                 }
@@ -419,9 +583,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                         print(ERR_STR "Unable to send: %s" CLR_STR, strerror(errno));
                     }
                 }
-                if (ret <= 0) {
-                    break;
-                }
+                if (ret <= 0) break;
                 snd_len += ret;
             }
         } else if (use_fastcgi) {
@@ -431,6 +593,77 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             int comp = content_encoding != NULL && strcmp(content_encoding, "deflate") == 0;
             int flags = (chunked ? FASTCGI_CHUNKED : 0) | (comp ? FASTCGI_COMPRESS : 0);
             fastcgi_send(&php_fpm, client, flags);
+        } else if (use_rev_proxy) {
+            char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
+            int chunked = transfer_encoding != NULL && strcmp(transfer_encoding, "chunked") == 0;
+            char *content_len = http_get_header_field(&res.hdr, "Content-Length");
+            unsigned long len_to_send = 0;
+            if (content_len != NULL) {
+                len_to_send = strtol(content_len, NULL, 10);
+            }
+
+            do {
+                if (chunked) {
+                    ret = recv(rev_proxy_sock, buf0, 16, MSG_PEEK);
+                    if (ret < 0) {
+                        print("Unable to receive: %s", strerror(errno));
+                        break;
+                    } else if (ret == 0) {
+                        print("Unable to receive: closed");
+                        break;
+                    }
+
+                    len_to_send = strtol(buf0, NULL, 16);
+                    char *pos = strstr(buf0, "\r\n");
+                    len = pos - buf0 + 2;
+                    if (client->enc) {
+                        ret = SSL_write(client->ssl, buf0, (int) len);
+                        if (ret <= 0) goto snd_err_ssl;
+                    } else {
+                        ret = send(client->socket, buf0, len, 0);
+                        if (ret <= 0) goto snd_err;
+                    }
+                    recv(rev_proxy_sock, buf1, len, 0);
+                    if (ret <= 0) break;
+                }
+                snd_len = 0;
+                while (snd_len < len_to_send) {
+                    len = recv(rev_proxy_sock, buffer, CHUNK_SIZE < (len_to_send - snd_len) ? CHUNK_SIZE : len_to_send - snd_len, 0);
+                    if (client->enc) {
+                        ret = SSL_write(client->ssl, buffer, (int) len);
+                        if (ret <= 0) goto snd_err_ssl;
+                    } else {
+                        ret = send(client->socket, buffer, len, 0);
+                        if (ret <= 0) goto snd_err;
+                    }
+                    if (ret <= 0) break;
+                    snd_len += ret;
+                }
+                if (ret <= 0) break;
+                if (chunked) {
+                    recv(rev_proxy_sock, buf0, 2, 0);
+                    if (client->enc) {
+                        ret = SSL_write(client->ssl, "\r\n", 2);
+                        if (ret <= 0) {
+                            snd_err_ssl:
+                            print(ERR_STR "Unable to send: %s" CLR_STR, ssl_get_error(client->ssl, ret));
+                        }
+                    } else {
+                        ret = send(client->socket, "\r\n", 2, 0);
+                        if (ret <= 0) {
+                            snd_err:
+                            print(ERR_STR "Unable to send: %s" CLR_STR, strerror(errno));
+                        }
+                    }
+                    if (ret <= 0) break;
+                }
+            } while (chunked && len_to_send > 0);
+            if (conn == NULL || strcmp(conn, "keep-alive") != 0) {
+                print("Closing proxy connection");
+                shutdown(rev_proxy_sock, SHUT_RDWR);
+                close(rev_proxy_sock);
+                rev_proxy_sock = 0;
+            }
         }
     }
 
@@ -573,6 +806,13 @@ int client_connection_handler(sock *client, unsigned long client_num) {
     }
     shutdown(client->socket, SHUT_RDWR);
     close(client->socket);
+
+    if (rev_proxy_sock != 0) {
+        print("Closing proxy connection");
+        shutdown(rev_proxy_sock, SHUT_RDWR);
+        close(rev_proxy_sock);
+        rev_proxy_sock = 0;
+    }
 
     clock_gettime(CLOCK_MONOTONIC, &end);
     unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;

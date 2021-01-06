@@ -207,7 +207,14 @@ void http_remove_header_field(http_hdr *hdr, const char *field_name, int mode) {
     char field_name_1[256], field_name_2[256];
     strcpy(field_name_1, field_name);
     http_to_camel_case(field_name_1, HTTP_LOWER);
-    for (int i = 0; i < hdr->field_num; i++) {
+
+    int i = 0;
+    int diff = 1;
+    if (mode == HTTP_REMOVE_LAST) {
+        i = hdr->field_num - 1;
+        diff = -1;
+    }
+    for (; i < hdr->field_num && i >= 0; i += diff) {
         strcpy(field_name_2, hdr->fields[i][0]);
         http_to_camel_case(field_name_2, HTTP_LOWER);
         if (strcmp(field_name_1, field_name_2) == 0) {
@@ -215,10 +222,10 @@ void http_remove_header_field(http_hdr *hdr, const char *field_name, int mode) {
                 memcpy(hdr->fields[j], hdr->fields[j + 1], sizeof(hdr->fields[0]));
             }
             hdr->field_num--;
-            if (mode == HTTP_REMOVE_ONE) {
+            if (mode == HTTP_REMOVE_ALL) {
+                i -= diff;
+            } else {
                 return;
-            } else if (mode == HTTP_REMOVE_ALL) {
-                i--;
             }
         }
     }
