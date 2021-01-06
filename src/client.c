@@ -339,7 +339,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             }
         }
     } else if (conf->type != CONFIG_TYPE_LOCAL) {
-        print("Reverse proxy for %s:%i", conf->rev_proxy.hostname, conf->rev_proxy.port);
+        print("Reverse proxy for " BLD_STR "%s:%i" CLR_STR, conf->rev_proxy.hostname, conf->rev_proxy.port);
         // TODO Reverse Proxy
         res.status = http_get_status(501);
     } else {
