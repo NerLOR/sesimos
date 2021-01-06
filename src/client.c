@@ -463,13 +463,13 @@ int client_connection_handler(sock *client, unsigned long client_num) {
         sprintf(buf, "dig @%s +short +time=1 -x %s", dns_server, client_addr_str);
         FILE *dig = popen(buf, "r");
         if (dig == NULL) {
-            fprintf(stderr, ERR_STR "Unable to start dig: %s" CLR_STR "\n", strerror(errno));
+            print(ERR_STR "Unable to start dig: %s" CLR_STR "\n", strerror(errno));
             goto dig_err;
         }
         unsigned long read = fread(buf, 1, sizeof(buf), dig);
         ret = pclose(dig);
         if (ret != 0) {
-            fprintf(stderr, ERR_STR "Dig terminated with exit code %i" CLR_STR "\n", ret);
+            print(ERR_STR "Dig terminated with exit code %i" CLR_STR "\n", ret);
             goto dig_err;
         }
         char *ptr = memchr(buf, '\n', read);
