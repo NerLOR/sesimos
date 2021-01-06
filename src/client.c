@@ -133,8 +133,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         goto respond;
     }
 
+    http_uri uri;
     if (conf->type == CONFIG_TYPE_LOCAL) {
-        http_uri uri;
         ret = uri_init(&uri, conf->local.webroot, req.uri, conf->local.dir_mode);
         if (ret != 0) {
             if (ret == 1) {
