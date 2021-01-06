@@ -663,7 +663,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         }
     }
 
-    if (close_proxy) {
+    if (close_proxy && rev_proxy_sock != 0) {
         print("Closing proxy connection");
         shutdown(rev_proxy_sock, SHUT_RDWR);
         close(rev_proxy_sock);
