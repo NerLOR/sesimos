@@ -133,216 +133,218 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         goto respond;
     }
 
-    if (conf->type != CONFIG_TYPE_LOCAL) {
-        print("Reverse proxy for %s:%i", conf->rev_proxy.hostname, conf->rev_proxy.port);
-        // TODO Reverse Proxy
-        res.status = http_get_status(501);
-        goto respond;
-    }
-
-    http_uri uri;
-    ret = uri_init(&uri, conf->local.webroot, req.uri, conf->local.dir_mode);
-    if (ret != 0) {
-        if (ret == 1) {
-            sprintf(err_msg, "Invalid URI: has to start with slash.");
-        } else if (ret == 2) {
-            sprintf(err_msg, "Invalid URI: contains relative path change (/../).");
-        }
-        res.status = http_get_status(400);
-        goto respond;
-    }
-
-    ssize_t size = sizeof(buf0);
-    url_decode(req.uri, buf0, &size);
-    int change_proto = strncmp(uri.uri, "/.well-known/", 13) != 0 && !client->enc;
-    if (strcmp(uri.uri, buf0) != 0 || change_proto) {
-        res.status = http_get_status(308);
-        size = sizeof(buf0);
-        encode_url(uri.uri, buf0, &size);
-        if (change_proto) {
-            sprintf(buf1, "https://%s%s", host, buf0);
-            http_add_header_field(&res.hdr, "Location", buf1);
-        } else {
-            http_add_header_field(&res.hdr, "Location", buf0);
-        }
-        goto respond;
-    }
-
-    if (uri.filename == NULL && (int) uri.is_static && (int) uri.is_dir && strlen(uri.pathinfo) == 0) {
-        res.status = http_get_status(403);
-        sprintf(err_msg, "It is not allowed to list the contents of this directory.");
-        goto respond;
-    } else if (uri.filename == NULL && (int) !uri.is_static && (int) uri.is_dir && strlen(uri.pathinfo) == 0) {
-        // TODO list directory contents
-        res.status = http_get_status(501);
-        sprintf(err_msg, "Listing contents of an directory is currently not implemented.");
-        goto respond;
-    } else if (uri.filename == NULL || (strlen(uri.pathinfo) > 0 && (int) uri.is_static)) {
-        res.status = http_get_status(404);
-        goto respond;
-    } else if (strlen(uri.pathinfo) != 0 && conf->local.dir_mode != URI_DIR_MODE_INFO) {
-        res.status = http_get_status(404);
-        goto respond;
-    }
-
-    if (uri.is_static) {
-        res.status = http_get_status(200);
-        http_add_header_field(&res.hdr, "Allow", "GET, HEAD");
-        http_add_header_field(&res.hdr, "Accept-Ranges", "bytes");
-        if (strcmp(req.method, "GET") != 0 && strcmp(req.method, "HEAD") != 0) {
-            res.status = http_get_status(405);
-            goto respond;
-        }
-
-        ret = uri_cache_init(&uri);
+    if (conf->type == CONFIG_TYPE_LOCAL) {
+        http_uri uri;
+        ret = uri_init(&uri, conf->local.webroot, req.uri, conf->local.dir_mode);
         if (ret != 0) {
-            res.status = http_get_status(500);
-            sprintf(err_msg, "Unable to communicate with internal file cache.");
-            goto respond;
-        }
-        char *last_modified = http_format_date(uri.meta->stat.st_mtime, buf0, sizeof(buf0));
-        http_add_header_field(&res.hdr, "Last-Modified", last_modified);
-        sprintf(buf1, "%s; charset=%s", uri.meta->type, uri.meta->charset);
-        http_add_header_field(&res.hdr, "Content-Type", buf1);
-        if (uri.meta->etag[0] != 0) {
-            http_add_header_field(&res.hdr, "ETag", uri.meta->etag);
-        }
-        if (strncmp(uri.meta->type, "text/", 5) == 0) {
-            http_add_header_field(&res.hdr, "Cache-Control", "public, max-age=3600");
-        } else {
-            http_add_header_field(&res.hdr, "Cache-Control", "public, max-age=86400");
-        }
-
-        char *if_modified_since = http_get_header_field(&req.hdr, "If-Modified-Since");
-        char *if_none_match = http_get_header_field(&req.hdr, "If-None-Match");
-        if ((if_none_match != NULL && strstr(if_none_match, uri.meta->etag) == NULL) || (accept_if_modified_since &&
-            if_modified_since != NULL && strcmp(if_modified_since, last_modified) == 0)) {
-            res.status = http_get_status(304);
+            if (ret == 1) {
+                sprintf(err_msg, "Invalid URI: has to start with slash.");
+            } else if (ret == 2) {
+                sprintf(err_msg, "Invalid URI: contains relative path change (/../).");
+            }
+            res.status = http_get_status(400);
             goto respond;
         }
 
-        char *range = http_get_header_field(&req.hdr, "Range");
-        if (range != NULL) {
-            if (strlen(range) <= 6 || strncmp(range, "bytes=", 6) != 0) {
-                res.status = http_get_status(416);
-                http_remove_header_field(&res.hdr, "Content-Type", HTTP_REMOVE_ALL);
-                http_remove_header_field(&res.hdr, "Last-Modified", HTTP_REMOVE_ALL);
-                http_remove_header_field(&res.hdr, "ETag", HTTP_REMOVE_ALL);
-                http_remove_header_field(&res.hdr, "Cache-Control", HTTP_REMOVE_ALL);
+        ssize_t size = sizeof(buf0);
+        url_decode(req.uri, buf0, &size);
+        int change_proto = strncmp(uri.uri, "/.well-known/", 13) != 0 && !client->enc;
+        if (strcmp(uri.uri, buf0) != 0 || change_proto) {
+            res.status = http_get_status(308);
+            size = sizeof(buf0);
+            encode_url(uri.uri, buf0, &size);
+            if (change_proto) {
+                sprintf(buf1, "https://%s%s", host, buf0);
+                http_add_header_field(&res.hdr, "Location", buf1);
+            } else {
+                http_add_header_field(&res.hdr, "Location", buf0);
+            }
+            goto respond;
+        }
+
+        if (uri.filename == NULL && (int) uri.is_static && (int) uri.is_dir && strlen(uri.pathinfo) == 0) {
+            res.status = http_get_status(403);
+            sprintf(err_msg, "It is not allowed to list the contents of this directory.");
+            goto respond;
+        } else if (uri.filename == NULL && (int) !uri.is_static && (int) uri.is_dir && strlen(uri.pathinfo) == 0) {
+            // TODO list directory contents
+            res.status = http_get_status(501);
+            sprintf(err_msg, "Listing contents of an directory is currently not implemented.");
+            goto respond;
+        } else if (uri.filename == NULL || (strlen(uri.pathinfo) > 0 && (int) uri.is_static)) {
+            res.status = http_get_status(404);
+            goto respond;
+        } else if (strlen(uri.pathinfo) != 0 && conf->local.dir_mode != URI_DIR_MODE_INFO) {
+            res.status = http_get_status(404);
+            goto respond;
+        }
+
+        if (uri.is_static) {
+            res.status = http_get_status(200);
+            http_add_header_field(&res.hdr, "Allow", "GET, HEAD");
+            http_add_header_field(&res.hdr, "Accept-Ranges", "bytes");
+            if (strcmp(req.method, "GET") != 0 && strcmp(req.method, "HEAD") != 0) {
+                res.status = http_get_status(405);
                 goto respond;
             }
-            range += 6;
-            char *ptr = strchr(range, '-');
-            if (ptr == NULL) {
-                res.status = http_get_status(416);
+
+            ret = uri_cache_init(&uri);
+            if (ret != 0) {
+                res.status = http_get_status(500);
+                sprintf(err_msg, "Unable to communicate with internal file cache.");
                 goto respond;
             }
-            file = fopen(uri.filename, "rb");
+            char *last_modified = http_format_date(uri.meta->stat.st_mtime, buf0, sizeof(buf0));
+            http_add_header_field(&res.hdr, "Last-Modified", last_modified);
+            sprintf(buf1, "%s; charset=%s", uri.meta->type, uri.meta->charset);
+            http_add_header_field(&res.hdr, "Content-Type", buf1);
+            if (uri.meta->etag[0] != 0) {
+                http_add_header_field(&res.hdr, "ETag", uri.meta->etag);
+            }
+            if (strncmp(uri.meta->type, "text/", 5) == 0) {
+                http_add_header_field(&res.hdr, "Cache-Control", "public, max-age=3600");
+            } else {
+                http_add_header_field(&res.hdr, "Cache-Control", "public, max-age=86400");
+            }
+
+            char *if_modified_since = http_get_header_field(&req.hdr, "If-Modified-Since");
+            char *if_none_match = http_get_header_field(&req.hdr, "If-None-Match");
+            if ((if_none_match != NULL && strstr(if_none_match, uri.meta->etag) == NULL) ||
+                (accept_if_modified_since && if_modified_since != NULL && strcmp(if_modified_since, last_modified) == 0)) {
+                res.status = http_get_status(304);
+                goto respond;
+            }
+
+            char *range = http_get_header_field(&req.hdr, "Range");
+            if (range != NULL) {
+                if (strlen(range) <= 6 || strncmp(range, "bytes=", 6) != 0) {
+                    res.status = http_get_status(416);
+                    http_remove_header_field(&res.hdr, "Content-Type", HTTP_REMOVE_ALL);
+                    http_remove_header_field(&res.hdr, "Last-Modified", HTTP_REMOVE_ALL);
+                    http_remove_header_field(&res.hdr, "ETag", HTTP_REMOVE_ALL);
+                    http_remove_header_field(&res.hdr, "Cache-Control", HTTP_REMOVE_ALL);
+                    goto respond;
+                }
+                range += 6;
+                char *ptr = strchr(range, '-');
+                if (ptr == NULL) {
+                    res.status = http_get_status(416);
+                    goto respond;
+                }
+                file = fopen(uri.filename, "rb");
+                fseek(file, 0, SEEK_END);
+                unsigned long file_len = ftell(file);
+                fseek(file, 0, SEEK_SET);
+                if (file_len == 0) {
+                    content_length = 0;
+                    goto respond;
+                }
+                long num1 = 0;
+                long num2 = (long) file_len - 1;
+
+                if (ptr != range) num1 = (long) strtoul(range, NULL, 10);
+                if (ptr[1] != 0) num2 = (long) strtoul(ptr + 1, NULL, 10);
+
+                if (num1 >= file_len || num2 >= file_len || num1 > num2) {
+                    res.status = http_get_status(416);
+                    goto respond;
+                }
+                sprintf(buf0, "bytes %li-%li/%li", num1, num2, file_len);
+                http_add_header_field(&res.hdr, "Content-Range", buf0);
+
+                res.status = http_get_status(206);
+                fseek(file, num1, SEEK_SET);
+                content_length = num2 - num1 + 1;
+
+                goto respond;
+            }
+
+            char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
+            if (uri.meta->filename_comp[0] != 0 && accept_encoding != NULL &&
+                strstr(accept_encoding, "deflate") != NULL) {
+                file = fopen(uri.meta->filename_comp, "rb");
+                if (file == NULL) {
+                    cache_filename_comp_invalid(uri.filename);
+                    goto not_compressed;
+                }
+                http_add_header_field(&res.hdr, "Content-Encoding", "deflate");
+            } else {
+                not_compressed:
+                file = fopen(uri.filename, "rb");
+            }
             fseek(file, 0, SEEK_END);
-            unsigned long file_len = ftell(file);
+            content_length = ftell(file);
             fseek(file, 0, SEEK_SET);
-            if (file_len == 0) {
-                content_length = 0;
-                goto respond;
-            }
-            long num1 = 0;
-            long num2 = (long) file_len - 1;
-
-            if (ptr != range) num1 = (long) strtoul(range, NULL, 10);
-            if (ptr[1] != 0) num2 = (long) strtoul(ptr + 1, NULL, 10);
-
-            if (num1 >= file_len || num2 >= file_len || num1 > num2) {
-                res.status = http_get_status(416);
-                goto respond;
-            }
-            sprintf(buf0, "bytes %li-%li/%li", num1, num2, file_len);
-            http_add_header_field(&res.hdr, "Content-Range", buf0);
-
-            res.status = http_get_status(206);
-            fseek(file, num1, SEEK_SET);
-            content_length = num2 - num1 + 1;
-
-            goto respond;
-        }
-
-        char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
-        if (uri.meta->filename_comp[0] != 0 && accept_encoding != NULL && strstr(accept_encoding, "deflate") != NULL) {
-            file = fopen(uri.meta->filename_comp, "rb");
-            if (file == NULL) {
-                cache_filename_comp_invalid(uri.filename);
-                goto not_compressed;
-            }
-            http_add_header_field(&res.hdr, "Content-Encoding", "deflate");
         } else {
-            not_compressed:
-            file = fopen(uri.filename, "rb");
-        }
-        fseek(file, 0, SEEK_END);
-        content_length = ftell(file);
-        fseek(file, 0, SEEK_SET);
-    } else {
-        struct stat statbuf;
-        stat(uri.filename, &statbuf);
-        char *last_modified = http_format_date(statbuf.st_mtime, buf0, sizeof(buf0));
-        http_add_header_field(&res.hdr, "Last-Modified", last_modified);
+            struct stat statbuf;
+            stat(uri.filename, &statbuf);
+            char *last_modified = http_format_date(statbuf.st_mtime, buf0, sizeof(buf0));
+            http_add_header_field(&res.hdr, "Last-Modified", last_modified);
 
-        res.status = http_get_status(200);
-        if (fastcgi_init(&php_fpm, client_num, req_num, client, &req, &uri) != 0) {
-            res.status = http_get_status(502);
-            sprintf(err_msg, "Unable to communicate with PHP-FPM.");
-            goto respond;
-        }
-
-        if (strcmp(req.method, "POST") == 0 || strcmp(req.method, "PUT") == 0) {
-            char *client_content_length = http_get_header_field(&req.hdr, "Content-Length");
-            unsigned long client_content_len = 0;
-            if (client_content_length == NULL) {
-                goto fastcgi_end;
+            res.status = http_get_status(200);
+            if (fastcgi_init(&php_fpm, client_num, req_num, client, &req, &uri) != 0) {
+                res.status = http_get_status(502);
+                sprintf(err_msg, "Unable to communicate with PHP-FPM.");
+                goto respond;
             }
-            client_content_len = strtoul(client_content_length, NULL, 10);
-            ret = fastcgi_receive(&php_fpm, client, client_content_len);
+
+            if (strcmp(req.method, "POST") == 0 || strcmp(req.method, "PUT") == 0) {
+                char *client_content_length = http_get_header_field(&req.hdr, "Content-Length");
+                unsigned long client_content_len = 0;
+                if (client_content_length == NULL) {
+                    goto fastcgi_end;
+                }
+                client_content_len = strtoul(client_content_length, NULL, 10);
+                ret = fastcgi_receive(&php_fpm, client, client_content_len);
+                if (ret != 0) {
+                    if (ret < 0) {
+                        goto abort;
+                    } else {
+                        sprintf(err_msg, "Unable to communicate with PHP-FPM.");
+                    }
+                    res.status = http_get_status(502);
+                    goto respond;
+                }
+            }
+            fastcgi_end:
+            fastcgi_close_stdin(&php_fpm);
+
+            ret = fastcgi_header(&php_fpm, &res, err_msg);
             if (ret != 0) {
                 if (ret < 0) {
                     goto abort;
-                } else {
-                    sprintf(err_msg, "Unable to communicate with PHP-FPM.");
                 }
-                res.status = http_get_status(502);
                 goto respond;
             }
-        }
-        fastcgi_end:
-        fastcgi_close_stdin(&php_fpm);
-
-        ret = fastcgi_header(&php_fpm, &res, err_msg);
-        if (ret != 0) {
-            if (ret < 0) {
-                goto abort;
+            char *status = http_get_header_field(&res.hdr, "Status");
+            if (status != NULL) {
+                res.status = http_get_status(strtoul(status, NULL, 10));
+                http_remove_header_field(&res.hdr, "Status", HTTP_REMOVE_ALL);
+                if (res.status == NULL) {
+                    res.status = http_get_status(500);
+                    sprintf(err_msg, "The status code was set to an invalid or unknown value.");
+                    goto respond;
+                }
             }
-            goto respond;
-        }
-        char *status = http_get_header_field(&res.hdr, "Status");
-        if (status != NULL) {
-            res.status = http_get_status(strtoul(status, NULL, 10));
-            http_remove_header_field(&res.hdr, "Status", HTTP_REMOVE_ALL);
-            if (res.status == NULL){
-                res.status = http_get_status(500);
-                sprintf(err_msg, "The status code was set to an invalid or unknown value.");
-                goto respond;
+
+            char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
+            if (accept_encoding != NULL && strstr(accept_encoding, "deflate") != NULL) {
+                http_add_header_field(&res.hdr, "Content-Encoding", "deflate");
+            }
+
+            content_length = -1;
+            use_fastcgi = 1;
+            if (http_get_header_field(&res.hdr, "Content-Length") == NULL) {
+                http_add_header_field(&res.hdr, "Transfer-Encoding", "chunked");
             }
         }
-
-        char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
-        if (accept_encoding != NULL && strstr(accept_encoding, "deflate") != NULL) {
-            http_add_header_field(&res.hdr, "Content-Encoding", "deflate");
-        }
-
-        content_length = -1;
-        use_fastcgi = 1;
-        if (http_get_header_field(&res.hdr, "Content-Length") == NULL) {
-            http_add_header_field(&res.hdr, "Transfer-Encoding", "chunked");
-        }
-
+    } else if (conf->type != CONFIG_TYPE_LOCAL) {
+        print("Reverse proxy for %s:%i", conf->rev_proxy.hostname, conf->rev_proxy.port);
+        // TODO Reverse Proxy
+        res.status = http_get_status(501);
+    } else {
+        print(ERR_STR "Unknown host type: %i" CLR_STR, conf->type);
+        res.status = http_get_status(501);
     }
 
     respond:
