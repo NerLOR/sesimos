@@ -126,6 +126,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
     conf = get_host_config(host);
     if (conf == NULL) {
+        print("Host unknown, redirecting to default");
         res.status = http_get_status(307);
         sprintf(buf0, "https://%s%s", DEFAULT_HOST, req.uri);
         http_add_header_field(&res.hdr, "Location", buf0);
@@ -133,6 +134,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     }
 
     if (conf->type != CONFIG_TYPE_LOCAL) {
+        print("Reverse proxy for %s:%i", conf->rev_proxy.hostname, conf->rev_proxy.port);
         // TODO Reverse Proxy
         res.status = http_get_status(501);
         goto respond;
