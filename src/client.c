@@ -530,6 +530,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         http_add_header_field(&res.hdr, "Server", SERVER_STR);
     }
     char *conn = http_get_header_field(&res.hdr, "Connection");
+    int close_proxy = conn == NULL || strcmp(conn, "keep-alive") != 0;
     http_remove_header_field(&res.hdr, "Connection", HTTP_REMOVE_ALL);
     http_remove_header_field(&res.hdr, "Keep-Alive", HTTP_REMOVE_ALL);
     if (server_keep_alive && client_keep_alive) {
@@ -658,13 +659,14 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                     if (ret <= 0) break;
                 }
             } while (chunked && len_to_send > 0);
-            if (conn == NULL || strcmp(conn, "keep-alive") != 0) {
-                print("Closing proxy connection");
-                shutdown(rev_proxy_sock, SHUT_RDWR);
-                close(rev_proxy_sock);
-                rev_proxy_sock = 0;
-            }
         }
+    }
+
+    if (close_proxy) {
+        print("Closing proxy connection");
+        shutdown(rev_proxy_sock, SHUT_RDWR);
+        close(rev_proxy_sock);
+        rev_proxy_sock = 0;
     }
 
     clock_gettime(CLOCK_MONOTONIC, &end);
