@@ -19,23 +19,13 @@ char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_
 
 struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
 
-char *get_webroot(const char *http_host) {
-    char *webroot = malloc(strlen(webroot_base) + strlen(http_host) + 1);
-    unsigned long len = strlen(webroot_base);
-    while (webroot_base[len - 1] == '/') len--;
-    long pos = strchr(http_host, ':') - http_host;
-    sprintf(webroot, "%.*s/%.*s", (int) len, webroot_base, (int) (pos < 0 ? strlen(http_host) : pos), http_host);
-    return path_is_directory(webroot) ? webroot : NULL;
-}
-
-int get_dir_mode(const char *webroot) {
-    char buf[256];
-    struct stat statbuf;
-    sprintf(buf, "%s/.necronda-server/dir_mode_info", webroot);
-    if (stat(buf, &statbuf) == 0) return URI_DIR_MODE_INFO;
-    sprintf(buf, "%s/.necronda-server/dir_mode_list", webroot);
-    if (stat(buf, &statbuf) == 0) return URI_DIR_MODE_LIST;
-    return URI_DIR_MODE_FORBIDDEN;
+host_config *get_host_config(const char *host) {
+    for (int i = 0; i < MAX_HOST_CONFIG; i++) {
+        host_config *hc = &config[i];
+        if (hc->type == CONFIG_TYPE_UNSET) break;
+        if (strcmp(hc->name, host) == 0) return hc;
+    }
+    return NULL;
 }
 
 void client_terminate() {
@@ -49,12 +39,13 @@ int client_websocket_handler() {
 
 int client_request_handler(sock *client, unsigned long client_num, unsigned int req_num) {
     struct timespec begin, end;
-    int ret, client_keep_alive, dir_mode;
+    int ret, client_keep_alive;
     char buf0[1024], buf1[1024];
     char msg_buf[4096], msg_pre_buf[4096], err_msg[256];
     char buffer[CHUNK_SIZE];
     err_msg[0] = 0;
-    char host[256], *host_ptr, *hdr_connection, *webroot;
+    char host[256], *host_ptr, *hdr_connection;
+    host_config *conf;
     long content_length = 0;
     FILE *file = NULL;
     msg_buf[0] = 0;
@@ -133,18 +124,22 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     log_prefix = log_req_prefix;
     print(BLD_STR "%s %s" CLR_STR, req.method, req.uri);
 
-    // TODO Reverse Proxy
-    webroot = get_webroot(host);
-    if (webroot == NULL) {
+    conf = get_host_config(host);
+    if (conf == NULL) {
         res.status = http_get_status(307);
         sprintf(buf0, "https://%s%s", DEFAULT_HOST, req.uri);
         http_add_header_field(&res.hdr, "Location", buf0);
         goto respond;
     }
 
-    dir_mode = get_dir_mode(webroot);
+    if (conf->type != CONFIG_TYPE_LOCAL) {
+        // TODO Reverse Proxy
+        res.status = http_get_status(501);
+        goto respond;
+    }
+
     http_uri uri;
-    ret = uri_init(&uri, webroot, req.uri, dir_mode);
+    ret = uri_init(&uri, conf->local.webroot, req.uri, conf->local.dir_mode);
     if (ret != 0) {
         if (ret == 1) {
             sprintf(err_msg, "Invalid URI: has to start with slash.");
@@ -183,7 +178,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     } else if (uri.filename == NULL || (strlen(uri.pathinfo) > 0 && (int) uri.is_static)) {
         res.status = http_get_status(404);
         goto respond;
-    } else if (strlen(uri.pathinfo) != 0 && dir_mode != URI_DIR_MODE_INFO) {
+    } else if (strlen(uri.pathinfo) != 0 && conf->local.dir_mode != URI_DIR_MODE_INFO) {
         res.status = http_get_status(404);
         goto respond;
     }
@@ -460,7 +455,7 @@ int client_connection_handler(sock *client, unsigned long client_num) {
 
     clock_gettime(CLOCK_MONOTONIC, &begin);
 
-    if (dns_server != NULL) {
+    if (dns_server[0] != 0) {
         sprintf(buf, "dig @%s +short +time=1 -x %s", dns_server, client_addr_str);
         FILE *dig = popen(buf, "r");
         if (dig == NULL) {

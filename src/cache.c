@@ -204,9 +204,13 @@ int cache_init() {
 int cache_unload() {
     int shm_id = shmget(SHM_KEY_CACHE, 0, 0);
     if (shm_id < 0) {
-        fprintf(stderr, ERR_STR "Unable to create shared memory: %s" CLR_STR "\n", strerror(errno));
+        fprintf(stderr, ERR_STR "Unable to get shared memory id: %s" CLR_STR "\n", strerror(errno));
+        shmdt(cache);
+        return -1;
     } else if (shmctl(shm_id, IPC_RMID, NULL) < 0) {
         fprintf(stderr, ERR_STR "Unable to configure shared memory: %s" CLR_STR "\n", strerror(errno));
+        shmdt(cache);
+        return -1;
     }
     shmdt(cache);
     return 0;

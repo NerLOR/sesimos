@@ -32,6 +32,7 @@
 #define NUM_SOCKETS 2
 #define MAX_CHILDREN 1024
 #define MAX_MMDB 3
+#define MAX_HOST_CONFIG 64
 #define LISTEN_BACKLOG 16
 #define REQ_PER_CONNECTION 100
 #define CLIENT_TIMEOUT 3600
@@ -70,12 +71,13 @@
 #ifndef PHP_FPM_SOCKET
 #define PHP_FPM_SOCKET "/var/run/php-fpm/php-fpm.sock"
 #endif
+#ifndef DEFAULT_CONFIG_FILE
+#define DEFAULT_CONFIG_FILE "/etc/necronda-server/necronda-server.conf"
+#endif
 
 int sockets[NUM_SOCKETS];
 pid_t children[MAX_CHILDREN];
 MMDB_s mmdbs[MAX_MMDB];
-
-const char *cert_file, *key_file, *webroot_base, *geoip_dir, *dns_server;
 
 typedef struct {
     unsigned int enc:1;

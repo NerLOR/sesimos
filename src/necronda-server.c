@@ -19,6 +19,7 @@
 
 
 int active = 1;
+const char *config_file;
 
 
 void openssl_init() {
@@ -88,6 +89,7 @@ void destroy() {
         fprintf(stderr, ERR_STR "Killed %i child process(es)" CLR_STR "\n", kills);
     }
     cache_unload();
+    config_unload();
     exit(2);
 }
 
@@ -156,6 +158,7 @@ void terminate() {
         fprintf(stderr, "Goodbye\n");
     }
     cache_unload();
+    config_unload();
     exit(0);
 }
 
@@ -190,68 +193,42 @@ int main(int argc, const char *argv[]) {
     }
     printf("Necronda Web Server\n");
 
+    ret = config_init();
+    if (ret != 0) {
+        return 1;
+    }
+
+    config_file = NULL;
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
-        unsigned long len = strlen(arg);
         if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
-            printf("Usage: necronda-server [-h] -w <PATH> -c <CERT-FILE> -p <KEY-FILE> [-g <DB-DIR>] [-d <DNS-SERVER>]\n"
+            printf("Usage: necronda-server [-h] [-c <CONFIG-FILE>]\n"
                    "\n"
                    "Options:\n"
-                   "  -c, --cert <CERT-FILE>    path to the full chain certificate file\n"
-                   "  -d, --dns <DNS-SERVER>    ip address or hostname of a DNS server for dig\n"
-                   "  -g, --geoip <DB-DIR>      path to a Maxmind GeoIP Database file\n"
-                   "  -h, --help                print this dialogue\n"
-                   "  -p, --privkey <KEY-FILE>  path to the private key file\n"
-                   "  -w, --webroot <PATH>      path to the web root directory\n");
+                   "  -c, --config <CONFIG-FILE>  path to the config file. If not provided, default will be used\n"
+                   "  -h, --help                  print this dialogue\n");
+            config_unload();
             return 0;
-        } else if (strcmp(arg, "-w") == 0 || strcmp(arg, "--webroot") == 0) {
+        } else if (strcmp(arg, "-c") == 0 || strcmp(arg, "--config") == 0) {
             if (i == argc - 1) {
-                fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --webroot <WEBROOT>" CLR_STR "\n", arg);
+                fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --config <CONFIG-FILE>" CLR_STR "\n", arg);
+                config_unload();
                 return 1;
             }
-            webroot_base = argv[++i];
-        } else if (strcmp(arg, "-c") == 0 || strcmp(arg, "--cert") == 0) {
-            if (i == argc - 1) {
-                fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --cert <CERT-FILE>" CLR_STR "\n", arg);
-                return 1;
-            }
-            cert_file = argv[++i];
-        } else if (strcmp(arg, "-p") == 0 || strcmp(arg, "--privkey") == 0) {
-            if (i == argc - 1) {
-                fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --privkey <KEY-FILE>" CLR_STR "\n", arg);
-                return 1;
-            }
-            key_file = argv[++i];
-        } else if (strcmp(arg, "-g") == 0 || strcmp(arg, "--geoip") == 0) {
-            if (i == argc - 1) {
-                fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --geoip <DB-DIR>" CLR_STR "\n", arg);
-                return 1;
-            }
-            geoip_dir = argv[++i];
-        } else if (strcmp(arg, "-d") == 0 || strcmp(arg, "--dns") == 0) {
-            if (i == argc - 1) {
-                fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --dns <DNS-SERVER>" CLR_STR "\n", arg);
-                return 1;
-            }
-            dns_server = argv[++i];
+            config_file = argv[++i];
         } else {
             fprintf(stderr, ERR_STR "Unable to parse argument '%s'" CLR_STR "\n", arg);
+            config_unload();
             return 1;
         }
     }
 
-    if (webroot_base == NULL) {
-        fprintf(stderr, ERR_STR "Error: --webroot is missing" CLR_STR "\n");
+    ret = config_load(config_file == NULL ? DEFAULT_CONFIG_FILE : config_file);
+    if (ret != 0) {
+        config_unload();
         return 1;
     }
-    if (cert_file == NULL) {
-        fprintf(stderr, ERR_STR "Error: --cert is missing" CLR_STR "\n");
-        return 1;
-    }
-    if (key_file == NULL) {
-        fprintf(stderr, ERR_STR "Error: --privkey is missing" CLR_STR "\n");
-        return 1;
-    }
+    printf("%s %s\n", cert_file, key_file);
 
     sockets[0] = socket(AF_INET6, SOCK_STREAM, 0);
     if (sockets[0] < 0) goto socket_err;
@@ -259,12 +236,14 @@ int main(int argc, const char *argv[]) {
     if (sockets[1] < 0) {
         socket_err:
         fprintf(stderr, ERR_STR "Unable to create socket: %s" CLR_STR "\n", strerror(errno));
+        config_unload();
         return 1;
     }
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         if (setsockopt(sockets[i], SOL_SOCKET, SO_REUSEADDR, &YES, sizeof(YES)) < 0) {
             fprintf(stderr, ERR_STR "Unable to set options for socket %i: %s" CLR_STR "\n", i, strerror(errno));
+            config_unload();
             return 1;
         }
     }
@@ -273,16 +252,18 @@ int main(int argc, const char *argv[]) {
     if (bind(sockets[1], (struct sockaddr *) &addresses[1], sizeof(addresses[1])) < 0) {
         bind_err:
         fprintf(stderr, ERR_STR "Unable to bind socket to address: %s" CLR_STR "\n", strerror(errno));
+        config_unload();
         return 1;
     }
 
     signal(SIGINT, terminate);
     signal(SIGTERM, terminate);
 
-    if (geoip_dir != NULL) {
+    if (geoip_dir[0] != 0) {
         DIR *geoip = opendir(geoip_dir);
         if (geoip == NULL) {
             fprintf(stderr, ERR_STR "Unable to open GeoIP dir: %s" CLR_STR "\n", strerror(errno));
+            config_unload();
             return 1;
         }
         struct dirent *dir;
@@ -291,18 +272,21 @@ int main(int argc, const char *argv[]) {
             if (strcmp(dir->d_name + strlen(dir->d_name) - 5, ".mmdb") != 0) continue;
             if (i >= MAX_MMDB) {
                 fprintf(stderr, ERR_STR "Too many .mmdb files" CLR_STR "\n");
+                config_unload();
                 return 1;
             }
             sprintf(buf, "%s/%s", geoip_dir, dir->d_name);
             ret = MMDB_open(buf, 0, &mmdbs[i]);
             if (ret != MMDB_SUCCESS) {
                 fprintf(stderr, ERR_STR "Unable to open .mmdb file: %s" CLR_STR "\n", MMDB_strerror(ret));
+                config_unload();
                 return 1;
             }
             i++;
         }
         if (i == 0) {
             fprintf(stderr, ERR_STR "No .mmdb files found in %s" CLR_STR "\n", geoip_dir);
+            config_unload();
             return 1;
         }
         closedir(geoip);
@@ -324,17 +308,20 @@ int main(int argc, const char *argv[]) {
     if (SSL_CTX_use_certificate_chain_file(client.ctx, cert_file) != 1) {
         fprintf(stderr, ERR_STR "Unable to load certificate chain file: %s: %s" CLR_STR "\n",
                 ERR_reason_error_string(ERR_get_error()), cert_file);
+        config_unload();
         return 1;
     }
     if (SSL_CTX_use_PrivateKey_file(client.ctx, key_file, SSL_FILETYPE_PEM) != 1) {
         fprintf(stderr, ERR_STR "Unable to load private key file: %s: %s" CLR_STR "\n",
                 ERR_reason_error_string(ERR_get_error()), key_file);
+        config_unload();
         return 1;
     }
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         if (listen(sockets[i], LISTEN_BACKLOG) < 0) {
             fprintf(stderr, ERR_STR "Unable to listen on socket %i: %s" CLR_STR "\n", i, strerror(errno));
+            config_unload();
             return 1;
         }
     }
@@ -349,6 +336,7 @@ int main(int argc, const char *argv[]) {
 
     ret = cache_init();
     if (ret < 0) {
+        config_unload();
         return 1;
     } else if (ret != 0) {
         return 0;
@@ -363,6 +351,7 @@ int main(int argc, const char *argv[]) {
         ready_sockets_num = select(max_socket_fd + 1, &read_socket_fds, NULL, NULL, &timeout);
         if (ready_sockets_num < 0) {
             fprintf(stderr, ERR_STR "Unable to select sockets: %s" CLR_STR "\n", strerror(errno));
+            terminate();
             return 1;
         }
 
