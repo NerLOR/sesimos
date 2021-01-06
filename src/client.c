@@ -54,7 +54,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     FILE *file = NULL;
     msg_buf[0] = 0;
     int accept_if_modified_since = 0;
-    int use_fastcgi, use_rev_proxy = 0;
+    int use_fastcgi = 0;
+    int use_rev_proxy = 0;
     fastcgi_conn php_fpm = {.socket = 0, .req_id = 0};
 
     http_res res;
