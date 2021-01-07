@@ -14,8 +14,6 @@ struct timeval server_timeout = {.tv_sec = SERVER_TIMEOUT, .tv_usec = 0};
 
 int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client, http_status *custom_status,
                    char * err_msg) {
-    int tries = 0;
-    int off = 0;
     char buffer[CHUNK_SIZE];
     long ret;
 
@@ -106,14 +104,18 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     if (content_length != NULL) {
         unsigned long content_len = strtoul(content_length, NULL, 10);
         if (client->buf_len - client->buf_off > 0) {
-            ret = sock_send(&rev_proxy, client->buf, client->buf_len - client->buf_off, 0);
+            unsigned long len = client->buf_len - client->buf_off;
+            if (len > content_len) {
+                len = content_len;
+            }
+            ret = sock_send(&rev_proxy, client->buf, len, 0);
             if (ret <= 0) {
                 res->status = http_get_status(502);
                 print(ERR_STR "Unable to send request to server: %s" CLR_STR, sock_strerror(&rev_proxy));
                 sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&rev_proxy));
                 goto proxy_err;
             }
-            content_len -= client->buf_len - client->buf_off;
+            content_len -= len;
         }
         if (content_len > 0) {
             ret = sock_splice(&rev_proxy, client, buffer, sizeof(buffer), content_len);
