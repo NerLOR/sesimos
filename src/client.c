@@ -323,6 +323,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             }
             char *status = http_get_header_field(&res.hdr, "Status");
             if (status != NULL) {
+                // TODO custom status
                 res.status = http_get_status(strtoul(status, NULL, 10));
                 http_remove_header_field(&res.hdr, "Status", HTTP_REMOVE_ALL);
                 if (res.status == NULL) {
@@ -467,6 +468,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                     sprintf(err_msg, "Unable to parse header: Invalid header format.");
                     goto proxy_err;
                 }
+                // TODO custom status
                 res.status = http_get_status((unsigned short) strtol(ptr + 9, NULL, 10));
                 if (res.status == NULL) {
                     res.status = http_get_status(502);
