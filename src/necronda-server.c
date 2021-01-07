@@ -156,10 +156,10 @@ int main(int argc, const char *argv[]) {
             {.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_ANY_INIT, .sin6_port = htons(443)}
     };
 
-    /*if (setvbuf(stdout, NULL, _IONBF, 0) != 0) {
-        fprintf(stderr, ERR_STR "Unable to set stdout to unbuffered mode: %s" CLR_STR, strerror(errno));
+    if (setvbuf(stdout, NULL, _IOLBF, 0) != 0) {
+        fprintf(stderr, ERR_STR "Unable to set stdout to line-buffered mode: %s" CLR_STR, strerror(errno));
         return 1;
-    }*/
+    }
     printf("Necronda Web Server\n");
 
     ret = config_init();

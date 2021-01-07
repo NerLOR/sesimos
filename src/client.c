@@ -453,8 +453,6 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         sock_close(&rev_proxy);
     }
 
-    fflush(stdout);
-
     clock_gettime(CLOCK_MONOTONIC, &end);
     micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
     print("Transfer complete: %s", format_duration(micros, buf0));
