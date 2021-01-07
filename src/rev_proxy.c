@@ -95,6 +95,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     print(BLUE_STR "Established new connection with " BLD_STR "[%s]:%i" CLR_STR, buffer, conf->rev_proxy.port);
 
     rev_proxy:
+    // TODO strange behaviour with Edge
     http_remove_header_field(&req->hdr, "Connection", HTTP_REMOVE_ALL);
     http_add_header_field(&req->hdr, "Connection", "keep-alive");
 
@@ -226,6 +227,7 @@ int rev_proxy_send(sock *client, int chunked, unsigned long len_to_send) {
     long ret;
     char buffer[CHUNK_SIZE];
     long len, snd_len;
+    // TODO handle websockets
     do {
         if (chunked) {
             ret = sock_recv(&rev_proxy, buffer, 16, MSG_PEEK);
