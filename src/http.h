@@ -127,6 +127,7 @@ const char *http_default_document =
         "\t<title>%1$i %2$s - %7$s</title>\n"
         "\t<meta charset=\"UTF-8\"/>\n"
         "\t<meta name=\"theme-color\" content=\"%6$s\"/>\n"
+        "\t<meta name=\"color-scheme\" content=\"light dark\"/>\n"
         "\t<meta name=\"apple-mobile-web-app-status-bar-style\" content=\"black-translucent\"/>\n"
         "\t<meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"/>\n"
         "%5$s"
