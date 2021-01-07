@@ -72,7 +72,7 @@ int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr)
 }
 
 int http_receive_request(sock *client, http_req *req) {
-    unsigned long rcv_len, len;
+    long rcv_len, len;
     char *ptr, *pos0, *pos1, *pos2;
     char buf[CLIENT_MAX_HEADER_SIZE];
     memset(buf, 0, sizeof(buf));
@@ -82,22 +82,9 @@ int http_receive_request(sock *client, http_req *req) {
     req->hdr.field_num = 0;
 
     while (1) {
-        if (client->enc) {
-            rcv_len = SSL_read(client->ssl, buf, CLIENT_MAX_HEADER_SIZE);
-            if (rcv_len < 0) {
-                print(ERR_STR "Unable to receive: %s" CLR_STR, ssl_get_error(client->ssl, rcv_len));
-                return -1;
-            }
-        } else {
-            rcv_len = recv(client->socket, buf, CLIENT_MAX_HEADER_SIZE, 0);
-            if (rcv_len < 0) {
-                print(ERR_STR "Unable to receive: %s" CLR_STR, strerror(errno));
-                return -1;
-            }
-        }
-
-        if (rcv_len == 0) {
-            print("Unable to receive: closed");
+        rcv_len  = sock_recv(client, buf, CLIENT_MAX_HEADER_SIZE, 0);
+        if (rcv_len <= 0) {
+            print("Unable to receive: %s", sock_strerror(client));
             return -1;
         }
 
@@ -233,21 +220,27 @@ void http_remove_header_field(http_hdr *hdr, const char *field_name, int mode) {
 
 int http_send_response(sock *client, http_res *res) {
     char buf[CLIENT_MAX_HEADER_SIZE];
-    int len = 0;
-    int snd_len = 0;
-
-    len += sprintf(buf + len, "HTTP/%s %03i %s\r\n", res->version, res->status->code, res->status->msg);
+    long off = sprintf(buf, "HTTP/%s %03i %s\r\n", res->version, res->status->code, res->status->msg);
     for (int i = 0; i < res->hdr.field_num; i++) {
-        len += sprintf(buf + len, "%s: %s\r\n", res->hdr.fields[i][0], res->hdr.fields[i][1]);
+        off += sprintf(buf + off, "%s: %s\r\n", res->hdr.fields[i][0], res->hdr.fields[i][1]);
     }
-    len += sprintf(buf + len, "\r\n");
-
-    if (client->enc) {
-        snd_len = SSL_write(client->ssl, buf, len);
-    } else {
-        snd_len = send(client->socket, buf, len, 0);
+    off += sprintf(buf + off, "\r\n");
+    if (sock_send(client, buf, off, 0) < 0) {
+        return -1;
     }
+    return 0;
+}
 
+int http_send_request(sock *server, http_req *req) {
+    char buf[CLIENT_MAX_HEADER_SIZE];
+    long off = sprintf(buf, "%s %s HTTP/%s\r\n", req->method, req->uri, req->version);
+    for (int i = 0; i < req->hdr.field_num; i++) {
+        off += sprintf(buf + off, "%s: %s\r\n", req->hdr.fields[i][0], req->hdr.fields[i][1]);
+    }
+    off += sprintf(buf + off, "\r\n");
+    if (sock_send(server, buf, off, 0) <= 0) {
+        return -1;
+    }
     return 0;
 }
 

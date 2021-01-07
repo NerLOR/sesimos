@@ -50,6 +50,7 @@
 #define CLR_STR "\x1B[0m"
 #define BLD_STR "\x1B[1m"
 #define WRN_STR "\x1B[1;33m"
+#define BLUE_STR "\x1B[34m"
 #define HTTP_STR "\x1B[1;31m"
 #define HTTPS_STR "\x1B[1;32m"
 
@@ -79,17 +80,5 @@
 int sockets[NUM_SOCKETS];
 pid_t children[MAX_CHILDREN];
 MMDB_s mmdbs[MAX_MMDB];
-
-typedef struct {
-    unsigned int enc:1;
-    int socket;
-    SSL_CTX *ctx;
-    SSL *ssl;
-    char *buf;
-    unsigned long buf_len;
-    unsigned long buf_off;
-} sock;
-
-char *ssl_get_error(SSL *ssl, int ret);
 
 #endif //NECRONDA_SERVER_NECRONDA_SERVER_H

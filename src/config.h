@@ -21,10 +21,11 @@ typedef struct {
         struct {
             char hostname[256];
             unsigned short port;
+            unsigned char enc:1;
         } rev_proxy;
         struct {
             char webroot[256];
-            unsigned char dir_mode;
+            unsigned char dir_mode:2;
         } local;
     };
 } host_config;

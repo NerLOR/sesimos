@@ -192,6 +192,8 @@ void http_remove_header_field(http_hdr *hdr, const char *field_name, int mode);
 
 int http_send_response(sock *client, http_res *res);
 
+int http_send_request(sock *server, http_req *req);
+
 http_status *http_get_status(unsigned short status_code);
 
 http_error_msg *http_get_error_msg(unsigned short status_code);

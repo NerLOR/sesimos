@@ -452,11 +452,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
             }
 
             if (flags & FASTCGI_CHUNKED) {
-                if (client->enc) {
-                    SSL_write(client->ssl, "0\r\n\r\n", 5);
-                } else {
-                    send(client->socket, "0\r\n\r\n", 5, 0);
-                }
+                sock_send(client, "0\r\n\r\n", 5, 0);
             }
 
             return 0;
@@ -480,15 +476,9 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
                 }
                 if (buf_len != 0) {
                     len = sprintf(buf0, "%X\r\n", buf_len);
-                    if (client->enc) {
-                        if (flags & FASTCGI_CHUNKED) SSL_write(client->ssl, buf0, len);
-                        SSL_write(client->ssl, ptr, buf_len);
-                        if (flags & FASTCGI_CHUNKED) SSL_write(client->ssl, "\r\n", 2);
-                    } else {
-                        if (flags & FASTCGI_CHUNKED) send(client->socket, buf0, len, 0);
-                        send(client->socket, ptr, buf_len, 0);
-                        if (flags & FASTCGI_CHUNKED) send(client->socket, "\r\n", 2, 0);
-                    }
+                    if (flags & FASTCGI_CHUNKED) sock_send(client, buf0, len, 0);
+                    sock_send(client, ptr, buf_len, 0);
+                    if (flags & FASTCGI_CHUNKED) sock_send(client, "\r\n", 2, 0);
                 }
             } while ((flags & FASTCGI_COMPRESS) && strm.avail_out == 0);
             if (finish_comp) goto finish;
@@ -502,7 +492,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
 int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len) {
     unsigned long rcv_len = 0;
     char *buf[16384];
-    int ret;
+    long ret;
     FCGI_Header header = {
             .version = FCGI_VERSION_1,
             .type = FCGI_STDIN,
@@ -521,19 +511,12 @@ int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len) {
     }
 
     while (rcv_len < len) {
-        if (client->enc) {
-            ret = SSL_read(client->ssl, buf, sizeof(buf));
-            if (ret <= 0) {
-                print(ERR_STR "Unable to receive: %s" CLR_STR, ssl_get_error(client->ssl, rcv_len));
-                return -1;
-            }
-        } else {
-            ret = recv(client->socket, buf, sizeof(buf), 0);
-            if (ret <= 0) {
-                print(ERR_STR "Unable to receive: %s" CLR_STR, strerror(errno));
-                return -1;
-            }
+        ret = sock_recv(client, buf, sizeof(buf), 0);
+        if (ret <= 0) {
+            print(ERR_STR "Unable to receive: %s" CLR_STR, sock_strerror(client));
+            return -1;
         }
+
         send:
         rcv_len += ret;
         header.contentLengthB1 = (ret >> 8) & 0xFF;

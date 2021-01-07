@@ -13,7 +13,9 @@
 #include "utils.c"
 #include "uri.c"
 #include "cache.c"
+#include "sock.c"
 #include "http.c"
+#include "rev_proxy.c"
 #include "client.c"
 #include "fastcgi.c"
 
@@ -27,39 +29,6 @@ void openssl_init() {
     SSL_load_error_strings();
     ERR_load_BIO_strings();
     OpenSSL_add_all_algorithms();
-}
-
-char *ssl_get_error(SSL *ssl, int ret) {
-    if (ret > 0) {
-        return NULL;
-    }
-
-    unsigned long ret2 = ERR_get_error();
-    char *err2 = strerror(errno);
-    char *err1 = (char *) ERR_reason_error_string(ret2);
-
-    switch (SSL_get_error(ssl, ret)) {
-        case SSL_ERROR_NONE:
-            return "none";
-        case SSL_ERROR_ZERO_RETURN:
-            return "closed";
-        case SSL_ERROR_WANT_READ:
-            return "want read";
-        case SSL_ERROR_WANT_WRITE:
-            return "want write";
-        case SSL_ERROR_WANT_CONNECT:
-            return "want connect";
-        case SSL_ERROR_WANT_ACCEPT:
-            return "want accept";
-        case SSL_ERROR_WANT_X509_LOOKUP:
-            return "want x509 lookup";
-        case SSL_ERROR_SYSCALL:
-            return ((ret2 == 0) ? ((ret == 0) ? "protocol violation" : err2) : err1);
-        case SSL_ERROR_SSL:
-            return err1;
-        default:
-            return "unknown error";
-    }
 }
 
 void destroy() {
@@ -187,10 +156,10 @@ int main(int argc, const char *argv[]) {
             {.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_ANY_INIT, .sin6_port = htons(443)}
     };
 
-    if (setvbuf(stdout, NULL, _IONBF, 0) != 0) {
+    /*if (setvbuf(stdout, NULL, _IONBF, 0) != 0) {
         fprintf(stderr, ERR_STR "Unable to set stdout to unbuffered mode: %s" CLR_STR, strerror(errno));
         return 1;
-    }
+    }*/
     printf("Necronda Web Server\n");
 
     ret = config_init();
@@ -304,6 +273,11 @@ int main(int argc, const char *argv[]) {
     SSL_CTX_set_mode(client.ctx, SSL_MODE_ENABLE_PARTIAL_WRITE);
     SSL_CTX_set_cipher_list(client.ctx, "HIGH:!aNULL:!kRSA:!PSK:!SRP:!MD5:!RC4");
     SSL_CTX_set_ecdh_auto(client.ctx, 1);
+
+    rev_proxy.buf = NULL;
+    rev_proxy.buf_len = 0;
+    rev_proxy.buf_off = 0;
+    rev_proxy.ctx = SSL_CTX_new(TLS_client_method());
 
     if (SSL_CTX_use_certificate_chain_file(client.ctx, cert_file) != 1) {
         fprintf(stderr, ERR_STR "Unable to load certificate chain file: %s: %s" CLR_STR "\n",

@@ -132,6 +132,22 @@ int config_load(const char *filename) {
                 } else {
                     hc->type = CONFIG_TYPE_REVERSE_PROXY;
                 }
+            } else if (strcmp(ptr, "http") == 0) {
+                if (hc->type != 0 && hc->type != CONFIG_TYPE_REVERSE_PROXY) {
+                    goto err;
+                } else {
+                    hc->type = CONFIG_TYPE_REVERSE_PROXY;
+                    hc->rev_proxy.enc = 0;
+                }
+                continue;
+            } else if (strcmp(ptr, "https") == 0) {
+                if (hc->type != 0 && hc->type != CONFIG_TYPE_REVERSE_PROXY) {
+                    goto err;
+                } else {
+                    hc->type = CONFIG_TYPE_REVERSE_PROXY;
+                    hc->rev_proxy.enc = 1;
+                }
+                continue;
             }
         }
         char *end_ptr = source + strlen(source) - 1;
