@@ -197,7 +197,6 @@ int main(int argc, const char *argv[]) {
         config_unload();
         return 1;
     }
-    printf("%s %s\n", cert_file, key_file);
 
     sockets[0] = socket(AF_INET6, SOCK_STREAM, 0);
     if (sockets[0] < 0) goto socket_err;
