@@ -422,7 +422,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 if (snd_len + len > content_length) {
                     len = content_length - snd_len;
                 }
-                sock_send(client, buffer, len, feof(file) ? 0 : MSG_MORE);
+                ret = sock_send(client, buffer, len, feof(file) ? 0 : MSG_MORE);
                 if (ret <= 0) {
                     print(ERR_STR "Unable to send: %s" CLR_STR, sock_strerror(client));
                     break;
