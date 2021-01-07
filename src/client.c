@@ -57,6 +57,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     int use_fastcgi = 0;
     int use_rev_proxy = 0;
     fastcgi_conn php_fpm = {.socket = 0, .req_id = 0};
+    http_status custom_status;
 
     http_res res;
     sprintf(res.version, "1.1");
@@ -323,10 +324,15 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             }
             char *status = http_get_header_field(&res.hdr, "Status");
             if (status != NULL) {
-                // TODO custom status
-                res.status = http_get_status(strtoul(status, NULL, 10));
+                int status_code = (int) strtoul(status, NULL, 10);
+                res.status = http_get_status(status_code);
                 http_remove_header_field(&res.hdr, "Status", HTTP_REMOVE_ALL);
-                if (res.status == NULL) {
+                if (res.status == NULL && status_code >= 100 && status_code <= 999) {
+                    custom_status.code = status_code;
+                    strcpy(custom_status.type, "");
+                    strcpy(custom_status.msg, status + 4);
+                    res.status = &custom_status;
+                } else if (res.status == NULL) {
                     res.status = http_get_status(500);
                     sprintf(err_msg, "The status code was set to an invalid or unknown value.");
                     goto respond;
@@ -468,9 +474,14 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                     sprintf(err_msg, "Unable to parse header: Invalid header format.");
                     goto proxy_err;
                 }
-                // TODO custom status
-                res.status = http_get_status((unsigned short) strtol(ptr + 9, NULL, 10));
-                if (res.status == NULL) {
+                int status_code = (int) strtol(ptr + 9, NULL, 10);
+                res.status = http_get_status(status_code);
+                if (res.status == NULL && status_code >= 100 && status_code <= 999) {
+                    custom_status.code = status_code;
+                    strcpy(custom_status.type, "");
+                    strcpy(custom_status.msg, ptr + 13);
+                    res.status = &custom_status;
+                } else if (res.status == NULL) {
                     res.status = http_get_status(502);
                     print(ERR_STR "Unable to parse header: Invalid or unknown status code" CLR_STR);
                     sprintf(err_msg, "Unable to parse header: Invalid or unknown status code.");
