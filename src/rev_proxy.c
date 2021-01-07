@@ -16,12 +16,18 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
                    char * err_msg) {
     char buffer[CHUNK_SIZE];
     long ret;
+    int new = 0;
+    int retry = 0;
 
     if (rev_proxy.socket != 0 && rev_proxy_host == conf->name) {
         goto rev_proxy;
     } else if (rev_proxy.socket != 0) {
         sock_close(&rev_proxy);
     }
+
+    retry:
+    retry = 0;
+    new = 1;
 
     rev_proxy.socket = socket(AF_INET6, SOCK_STREAM, 0);
     if (rev_proxy.socket  < 0) {
@@ -97,6 +103,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
         res->status = http_get_status(502);
         print(ERR_STR "Unable to send request to server: %s" CLR_STR, sock_strerror(&rev_proxy));
         sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&rev_proxy));
+        retry = !new;
         goto proxy_err;
     }
 
@@ -113,6 +120,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
                 res->status = http_get_status(502);
                 print(ERR_STR "Unable to send request to server: %s" CLR_STR, sock_strerror(&rev_proxy));
                 sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&rev_proxy));
+                retry = !new;
                 goto proxy_err;
             }
             content_len -= len;
@@ -123,6 +131,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
                 res->status = http_get_status(502);
                 print(ERR_STR "Unable to send request to server: %s" CLR_STR, sock_strerror(&rev_proxy));
                 sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&rev_proxy));
+                retry = !new;
                 goto proxy_err;
             }
         }
@@ -133,6 +142,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
         res->status = http_get_status(502);
         print(ERR_STR "Unable to receive response from server: %s" CLR_STR, sock_strerror(&rev_proxy));
         sprintf(err_msg, "Unable to receive response from server: %s.", sock_strerror(&rev_proxy));
+        retry = !new;
         goto proxy_err;
     }
 
@@ -205,6 +215,9 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     proxy_err:
     print(BLUE_STR "Closing proxy connection" CLR_STR);
     sock_close(&rev_proxy);
+    if (retry) {
+        goto retry;
+    }
 
     return -1;
 }
