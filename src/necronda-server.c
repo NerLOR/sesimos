@@ -160,7 +160,7 @@ int main(int argc, const char *argv[]) {
         fprintf(stderr, ERR_STR "Unable to set stdout to line-buffered mode: %s" CLR_STR, strerror(errno));
         return 1;
     }
-    printf("Necronda Web Server\n");
+    printf("Necronda Web Server " NECRONDA_VERSION "\n");
 
     ret = config_init();
     if (ret != 0) {
