@@ -136,7 +136,6 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
                     res->status = http_get_status(502);
                     print(ERR_STR "Unable to send request to server (3): %s" CLR_STR, sock_strerror(&rev_proxy));
                     sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&rev_proxy));
-                    retry = tries < 4;
                     goto proxy_err;
                 } else if (ret == -2) {
                     res->status = http_get_status(400);
@@ -156,7 +155,6 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
         res->status = http_get_status(502);
         print(ERR_STR "Unable to receive response from server: %s" CLR_STR, sock_strerror(&rev_proxy));
         sprintf(err_msg, "Unable to receive response from server: %s.", sock_strerror(&rev_proxy));
-        retry = tries < 4;
         goto proxy_err;
     }
 
