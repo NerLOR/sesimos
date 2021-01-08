@@ -81,4 +81,6 @@ int sockets[NUM_SOCKETS];
 pid_t children[MAX_CHILDREN];
 MMDB_s mmdbs[MAX_MMDB];
 
+char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr, *client_host_str;
+
 #endif //NECRONDA_SERVER_NECRONDA_SERVER_H

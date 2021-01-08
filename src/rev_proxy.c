@@ -99,6 +99,8 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     rev_proxy:
     http_remove_header_field(&req->hdr, "Connection", HTTP_REMOVE_ALL);
     http_add_header_field(&req->hdr, "Connection", "keep-alive");
+    http_remove_header_field(&req->hdr, "X-Forwarded-For", HTTP_REMOVE_ALL);
+    http_add_header_field(&req->hdr, "X-Forwarded-For", client_addr_str);
 
     ret = http_send_request(&rev_proxy, req);
     if (ret < 0) {

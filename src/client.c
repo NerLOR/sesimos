@@ -13,9 +13,7 @@
 
 
 int server_keep_alive = 1;
-char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr,
-        *log_client_prefix, *log_conn_prefix, *log_req_prefix,
-        *client_host_str, *client_geoip;
+char *log_client_prefix, *log_conn_prefix, *log_req_prefix, *client_geoip;
 
 struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
 
