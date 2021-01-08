@@ -29,4 +29,8 @@ long sock_recv(sock *s, void *buf, unsigned long len, int flags);
 
 long sock_splice(sock *dst, sock *src, void *buf, unsigned long buf_len, unsigned long len);
 
+int sock_close(sock *s);
+
+int sock_check(sock *s);
+
 #endif //NECRONDA_SERVER_SOCK_H

@@ -78,7 +78,7 @@ long sock_splice(sock *dst, sock *src, void *buf, unsigned long buf_len, unsigne
     unsigned long send_len = 0;
     unsigned long next_len;
     while (send_len < len) {
-        next_len = buf_len < len - send_len ? buf_len : len - send_len;
+        next_len = (buf_len < (len - send_len)) ? buf_len : (len - send_len);
         ret = sock_recv(src, buf, next_len, 0);
         if (ret < 0) return -2;
         if (ret != next_len) return -3;
@@ -101,4 +101,9 @@ int sock_close(sock *s) {
     s->enc = 0;
     s->ssl = NULL;
     return 0;
+}
+
+int sock_check(sock *s) {
+    char buf;
+    return recv(s->socket, &buf, 1, MSG_PEEK | MSG_DONTWAIT) == 1;
 }

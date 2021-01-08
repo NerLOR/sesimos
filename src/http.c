@@ -238,7 +238,8 @@ int http_send_request(sock *server, http_req *req) {
         off += sprintf(buf + off, "%s: %s\r\n", req->hdr.fields[i][0], req->hdr.fields[i][1]);
     }
     off += sprintf(buf + off, "\r\n");
-    if (sock_send(server, buf, off, 0) <= 0) {
+    long ret = sock_send(server, buf, off, 0);
+    if (ret <= 0) {
         return -1;
     }
     return 0;

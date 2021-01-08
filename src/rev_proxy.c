@@ -19,9 +19,11 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     int tries = 0;
     int retry = 0;
 
-    if (rev_proxy.socket != 0 && rev_proxy_host == conf->name) {
+    if (rev_proxy.socket != 0 && strcmp(rev_proxy_host, conf->name) == 0 && sock_check(&rev_proxy) == 0) {
         goto rev_proxy;
-    } else if (rev_proxy.socket != 0) {
+    }
+
+    if (rev_proxy.socket != 0) {
         sock_close(&rev_proxy);
     }
 
@@ -95,14 +97,13 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     print(BLUE_STR "Established new connection with " BLD_STR "[%s]:%i" CLR_STR, buffer, conf->rev_proxy.port);
 
     rev_proxy:
-    // TODO strange behaviour with Edge
     http_remove_header_field(&req->hdr, "Connection", HTTP_REMOVE_ALL);
     http_add_header_field(&req->hdr, "Connection", "keep-alive");
 
     ret = http_send_request(&rev_proxy, req);
     if (ret < 0) {
         res->status = http_get_status(502);
-        print(ERR_STR "Unable to send request to server: %s" CLR_STR, sock_strerror(&rev_proxy));
+        print(ERR_STR "Unable to send request to server (1): %s" CLR_STR, sock_strerror(&rev_proxy));
         sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&rev_proxy));
         retry = tries < 4;
         goto proxy_err;
@@ -119,7 +120,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
             ret = sock_send(&rev_proxy, client->buf, len, 0);
             if (ret <= 0) {
                 res->status = http_get_status(502);
-                print(ERR_STR "Unable to send request to server: %s" CLR_STR, sock_strerror(&rev_proxy));
+                print(ERR_STR "Unable to send request to server (2): %s" CLR_STR, sock_strerror(&rev_proxy));
                 sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&rev_proxy));
                 retry = tries < 4;
                 goto proxy_err;
@@ -129,11 +130,21 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
         if (content_len > 0) {
             ret = sock_splice(&rev_proxy, client, buffer, sizeof(buffer), content_len);
             if (ret <= 0) {
-                res->status = http_get_status(502);
-                print(ERR_STR "Unable to send request to server: %s" CLR_STR, sock_strerror(&rev_proxy));
-                sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&rev_proxy));
-                retry = tries < 4;
-                goto proxy_err;
+                if (ret == -1) {
+                    res->status = http_get_status(502);
+                    print(ERR_STR "Unable to send request to server (3): %s" CLR_STR, sock_strerror(&rev_proxy));
+                    sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&rev_proxy));
+                    retry = tries < 4;
+                    goto proxy_err;
+                } else if (ret == -2) {
+                    res->status = http_get_status(400);
+                    print(ERR_STR "Unable to receive request from client: %s" CLR_STR, sock_strerror(client));
+                    sprintf(err_msg, "Unable to receive request from client: %s.", sock_strerror(client));
+                    return -1;
+                }
+                res->status = http_get_status(500);
+                print(ERR_STR "Unknown Error" CLR_STR);
+                return -1;
             }
         }
     }
