@@ -164,6 +164,11 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             }
             goto respond;
         }
+    } else if (!client->enc) {
+        res.status = http_get_status(308);
+        sprintf(buf0, "https://%s%s", host, req.uri);
+        http_add_header_field(&res.hdr, "Location", buf0);
+        goto respond;
     }
 
     if (conf->type == CONFIG_TYPE_LOCAL) {
