@@ -23,11 +23,11 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
         goto rev_proxy;
     }
 
+    retry:
     if (rev_proxy.socket != 0) {
+        print(BLUE_STR "Closing proxy connection" CLR_STR);
         sock_close(&rev_proxy);
     }
-
-    retry:
     retry = 0;
     tries++;
 
@@ -225,12 +225,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     return 0;
 
     proxy_err:
-    print(BLUE_STR "Closing proxy connection" CLR_STR);
-    sock_close(&rev_proxy);
-    if (retry) {
-        goto retry;
-    }
-
+    if (retry) goto retry;
     return -1;
 }
 
