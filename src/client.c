@@ -405,6 +405,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
           res.status->msg, location != NULL ? " -> " : "", location != NULL ? location : "",
           format_duration(micros, buf0), CLR_STR);
 
+    // TODO access/error log file
+
     if (strcmp(req.method, "HEAD") != 0) {
         unsigned long snd_len = 0;
         unsigned long len;
