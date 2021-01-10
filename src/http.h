@@ -133,7 +133,7 @@ const char *http_default_document =
         "%5$s"
         "\t<style>\n"
         "\t\thtml{font-family:\"Arial\",sans-serif;--error:#C00000;--info:#E0C000;--color:var(--%4$s);}\n"
-        "\t\tbody{background-color:#F0F0F0;margin:0.5em;}\n"
+        "\t\tbody{background-color:#F0F0F0;margin:0;}\n"
         "\t\tmain{max-width:650px;margin:2em auto;}\n"
         "\t\tsection{margin:1em;background-color:#FFFFFF;border: 1px solid var(--color);border-radius:4px;padding:1em;}\n"
         "\t\th1,h2,h3,h4,h5,h6,h7{text-align:center;color:var(--color);font-weight:normal;}\n"
