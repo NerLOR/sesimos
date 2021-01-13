@@ -81,7 +81,7 @@ long sock_splice(sock *dst, sock *src, void *buf, unsigned long buf_len, unsigne
         next_len = (buf_len < (len - send_len)) ? buf_len : (len - send_len);
         ret = sock_recv(src, buf, next_len, 0);
         if (ret < 0) return -2;
-        if (ret != next_len) return -3;
+        next_len = ret;
         ret = sock_send(dst, buf, next_len, send_len + next_len < len ? MSG_MORE : 0);
         if (ret < 0) return -1;
         if (ret != next_len) return -3;
