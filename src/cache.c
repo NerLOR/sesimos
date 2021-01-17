@@ -5,9 +5,8 @@
  * Lorenz Stechauner, 2020-12-19
  */
 
-#include <zlib.h>
 #include "cache.h"
-#include "uri.h"
+
 
 int magic_init() {
     magic = magic_open(MAGIC_MIME);

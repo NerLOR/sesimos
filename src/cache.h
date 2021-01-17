@@ -8,10 +8,14 @@
 #ifndef NECRONDA_SERVER_CACHE_H
 #define NECRONDA_SERVER_CACHE_H
 
+#include "uri.h"
+
+#include <stdio.h>
+#include <zlib.h>
 #include <magic.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#include "uri.h"
+
 
 magic_t magic;
 

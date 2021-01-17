@@ -7,6 +7,7 @@
 
 #include "utils.h"
 
+
 char *format_duration(unsigned long micros, char *buf) {
     if (micros < 10000) {
         sprintf(buf, "%.1f ms", (double) micros / 1000);

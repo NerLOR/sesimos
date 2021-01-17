@@ -13,6 +13,12 @@
 #define CONFIG_TYPE_LOCAL 1
 #define CONFIG_TYPE_REVERSE_PROXY 2
 
+#include "uri.h"
+
+#include <stdio.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
 
 typedef struct {
     int type;

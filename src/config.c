@@ -6,9 +6,7 @@
  */
 
 #include "config.h"
-#include "uri.h"
-#include <sys/ipc.h>
-#include <sys/shm.h>
+
 
 int config_init() {
     int shm_id = shmget(SHM_KEY_CONFIG, MAX_HOST_CONFIG * sizeof(host_config), IPC_CREAT | IPC_EXCL | 0640);

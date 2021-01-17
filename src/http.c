@@ -6,7 +6,6 @@
  */
 
 #include "http.h"
-#include "utils.h"
 
 
 void http_to_camel_case(char *str, int mode) {

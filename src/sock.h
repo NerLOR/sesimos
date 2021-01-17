@@ -8,6 +8,13 @@
 #ifndef NECRONDA_SERVER_SOCK_H
 #define NECRONDA_SERVER_SOCK_H
 
+#include <openssl/err.h>
+#include <openssl/pem.h>
+#include <openssl/ssl.h>
+#include <openssl/conf.h>
+#include <openssl/engine.h>
+#include <openssl/dh.h>
+
 typedef struct {
     unsigned int enc:1;
     int socket;

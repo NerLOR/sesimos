@@ -16,6 +16,10 @@
 #define HTTP_REMOVE_ALL 1
 #define HTTP_REMOVE_LAST 2
 
+#include "sock.h"
+#include "utils.h"
+
+
 typedef struct {
     unsigned short code;
     char type[16];
