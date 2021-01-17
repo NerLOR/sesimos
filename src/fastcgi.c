@@ -209,6 +209,7 @@ int fastcgi_php_error(const char *msg, int msg_len, char *err_msg) {
     char *ptr1 = NULL;
     int len;
     int err = 0;
+    // FIXME *msg is part of a stream, handle fragmented lines
     while (1) {
         int msg_type = 0;
         int msg_pre_len = 0;
