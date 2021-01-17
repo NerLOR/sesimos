@@ -210,9 +210,12 @@ int fastcgi_php_error(const char *msg, int msg_len, char *err_msg) {
     int len;
     int err = 0;
     while (1) {
+        int msg_type = 0;
+        int msg_pre_len = 0;
         ptr1 = strstr(ptr0, "PHP message: ");
         if (ptr1 == NULL) {
             len = (int) (msg_len - (ptr0 - msg_str));
+            if (ptr0 == msg_str) msg_type = 2;
         } else {
             len = (int) (ptr1 - ptr0);
         }
@@ -220,8 +223,6 @@ int fastcgi_php_error(const char *msg, int msg_len, char *err_msg) {
             goto next;
         }
 
-        int msg_type = 0;
-        int msg_pre_len = 0;
         if (len >= 14 && strncmp(ptr0, "PHP Warning:  ", 14) == 0) {
             msg_type = 1;
             msg_pre_len = 14;
@@ -455,7 +456,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
 
             return 0;
         } else if (header.type == FCGI_STDERR) {
-            print(ERR_STR "%.*s" CLR_STR, content_len, content);
+            fastcgi_php_error(content, content_len, buf0);
         } else if (header.type == FCGI_STDOUT) {
             out:
             if (flags & FASTCGI_COMPRESS) {
