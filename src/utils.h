@@ -22,9 +22,9 @@ char *log_prefix;
 
 char *format_duration(unsigned long micros, char *buf);
 
-int url_encode(const char *str, char *enc, ssize_t *size);
+int url_encode_component(const char *str, char *enc, ssize_t *size);
 
-int encode_url(const char *str, char *enc, ssize_t *size);
+int url_encode(const char *str, char *enc, ssize_t *size);
 
 int url_decode(const char *str, char *dec, ssize_t *size);
 

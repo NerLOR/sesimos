@@ -146,7 +146,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         if (strcmp(uri.uri, buf0) != 0 || change_proto) {
             res.status = http_get_status(308);
             size = sizeof(buf0);
-            encode_url(uri.uri, buf0, &size);
+            url_encode(uri.uri, buf0, &size);
             if (change_proto) {
                 sprintf(buf1, "https://%s%s", host, buf0);
                 http_add_header_field(&res.hdr, "Location", buf1);

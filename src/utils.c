@@ -23,7 +23,7 @@ char *format_duration(unsigned long micros, char *buf) {
     return buf;
 }
 
-int url_encode(const char *str, char *enc, ssize_t *size) {
+int url_encode_component(const char *str, char *enc, ssize_t *size) {
     char *ptr = enc;
     char ch;
     memset(enc, 0, *size);
@@ -50,7 +50,7 @@ int url_encode(const char *str, char *enc, ssize_t *size) {
     return 0;
 }
 
-int encode_url(const char *str, char *enc, ssize_t *size) {
+int url_encode(const char *str, char *enc, ssize_t *size) {
     char *ptr = enc;
     unsigned char ch;
     memset(enc, 0, *size);
@@ -89,6 +89,9 @@ int url_decode(const char *str, char *dec, ssize_t *size) {
             buf[2] = 0;
             ch = (char) strtol(buf, NULL, 16);
             i += 2;
+        } else if (ch == '?') {
+            strcpy(ptr, str + i);
+            break;
         }
         ptr[0] = ch;
     }
