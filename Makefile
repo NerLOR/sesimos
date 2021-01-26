@@ -2,7 +2,7 @@
 
 packages:
 	@echo "Installing packages..."
-	sudo apt-get install gcc libmagic-dev libssl-dev php-fpm
+	sudo apt-get install gcc libmagic-dev libssl-dev php-fpm libmaxminddb-dev
 	@echo "Finished downloading!"
 
 compile:
