@@ -93,7 +93,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
     hdr_connection = http_get_header_field(&req.hdr, "Connection");
     client_keep_alive = hdr_connection != NULL &&
-            (strcmp(hdr_connection, "keep-alive") == 0 || strcmp(hdr_connection, "Keep-Alive") == 0);
+                        (strcmp(hdr_connection, "keep-alive") == 0 || strcmp(hdr_connection, "Keep-Alive") == 0);
     host_ptr = http_get_header_field(&req.hdr, "Host");
     if (host_ptr != NULL && strlen(host_ptr) > 255) {
         host[0] = 0;
@@ -132,10 +132,14 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     if (ret != 0) {
         if (ret == 1) {
             sprintf(err_msg, "Invalid URI: has to start with slash.");
+            res.status = http_get_status(400);
         } else if (ret == 2) {
             sprintf(err_msg, "Invalid URI: contains relative path change (/../).");
+            res.status = http_get_status(400);
+        } else if (ret == 3) {
+            sprintf(err_msg, "The specified webroot directory does not exist.");
+            res.status = http_get_status(203);
         }
-        res.status = http_get_status(400);
         goto respond;
     }
 
@@ -211,7 +215,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             char *if_modified_since = http_get_header_field(&req.hdr, "If-Modified-Since");
             char *if_none_match = http_get_header_field(&req.hdr, "If-None-Match");
             if ((if_none_match != NULL && strstr(if_none_match, uri.meta->etag) == NULL) ||
-                (accept_if_modified_since && if_modified_since != NULL && strcmp(if_modified_since, last_modified) == 0)) {
+                (accept_if_modified_since && if_modified_since != NULL &&
+                 strcmp(if_modified_since, last_modified) == 0)) {
                 res.status = http_get_status(304);
                 goto respond;
             }
@@ -360,13 +365,35 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             http_add_header_field(&res.hdr, "Accept-Ranges", "none");
         }
         if (!use_fastcgi && !use_rev_proxy && file == NULL &&
-            res.status->code >= 400 && res.status->code < 600) {
+            ((res.status->code >= 400 && res.status->code < 600) || err_msg[0] != 0)) {
+            char color[16], mode[16];
+            const char *icon, *document;
+            if (res.status->code >= 100 && res.status->code < 200) {
+                sprintf(mode, "info");
+                sprintf(color, HTTP_COLOR_INFO);
+                icon = http_info_icon;
+                document = http_info_document;
+            } else if (res.status->code >= 200 && res.status->code < 300) {
+                sprintf(mode, "success");
+                sprintf(color, HTTP_COLOR_SUCCESS);
+                icon = http_success_icon;
+                document = http_success_document;
+            } else if (res.status->code >= 300 && res.status->code < 400) {
+                sprintf(mode, "warning");
+                sprintf(color, HTTP_COLOR_WARNING);
+                icon = http_warning_icon;
+                document = http_warning_document;
+            } else if (res.status->code >= 400 && res.status->code < 600) {
+                sprintf(mode, "error");
+                sprintf(color, HTTP_COLOR_ERROR);
+                icon = http_error_icon;
+                document = http_error_document;
+            }
             http_error_msg *http_msg = http_get_error_msg(res.status->code);
-            sprintf(msg_pre_buf, http_error_document, res.status->code, res.status->msg,
+            sprintf(msg_pre_buf, document, res.status->code, res.status->msg,
                     http_msg != NULL ? http_msg->err_msg : "", err_msg[0] != 0 ? err_msg : "");
             content_length = sprintf(msg_buf, http_default_document, res.status->code, res.status->msg,
-                                     msg_pre_buf, res.status->code >= 300 && res.status->code < 400 ? "info" : "error",
-                                     http_error_icon, "#C00000", host);
+                                     msg_pre_buf, mode, icon, color, host);
             http_add_header_field(&res.hdr, "Content-Type", "text/html; charset=UTF-8");
         }
         if (content_length >= 0) {

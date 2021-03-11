@@ -89,6 +89,11 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     } else {
         strcpy(uri->pathinfo, "");
     }
+
+    if (!path_exists(uri->webroot)) {
+        return 3;
+    }
+
     while (1) {
         sprintf(buf0, "%s%s", uri->webroot, uri->path);
         sprintf(buf1, "%s.php", buf0);

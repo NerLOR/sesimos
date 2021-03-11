@@ -254,9 +254,9 @@ http_status *http_get_status(unsigned short status_code) {
 }
 
 http_error_msg *http_get_error_msg(unsigned short status_code) {
-    for (int i = 0; i < sizeof(http_error_messages) / sizeof(http_error_msg); i++) {
-        if (http_error_messages[i].code == status_code) {
-            return &http_error_messages[i];
+    for (int i = 0; i < sizeof(http_status_messages) / sizeof(http_error_msg); i++) {
+        if (http_status_messages[i].code == status_code) {
+            return &http_status_messages[i];
         }
     }
     return NULL;
