@@ -167,7 +167,11 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     }
 
     if (conf->type == CONFIG_TYPE_LOCAL) {
-        if (uri.filename == NULL && (int) uri.is_static && (int) uri.is_dir && strlen(uri.pathinfo) == 0) {
+        if (strncmp(uri.req_path, "/.well-known/", 13) != 0 && strstr(uri.path, "/.") != NULL) {
+            res.status = http_get_status(403);
+            sprintf(err_msg, "Parts of this URI are hidden.");
+            goto respond;
+        } else if (uri.filename == NULL && (int) uri.is_static && (int) uri.is_dir && strlen(uri.pathinfo) == 0) {
             res.status = http_get_status(403);
             sprintf(err_msg, "It is not allowed to list the contents of this directory.");
             goto respond;
@@ -181,10 +185,6 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             goto respond;
         } else if (strlen(uri.pathinfo) != 0 && conf->local.dir_mode != URI_DIR_MODE_INFO) {
             res.status = http_get_status(404);
-            goto respond;
-        } else if (strncmp(uri.req_path, "/.well-known/", 13) != 0 && strstr(uri.filename, "/.") != NULL) {
-            res.status = http_get_status(403);
-            sprintf(err_msg, "Parts of path are hidden.");
             goto respond;
         }
 
