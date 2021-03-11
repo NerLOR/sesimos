@@ -138,7 +138,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             res.status = http_get_status(400);
         } else if (ret == 3) {
             sprintf(err_msg, "The specified webroot directory does not exist.");
-            res.status = http_get_status(203);
+            res.status = http_get_status(404);
         }
         goto respond;
     }
