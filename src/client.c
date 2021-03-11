@@ -366,6 +366,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         }
         if (!use_fastcgi && !use_rev_proxy && file == NULL &&
             ((res.status->code >= 400 && res.status->code < 600) || err_msg[0] != 0)) {
+            // TODO list Locations on 3xx Redirects
             char color[16], mode[16];
             const char *icon, *document;
             if (res.status->code >= 100 && res.status->code < 200) {
