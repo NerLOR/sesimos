@@ -182,6 +182,10 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         } else if (strlen(uri.pathinfo) != 0 && conf->local.dir_mode != URI_DIR_MODE_INFO) {
             res.status = http_get_status(404);
             goto respond;
+        } else if (strncmp(uri.req_path, "/.well-known/", 13) != 0 && strstr(uri.filename, "/.") != NULL) {
+            res.status = http_get_status(403);
+            sprintf(err_msg, "Parts of path are hidden.");
+            goto respond;
         }
 
         if (uri.is_static) {
