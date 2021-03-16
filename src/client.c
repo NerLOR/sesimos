@@ -49,8 +49,6 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     sprintf(res.version, "1.1");
     res.status = http_get_status(501);
     res.hdr.field_num = 0;
-    http_add_header_field(&res.hdr, "Date", http_get_date(buf0, sizeof(buf0)));
-    http_add_header_field(&res.hdr, "Server", SERVER_STR);
 
     clock_gettime(CLOCK_MONOTONIC, &begin);
 
@@ -60,6 +58,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     client_timeout.tv_sec = CLIENT_TIMEOUT;
     client_timeout.tv_usec = 0;
     ret = select(client->socket + 1, &socket_fds, NULL, NULL, &client_timeout);
+    http_add_header_field(&res.hdr, "Date", http_get_date(buf0, sizeof(buf0)));
+    http_add_header_field(&res.hdr, "Server", SERVER_STR);
     if (ret <= 0) {
         if (errno != 0) {
             return 1;
