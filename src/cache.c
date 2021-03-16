@@ -73,7 +73,7 @@ int cache_process() {
         for (int i = 0; i < FILE_CACHE_SIZE; i++) {
             if (cache[i].filename[0] != 0 && cache[i].meta.etag[0] == 0 && !cache[i].is_updating) {
                 cache[i].is_updating = 1;
-                fprintf(stdout, "Hashing file '%s'...\n", cache[i].filename);
+                fprintf(stdout, "[cache] Hashing file %s\n", cache[i].filename);
                 SHA1_Init(&ctx);
                 file = fopen(cache[i].filename, "rb");
                 compress = strncmp(cache[i].meta.type, "text/", 5) == 0 ||
@@ -98,7 +98,7 @@ int cache_process() {
                     }
                     buf[strlen(rel_path)] = 0;
                     sprintf(filename_comp, "%.*s/.necronda-server/cache/%s.z", cache[i].webroot_len, cache[i].filename, buf);
-                    fprintf(stdout, "Compressing file '%s'...\n", cache[i].filename);
+                    fprintf(stdout, "[cache] Compressing file %s\n", cache[i].filename);
                     comp_file = fopen(filename_comp, "wb");
                     if (comp_file == NULL) {
                         compress = 0;
@@ -133,7 +133,7 @@ int cache_process() {
                 if (compress) {
                     deflateEnd(&strm);
                     fclose(comp_file);
-                    fprintf(stdout, "Finished compressing file '%s'\n", cache[i].filename);
+                    fprintf(stdout, "[cache] Finished compressing file %s\n", cache[i].filename);
                     strcpy(cache[i].meta.filename_comp, filename_comp);
                 } else {
                     memset(cache[i].meta.filename_comp, 0, sizeof(cache[i].meta.filename_comp));
@@ -144,7 +144,7 @@ int cache_process() {
                     sprintf(cache[i].meta.etag + j * 2, "%02x", hash[j]);
                 }
                 fclose(file);
-                fprintf(stdout, "Finished hashing file '%s'\n", cache[i].filename);
+                fprintf(stdout, "[cache] Finished hashing file %s\n", cache[i].filename);
                 cache[i].is_updating = 0;
                 cache_changed = 1;
             }
