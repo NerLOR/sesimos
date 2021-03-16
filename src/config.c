@@ -177,7 +177,7 @@ int config_load(const char *filename) {
     }
     free(conf);
 
-    for (int j = 0; j < i - 1; j++) {
+    for (int j = 0; j < i; j++) {
         if (tmp_config[j].type == CONFIG_TYPE_LOCAL) {
             char *webroot = tmp_config[j].local.webroot;
             if (webroot[strlen(webroot) - 1] == '/') {
