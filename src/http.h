@@ -160,6 +160,7 @@ const char *http_default_document =
         "\t<meta name=\"apple-mobile-web-app-status-bar-style\" content=\"black-translucent\"/>\n"
         "\t<meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"/>\n"
         "%5$s"
+        "\t<link rel=\"shortcut icon\" type=\"image/x-icon\" href=\"/favicon.ico\"/>\n"
         "\t<style>\n"
         "\t\thtml{font-family:\"Arial\",sans-serif;--error:" HTTP_COLOR_ERROR ";--warning:" HTTP_COLOR_WARNING ";--success:" HTTP_COLOR_SUCCESS ";--info:" HTTP_COLOR_INFO ";--color:var(--%4$s);}\n"
         "\t\tbody{background-color:#F0F0F0;margin:0;}\n"
