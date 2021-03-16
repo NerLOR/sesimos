@@ -68,6 +68,7 @@ int cache_process() {
     int compress;
     SHA_CTX ctx;
     unsigned char hash[SHA_DIGEST_LENGTH];
+    int cache_changed = 0;
     while (cache_continue) {
         for (int i = 0; i < FILE_CACHE_SIZE; i++) {
             if (cache[i].filename[0] != 0 && cache[i].meta.etag[0] == 0 && !cache[i].is_updating) {
@@ -141,13 +142,17 @@ int cache_process() {
                 }
                 fclose(file);
                 cache[i].is_updating = 0;
+                cache_changed = 1;
             }
         }
 
-        cache_file = fopen("/var/necronda-server/cache", "wb");
-        fwrite(cache, sizeof(cache_entry), FILE_CACHE_SIZE , cache_file);
-        fclose(cache_file);
-        sleep(1);
+        if (cache_changed) {
+            cache_file = fopen("/var/necronda-server/cache", "wb");
+            fwrite(cache, sizeof(cache_entry), FILE_CACHE_SIZE, cache_file);
+            fclose(cache_file);
+        } else {
+            sleep(1);
+        }
     }
     return 0;
 }

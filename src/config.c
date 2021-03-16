@@ -175,8 +175,16 @@ int config_load(const char *filename) {
             tmp_config[i - 1].rev_proxy.port = (unsigned short) strtoul(source, NULL, 10);
         }
     }
-
     free(conf);
+
+    for (int j = 0; j < i - 1; j++) {
+        if (tmp_config[j].type == CONFIG_TYPE_LOCAL) {
+            char *webroot = tmp_config[j].local.webroot;
+            if (webroot[strlen(webroot) - 1] == '/') {
+                webroot[strlen(webroot) - 1] = 0;
+            }
+        }
+    }
 
     int shm_id = shmget(SHM_KEY_CONFIG, 0, 0);
     if (shm_id < 0) {
