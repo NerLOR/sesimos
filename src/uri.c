@@ -28,6 +28,7 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     char buf1[1024];
     char buf2[1024];
     char buf3[1024];
+    int p_len;
     uri->webroot = NULL;
     uri->req_path = NULL;
     uri->path = NULL;
@@ -96,8 +97,10 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
 
     while (1) {
         sprintf(buf0, "%s%s", uri->webroot, uri->path);
-        sprintf(buf1, "%s.php", buf0);
-        sprintf(buf2, "%s.html", buf0);
+        p_len = snprintf(buf1, sizeof(buf1), "%s.php", buf0);
+        if (p_len < 0 || p_len >= sizeof(buf1)) return -1;
+        p_len = snprintf(buf2, sizeof(buf2), "%s.html", buf0);
+        if (p_len < 0 || p_len >= sizeof(buf2)) return -1;
 
         if (strlen(uri->path) <= 1 || path_exists(buf0) || path_is_file(buf1) || path_is_file(buf2)) {
             break;

@@ -49,9 +49,9 @@ int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr)
     }
 
     long len = pos1 - buf;
-    hdr->fields[hdr->field_num][0] = malloc(len + 1);
-    sprintf(hdr->fields[hdr->field_num][0], "%.*s", (int) len, buf);
-    http_to_camel_case(hdr->fields[hdr->field_num][0], HTTP_CAMEL);
+    hdr->fields[(int) hdr->field_num][0] = malloc(len + 1);
+    sprintf(hdr->fields[(int) hdr->field_num][0], "%.*s", (int) len, buf);
+    http_to_camel_case(hdr->fields[(int) hdr->field_num][0], HTTP_CAMEL);
 
     pos1++;
     pos2 = (char *) end_ptr - 1;
@@ -60,11 +60,11 @@ int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr)
     len = pos2 - pos1 + 1;
 
     if (len <= 0) {
-        hdr->fields[hdr->field_num][1] = malloc(1);
-        hdr->fields[hdr->field_num][1][0] = 0;
+        hdr->fields[(int) hdr->field_num][1] = malloc(1);
+        hdr->fields[(int) hdr->field_num][1][0] = 0;
     } else {
-        hdr->fields[hdr->field_num][1] = malloc(len + 1);
-        sprintf(hdr->fields[hdr->field_num][1], "%.*s", (int) len, pos1);
+        hdr->fields[(int) hdr->field_num][1] = malloc(len + 1);
+        sprintf(hdr->fields[(int) hdr->field_num][1], "%.*s", (int) len, pos1);
     }
     hdr->field_num++;
     return 0;
@@ -184,8 +184,8 @@ void http_add_header_field(http_hdr *hdr, const char *field_name, const char *fi
     strcpy(_field_name, field_name);
     strcpy(_field_value, field_value);
     http_to_camel_case(_field_name, HTTP_PRESERVE);
-    hdr->fields[hdr->field_num][0] = _field_name;
-    hdr->fields[hdr->field_num][1] = _field_value;
+    hdr->fields[(int) hdr->field_num][0] = _field_name;
+    hdr->fields[(int) hdr->field_num][1] = _field_value;
     hdr->field_num++;
 }
 
@@ -266,7 +266,7 @@ const char *http_get_status_color(http_status *status) {
     unsigned short code = status->code;
     if (code >= 100 && code < 200) {
         return HTTP_1XX_STR;
-    } else if (code >= 200 && code < 300 || code == 304) {
+    } else if ((code >= 200 && code < 300) || code == 304) {
         return HTTP_2XX_STR;
     } else if (code >= 300 && code < 400) {
         return HTTP_3XX_STR;

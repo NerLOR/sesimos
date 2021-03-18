@@ -69,6 +69,7 @@ int cache_process() {
     SHA_CTX ctx;
     unsigned char hash[SHA_DIGEST_LENGTH];
     int cache_changed = 0;
+    int p_len;
     while (cache_continue) {
         for (int i = 0; i < FILE_CACHE_SIZE; i++) {
             if (cache[i].filename[0] != 0 && cache[i].meta.etag[0] == 0 && !cache[i].is_updating) {
@@ -97,12 +98,19 @@ int cache_process() {
                         buf[j] = ch;
                     }
                     buf[strlen(rel_path)] = 0;
-                    sprintf(filename_comp, "%.*s/.necronda-server/cache/%s.z", cache[i].webroot_len, cache[i].filename, buf);
+                    p_len = snprintf(filename_comp, sizeof(filename_comp), "%.*s/.necronda-server/cache/%s.z",
+                                     cache[i].webroot_len, cache[i].filename, buf);
+                    if (p_len < 0 || p_len >= sizeof(filename_comp)) {
+                        fprintf(stderr, ERR_STR "Unable to open cached file: "
+                                                "File name for compressed file too long" CLR_STR "\n");
+                        goto comp_err;
+                    }
                     fprintf(stdout, "[cache] Compressing file %s\n", cache[i].filename);
                     comp_file = fopen(filename_comp, "wb");
                     if (comp_file == NULL) {
-                        compress = 0;
                         fprintf(stderr, ERR_STR "Unable to open cached file: %s" CLR_STR "\n", strerror(errno));
+                        comp_err:
+                        compress = 0;
                     } else {
                         strm.zalloc = Z_NULL;
                         strm.zfree = Z_NULL;

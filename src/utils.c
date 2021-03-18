@@ -120,7 +120,7 @@ MMDB_entry_data_list_s *mmdb_json(MMDB_entry_data_list_s *list, char *str, long 
             *str_off += sprintf(str + *str_off, "%lu", list->entry_data.uint64);
             break;
         case MMDB_DATA_TYPE_UINT128:
-            *str_off += sprintf(str + *str_off, "%llu", list->entry_data.uint128);
+            *str_off += sprintf(str + *str_off, "%llu", (unsigned long long) list->entry_data.uint128);
             break;
         case MMDB_DATA_TYPE_INT32:
             *str_off += sprintf(str + *str_off, "%i", list->entry_data.uint32);

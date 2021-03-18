@@ -42,6 +42,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     int accept_if_modified_since = 0;
     int use_fastcgi = 0;
     int use_rev_proxy = 0;
+    int p_len;
     fastcgi_conn php_fpm = {.socket = 0, .req_id = 0};
     http_status custom_status;
 
@@ -139,6 +140,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         } else if (ret == 3) {
             sprintf(err_msg, "The specified webroot directory does not exist.");
             res.status = http_get_status(404);
+        } else {
+            res.status = http_get_status(500);
         }
         goto respond;
     }
@@ -152,7 +155,12 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             size = sizeof(buf0);
             url_encode(uri.uri, buf0, &size);
             if (change_proto) {
-                sprintf(buf1, "https://%s%s", host, buf0);
+                p_len = snprintf(buf1, sizeof(buf1), "https://%s%s", host, buf0);
+                if (p_len < 0 || p_len >= sizeof(buf1)) {
+                    res.status = http_get_status(500);
+                    print(ERR_STR "Header field 'Location' too long" CLR_STR);
+                    goto respond;
+                }
                 http_add_header_field(&res.hdr, "Location", buf1);
             } else {
                 http_add_header_field(&res.hdr, "Location", buf0);

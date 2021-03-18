@@ -69,8 +69,7 @@ int config_load(const char *filename) {
     int i = 0;
     int mode = 0;
     char *ptr = NULL;
-    char host[256], *source, *target;
-    host[0] = 0;
+    char *source, *target;
     while ((ptr = strtok(ptr == NULL ? conf :  NULL, "\n")) != NULL) {
         char *comment = strchr(ptr, '#');
         if (comment != NULL) comment[0] = 0;

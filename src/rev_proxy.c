@@ -14,6 +14,7 @@ struct timeval server_timeout = {.tv_sec = SERVER_TIMEOUT, .tv_usec = 0};
 int rev_proxy_request_header(http_req *req, int enc) {
     char buf1[256];
     char buf2[256];
+    int p_len;
     http_remove_header_field(&req->hdr, "Connection", HTTP_REMOVE_ALL);
     http_add_header_field(&req->hdr, "Connection", "keep-alive");
 
@@ -22,7 +23,11 @@ int rev_proxy_request_header(http_req *req, int enc) {
     if (via == NULL) {
         http_add_header_field(&req->hdr, "Via", buf1);
     } else {
-        sprintf(buf2, "%s, %s", via, buf1);
+        p_len = snprintf(buf2, sizeof(buf2), "%s, %s", via, buf1);
+        if (p_len < 0 || p_len >= sizeof(buf2)) {
+            print(ERR_STR "Header field 'Via' too long" CLR_STR);
+            return -1;
+        }
         http_remove_header_field(&req->hdr, "Via", HTTP_REMOVE_ALL);
         http_add_header_field(&req->hdr, "Via", buf2);
     }
@@ -32,15 +37,23 @@ int rev_proxy_request_header(http_req *req, int enc) {
     int client_ipv6 = strchr(client_addr_str, ':') != NULL;
     int server_ipv6 =  strchr(server_addr_str, ':') != NULL;
 
-    sprintf(buf1, "by=%s%s%s;for=%s%s%s;host=%s;proto=%s",
-            server_ipv6 ? "\"[" : "", server_addr_str, server_ipv6 ? "]\"" : "",
-            client_ipv6 ? "\"[" : "", client_addr_str, client_ipv6 ? "]\"" : "",
-            host, enc ? "https" : "http");
+    p_len = snprintf(buf1, sizeof(buf1), "by=%s%s%s;for=%s%s%s;host=%s;proto=%s",
+                     server_ipv6 ? "\"[" : "", server_addr_str, server_ipv6 ? "]\"" : "",
+                     client_ipv6 ? "\"[" : "", client_addr_str, client_ipv6 ? "]\"" : "",
+                     host, enc ? "https" : "http");
+    if (p_len < 0 || p_len >= sizeof(buf1)) {
+        print(ERR_STR "Appended part of header field 'Forwarded' too long" CLR_STR);
+        return -1;
+    }
     if (forwarded == NULL) {
         // TODO escape IPv6 addresses
         http_add_header_field(&req->hdr, "Forwarded", buf1);
     } else {
-        sprintf(buf2, "%s, %s", forwarded, buf1);
+        p_len = snprintf(buf2, sizeof(buf2), "%s, %s", forwarded, buf1);
+        if (p_len < 0 || p_len >= sizeof(buf2)) {
+            print(ERR_STR "Header field 'Forwarded' too long" CLR_STR);
+            return -1;
+        }
         http_remove_header_field(&req->hdr, "Forwarded", HTTP_REMOVE_ALL);
         http_add_header_field(&req->hdr, "Forwarded", buf2);
     }
@@ -102,13 +115,22 @@ int rev_proxy_request_header(http_req *req, int enc) {
 int rev_proxy_response_header(http_req *req, http_res *res) {
     char buf1[256];
     char buf2[256];
+    int p_len;
 
     char *via = http_get_header_field(&res->hdr, "Via");
-    sprintf(buf1, "HTTP/%s %s", req->version, DEFAULT_HOST);
+    p_len = snprintf(buf1, sizeof(buf1), "HTTP/%s %s", req->version, DEFAULT_HOST);
+    if (p_len < 0 || p_len >= sizeof(buf1)) {
+        print(ERR_STR "Appended part of header field 'Via' too long" CLR_STR);
+        return -1;
+    }
     if (via == NULL) {
         http_add_header_field(&res->hdr, "Via", buf1);
     } else {
-        sprintf(buf2, "%s, %s", via, buf1);
+        p_len = snprintf(buf2, sizeof(buf2), "%s, %s", via, buf1);
+        if (p_len < 0 || p_len >= sizeof(buf2)) {
+            print(ERR_STR "Header field 'Via' too long" CLR_STR);
+            return -1;
+        }
         http_remove_header_field(&res->hdr, "Via", HTTP_REMOVE_ALL);
         http_add_header_field(&res->hdr, "Via", buf2);
     }
@@ -201,7 +223,11 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     print(BLUE_STR "Established new connection with " BLD_STR "[%s]:%i" CLR_STR, buffer, conf->rev_proxy.port);
 
     rev_proxy:
-    rev_proxy_request_header(req, (int) client->enc);
+    ret = rev_proxy_request_header(req, (int) client->enc);
+    if (ret != 0) {
+        res->status = http_get_status(500);
+        return -1;
+    }
 
     ret = http_send_request(&rev_proxy, req);
     if (ret < 0) {
@@ -323,7 +349,11 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     }
     sock_recv(&rev_proxy, buffer, header_len, 0);
 
-    rev_proxy_response_header(req, res);
+    ret = rev_proxy_response_header(req, res);
+    if (ret != 0) {
+        res->status = http_get_status(500);
+        return -1;
+    }
 
     return 0;
 

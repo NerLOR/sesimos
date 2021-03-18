@@ -130,7 +130,7 @@ int fastcgi_init(fastcgi_conn *conn, unsigned int client_num, unsigned int req_n
     if (uri->pathinfo != NULL && strlen(uri->pathinfo) > 0) {
         sprintf(buf0, "/%s", uri->pathinfo);
     } else {
-        sprintf(buf0, "");
+        buf0[0] = 0;
     }
     param_ptr = fastcgi_add_param(param_ptr, "PATH_INFO", buf0);
 
