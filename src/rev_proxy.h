@@ -8,4 +8,13 @@
 #ifndef NECRONDA_SERVER_REV_PROXY_H
 #define NECRONDA_SERVER_REV_PROXY_H
 
+int rev_proxy_request_header(http_req *req, int enc);
+
+int rev_proxy_response_header(http_req *req, http_res *res);
+
+int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client, http_status *custom_status,
+                   char *err_msg);
+
+int rev_proxy_send(sock *client, int chunked, unsigned long len_to_send);
+
 #endif //NECRONDA_SERVER_REV_PROXY_H

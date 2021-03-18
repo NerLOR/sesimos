@@ -11,9 +11,113 @@ sock rev_proxy;
 char *rev_proxy_host = NULL;
 struct timeval server_timeout = {.tv_sec = SERVER_TIMEOUT, .tv_usec = 0};
 
+int rev_proxy_request_header(http_req *req, int enc) {
+    char buf1[256];
+    char buf2[256];
+    http_remove_header_field(&req->hdr, "Connection", HTTP_REMOVE_ALL);
+    http_add_header_field(&req->hdr, "Connection", "keep-alive");
+
+    char *via = http_get_header_field(&req->hdr, "Via");
+    sprintf(buf1, "HTTP/%s %s", req->version, DEFAULT_HOST);
+    if (via == NULL) {
+        http_add_header_field(&req->hdr, "Via", buf1);
+    } else {
+        sprintf(buf2, "%s, %s", via, buf1);
+        http_remove_header_field(&req->hdr, "Via", HTTP_REMOVE_ALL);
+        http_add_header_field(&req->hdr, "Via", buf2);
+    }
+
+    char *host = http_get_header_field(&req->hdr, "Host");
+    char *forwarded = http_get_header_field(&req->hdr, "Forwarded");
+    int client_ipv6 = strchr(client_addr_str, ':') != NULL;
+    int server_ipv6 =  strchr(server_addr_str, ':') != NULL;
+
+    sprintf(buf1, "by=%s%s%s;for=%s%s%s;host=%s;proto=%s",
+            server_ipv6 ? "\"[" : "", server_addr_str, server_ipv6 ? "]\"" : "",
+            client_ipv6 ? "\"[" : "", client_addr_str, client_ipv6 ? "]\"" : "",
+            host, enc ? "https" : "http");
+    if (forwarded == NULL) {
+        // TODO escape IPv6 addresses
+        http_add_header_field(&req->hdr, "Forwarded", buf1);
+    } else {
+        sprintf(buf2, "%s, %s", forwarded, buf1);
+        http_remove_header_field(&req->hdr, "Forwarded", HTTP_REMOVE_ALL);
+        http_add_header_field(&req->hdr, "Forwarded", buf2);
+    }
+
+    char *xff = http_get_header_field(&req->hdr, "X-Forwarded-For");
+    if (xff == NULL) {
+        http_add_header_field(&req->hdr, "X-Forwarded-For", client_addr_str);
+    } else {
+        sprintf(buf1, "%s, %s", xff, client_addr_str);
+        http_remove_header_field(&req->hdr, "X-Forwarded-For", HTTP_REMOVE_ALL);
+        http_add_header_field(&req->hdr, "X-Forwarded-For", buf1);
+    }
+
+    char *xfh = http_get_header_field(&req->hdr, "X-Forwarded-Host");
+    if (xfh == NULL) {
+        if (forwarded == NULL) {
+            http_add_header_field(&req->hdr, "X-Forwarded-Host", host);
+        } else {
+            char *ptr = strchr(forwarded, ',');
+            unsigned long len;
+            if (ptr != NULL) len = ptr - forwarded;
+            else len = strlen(forwarded);
+            ptr = strstr(forwarded, "host=");
+            if ((ptr - forwarded) < len) {
+                char *end = strchr(ptr, ';');
+                if (end == NULL) len -= (ptr - forwarded);
+                else len = (end - ptr);
+                len -= 5;
+                sprintf(buf1, "%.*s", (int) len, ptr + 5);
+                http_add_header_field(&req->hdr, "X-Forwarded-Host", buf1);
+            }
+        }
+    }
+
+    char *xfp = http_get_header_field(&req->hdr, "X-Forwarded-Proto");
+    if (xfp == NULL) {
+        if (forwarded == NULL) {
+            http_add_header_field(&req->hdr, "X-Forwarded-Proto", enc ? "https" : "http");
+        } else {
+            char *ptr = strchr(forwarded, ',');
+            unsigned long len;
+            if (ptr != NULL) len = ptr - forwarded;
+            else len = strlen(forwarded);
+            ptr = strstr(forwarded, "proto=");
+            if ((ptr - forwarded) < len) {
+                char *end = strchr(ptr, ';');
+                if (end == NULL) len -= (ptr - forwarded);
+                else len = (end - ptr);
+                len -= 6;
+                sprintf(buf1, "%.*s", (int) len, ptr + 6);
+                http_add_header_field(&req->hdr, "X-Forwarded-Proto", buf1);
+            }
+        }
+    }
+
+    return 0;
+}
+
+int rev_proxy_response_header(http_req *req, http_res *res) {
+    char buf1[256];
+    char buf2[256];
+
+    char *via = http_get_header_field(&res->hdr, "Via");
+    sprintf(buf1, "HTTP/%s %s", req->version, DEFAULT_HOST);
+    if (via == NULL) {
+        http_add_header_field(&res->hdr, "Via", buf1);
+    } else {
+        sprintf(buf2, "%s, %s", via, buf1);
+        http_remove_header_field(&res->hdr, "Via", HTTP_REMOVE_ALL);
+        http_add_header_field(&res->hdr, "Via", buf2);
+    }
+
+    return 0;
+}
 
 int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client, http_status *custom_status,
-                   char * err_msg) {
+                   char *err_msg) {
     char buffer[CHUNK_SIZE];
     long ret;
     int tries = 0;
@@ -97,10 +201,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     print(BLUE_STR "Established new connection with " BLD_STR "[%s]:%i" CLR_STR, buffer, conf->rev_proxy.port);
 
     rev_proxy:
-    http_remove_header_field(&req->hdr, "Connection", HTTP_REMOVE_ALL);
-    http_add_header_field(&req->hdr, "Connection", "keep-alive");
-    http_remove_header_field(&req->hdr, "X-Forwarded-For", HTTP_REMOVE_ALL);
-    http_add_header_field(&req->hdr, "X-Forwarded-For", client_addr_str);
+    rev_proxy_request_header(req, (int) client->enc);
 
     ret = http_send_request(&rev_proxy, req);
     if (ret < 0) {
@@ -221,6 +322,8 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
         ptr = pos0 + 2;
     }
     sock_recv(&rev_proxy, buffer, header_len, 0);
+
+    rev_proxy_response_header(req, res);
 
     return 0;
 

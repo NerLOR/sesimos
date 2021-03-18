@@ -354,10 +354,18 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 http_add_header_field(&res.hdr, "Transfer-Encoding", "chunked");
             }
         }
-    } else if (conf->type != CONFIG_TYPE_LOCAL) {
+    } else if (conf->type == CONFIG_TYPE_REVERSE_PROXY) {
         print("Reverse proxy for " BLD_STR "%s:%i" CLR_STR, conf->rev_proxy.hostname, conf->rev_proxy.port);
+        http_remove_header_field(&res.hdr, "Date", HTTP_REMOVE_ALL);
+        http_remove_header_field(&res.hdr, "Server", HTTP_REMOVE_ALL);
+
         ret = rev_proxy_init(&req, &res, conf, client, &custom_status, err_msg);
         use_rev_proxy = ret == 0;
+
+        if (http_get_header_field(&res.hdr, "Date") == NULL)
+            http_add_header_field(&res.hdr, "Date", http_get_date(buf0, sizeof(buf0)));
+        if (http_get_header_field(&res.hdr, "Server") == NULL)
+            http_add_header_field(&res.hdr, "Server", SERVER_STR);
     } else {
         print(ERR_STR "Unknown host type: %i" CLR_STR, conf->type);
         res.status = http_get_status(501);
@@ -407,12 +415,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         } else if (http_get_header_field(&res.hdr, "Transfer-Encoding") == NULL) {
             server_keep_alive = 0;
         }
-    } else {
-        http_remove_header_field(&res.hdr, "Server", HTTP_REMOVE_ALL);
-        http_remove_header_field(&res.hdr, "Date", HTTP_REMOVE_ALL);
-        http_add_header_field(&res.hdr, "Date", http_get_date(buf0, sizeof(buf0)));
-        http_add_header_field(&res.hdr, "Server", SERVER_STR);
     }
+
     char *conn = http_get_header_field(&res.hdr, "Connection");
     int close_proxy = conn == NULL || (strcmp(conn, "keep-alive") != 0 && strcmp(conn, "Keep-Alive") != 0);
     http_remove_header_field(&res.hdr, "Connection", HTTP_REMOVE_ALL);
