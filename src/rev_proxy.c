@@ -46,7 +46,6 @@ int rev_proxy_request_header(http_req *req, int enc) {
         return -1;
     }
     if (forwarded == NULL) {
-        // TODO escape IPv6 addresses
         http_add_header_field(&req->hdr, "Forwarded", buf1);
     } else {
         p_len = snprintf(buf2, sizeof(buf2), "%s, %s", forwarded, buf1);
