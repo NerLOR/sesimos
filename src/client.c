@@ -366,14 +366,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         print("Reverse proxy for " BLD_STR "%s:%i" CLR_STR, conf->rev_proxy.hostname, conf->rev_proxy.port);
         http_remove_header_field(&res.hdr, "Date", HTTP_REMOVE_ALL);
         http_remove_header_field(&res.hdr, "Server", HTTP_REMOVE_ALL);
-
         ret = rev_proxy_init(&req, &res, conf, client, &custom_status, err_msg);
         use_rev_proxy = ret == 0;
-
-        if (http_get_header_field(&res.hdr, "Date") == NULL)
-            http_add_header_field(&res.hdr, "Date", http_get_date(buf0, sizeof(buf0)));
-        if (http_get_header_field(&res.hdr, "Server") == NULL)
-            http_add_header_field(&res.hdr, "Server", SERVER_STR);
     } else {
         print(ERR_STR "Unknown host type: %i" CLR_STR, conf->type);
         res.status = http_get_status(501);
@@ -386,35 +380,19 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         }
         if (!use_fastcgi && !use_rev_proxy && file == NULL &&
             ((res.status->code >= 400 && res.status->code < 600) || err_msg[0] != 0)) {
+            http_remove_header_field(&res.hdr, "Date", HTTP_REMOVE_ALL);
+            http_remove_header_field(&res.hdr, "Server", HTTP_REMOVE_ALL);
+            http_add_header_field(&res.hdr, "Date", http_get_date(buf0, sizeof(buf0)));
+            http_add_header_field(&res.hdr, "Server", SERVER_STR);
+
             // TODO list Locations on 3xx Redirects
-            char color[16], mode[16];
-            const char *icon, *document;
-            if (res.status->code >= 100 && res.status->code < 200) {
-                sprintf(mode, "info");
-                sprintf(color, HTTP_COLOR_INFO);
-                icon = http_info_icon;
-                document = http_info_document;
-            } else if (res.status->code >= 200 && res.status->code < 300) {
-                sprintf(mode, "success");
-                sprintf(color, HTTP_COLOR_SUCCESS);
-                icon = http_success_icon;
-                document = http_success_document;
-            } else if (res.status->code >= 300 && res.status->code < 400) {
-                sprintf(mode, "warning");
-                sprintf(color, HTTP_COLOR_WARNING);
-                icon = http_warning_icon;
-                document = http_warning_document;
-            } else if (res.status->code >= 400 && res.status->code < 600) {
-                sprintf(mode, "error");
-                sprintf(color, HTTP_COLOR_ERROR);
-                icon = http_error_icon;
-                document = http_error_document;
-            }
-            http_error_msg *http_msg = http_get_error_msg(res.status->code);
-            sprintf(msg_pre_buf, document, res.status->code, res.status->msg,
-                    http_msg != NULL ? http_msg->err_msg : "", err_msg[0] != 0 ? err_msg : "");
-            content_length = sprintf(msg_buf, http_default_document, res.status->code, res.status->msg,
-                                     msg_pre_buf, mode, icon, color, host);
+            const http_doc_info *info = http_get_status_info(res.status);
+            const http_status_msg *http_msg = http_get_error_msg(res.status);
+
+            sprintf(msg_pre_buf, info->doc, res.status->code, res.status->msg,
+                    http_msg != NULL ? http_msg->msg : "", err_msg[0] != 0 ? err_msg : "");
+            content_length = snprintf(msg_buf, sizeof(msg_buf), http_default_document, res.status->code,
+                                      res.status->msg, msg_pre_buf, info->mode, info->icon, info->color, host);
             http_add_header_field(&res.hdr, "Content-Type", "text/html; charset=UTF-8");
         }
         if (content_length >= 0) {

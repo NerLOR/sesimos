@@ -244,7 +244,7 @@ int http_send_request(sock *server, http_req *req) {
     return 0;
 }
 
-http_status *http_get_status(unsigned short status_code) {
+const http_status *http_get_status(unsigned short status_code) {
     for (int i = 0; i < sizeof(http_statuses) / sizeof(http_status); i++) {
         if (http_statuses[i].code == status_code) {
             return &http_statuses[i];
@@ -253,16 +253,17 @@ http_status *http_get_status(unsigned short status_code) {
     return NULL;
 }
 
-http_error_msg *http_get_error_msg(unsigned short status_code) {
-    for (int i = 0; i < sizeof(http_status_messages) / sizeof(http_error_msg); i++) {
-        if (http_status_messages[i].code == status_code) {
+const http_status_msg *http_get_error_msg(const http_status *status) {
+    unsigned short code = status->code;
+    for (int i = 0; i < sizeof(http_status_messages) / sizeof(http_status_msg); i++) {
+        if (http_status_messages[i].code == code) {
             return &http_status_messages[i];
         }
     }
     return NULL;
 }
 
-const char *http_get_status_color(http_status *status) {
+const char *http_get_status_color(const http_status *status) {
     unsigned short code = status->code;
     if (code >= 100 && code < 200) {
         return HTTP_1XX_STR;
@@ -288,4 +289,24 @@ char *http_get_date(char *buf, size_t size) {
     time_t rawtime;
     time(&rawtime);
     return http_format_date(rawtime, buf, size);
+}
+
+const http_doc_info *http_get_status_info(const http_status *status) {
+    unsigned short code = status->code;
+    static http_doc_info info[] = {
+            {"info", HTTP_COLOR_INFO, http_info_icon, http_info_document},
+            {"success", HTTP_COLOR_SUCCESS, http_success_icon, http_success_document},
+            {"warning", HTTP_COLOR_WARNING, http_warning_icon, http_warning_document},
+            {"error", HTTP_COLOR_ERROR, http_error_icon, http_error_document}
+    };
+    if (code >= 100 && code < 200) {
+        return &info[0];
+    } else if ((code >= 200 && code < 300) || code == 304) {
+        return &info[1];
+    } else if (code >= 300 && code < 400) {
+        return &info[2];
+    } else if (code >= 400 && code < 600) {
+        return &info[3];
+    }
+    return NULL;
 }

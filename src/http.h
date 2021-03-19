@@ -33,8 +33,15 @@ typedef struct {
 
 typedef struct {
     unsigned short code;
-    char *err_msg;
-} http_error_msg;
+    const char *msg;
+} http_status_msg;
+
+typedef struct {
+    char mode[8];
+    char color[8];
+    const char *icon;
+    const char *doc;
+} http_doc_info;
 
 typedef struct {
     char field_num;
@@ -49,12 +56,12 @@ typedef struct {
 } http_req;
 
 typedef struct {
-    http_status *status;
+    const http_status *status;
     char version[3];
     http_hdr hdr;
 } http_res;
 
-http_status http_statuses[] = {
+const http_status http_statuses[] = {
         {100, "Informational", "Continue"},
         {101, "Informational", "Switching Protocols"},
 
@@ -102,7 +109,7 @@ http_status http_statuses[] = {
         {505, "Server Error",  "HTTP Version Not Supported"},
 };
 
-http_error_msg http_status_messages[] = {
+const http_status_msg http_status_messages[] = {
         {100, "The client SHOULD continue with its request."},
         {101, "The server understands and is willing to comply with the clients request, via the Upgrade message header field, for a change in the application protocol being used on this connection."},
 
@@ -149,7 +156,7 @@ http_error_msg http_status_messages[] = {
         {505, "The server does not support, or refuses to support, the HTTP protocol version that was used in the request message."}
 };
 
-const char *http_default_document =
+const char http_default_document[] =
         "<!DOCTYPE html>\n"
         "<html lang=\"en\">\n"
         "<head>\n"
@@ -189,52 +196,52 @@ const char *http_default_document =
         "</body>\n"
         "</html>\n";
 
-const char *http_error_document =
+const char http_error_document[] =
         "\t\t\t<h1>%1$i</h1>\n"
         "\t\t\t<h2>%2$s :&#xFEFF;(</h2>\n"
         "\t\t\t<p>%3$s</p>\n"
         "\t\t\t<p>%4$s</p>\n";
 
-const char *http_error_icon =
+const char http_error_icon[] =
         "\t<link rel=\"shortcut icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
         "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
         "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiNDMDAwMDAiIHN0eWxlPSJmb250LWZhbWls"
         "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjooPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
 
 
-const char *http_warning_document =
+const char http_warning_document[] =
         "\t\t\t<h1>%1$i</h1>\n"
         "\t\t\t<h2>%2$s :&#xFEFF;o</h2>\n"
         "\t\t\t<p>%3$s</p>\n"
         "\t\t\t<p>%4$s</p>\n";
 
-const char *http_warning_icon =
+const char http_warning_icon[] =
         "\t<link rel=\"shortcut icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
         "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
         "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiNFMEMwMDAiIHN0eWxlPSJmb250LWZhbWls"
         "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjpvPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
 
 
-const char *http_success_document =
+const char http_success_document[] =
         "\t\t\t<h1>%1$i</h1>\n"
         "\t\t\t<h2>%2$s :&#xFEFF;)</h2>\n"
         "\t\t\t<p>%3$s</p>\n"
         "\t\t\t<p>%4$s</p>\n";
 
-const char *http_success_icon =
+const char http_success_icon[] =
         "\t<link rel=\"shortcut icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
         "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
         "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiMwMDgwMDAiIHN0eWxlPSJmb250LWZhbWls"
         "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjopPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
 
 
-const char *http_info_document =
+const char http_info_document[] =
         "\t\t\t<h1>%1$i</h1>\n"
         "\t\t\t<h2>%2$s :&#xFEFF;)</h2>\n"
         "\t\t\t<p>%3$s</p>\n"
         "\t\t\t<p>%4$s</p>\n";
 
-const char *http_info_icon =
+const char http_info_icon[] =
         "\t<link rel=\"shortcut icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
         "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
         "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiM2MDYwNjAiIHN0eWxlPSJmb250LWZhbWls"
@@ -263,14 +270,16 @@ int http_send_response(sock *client, http_res *res);
 
 int http_send_request(sock *server, http_req *req);
 
-http_status *http_get_status(unsigned short status_code);
+const http_status *http_get_status(unsigned short status_code);
 
-http_error_msg *http_get_error_msg(unsigned short status_code);
+const http_status_msg *http_get_error_msg(const http_status *status);
 
-const char *http_get_status_color(http_status *status);
+const char *http_get_status_color(const http_status *status);
 
 char *http_format_date(time_t time, char *buf, size_t size);
 
 char *http_get_date(char *buf, size_t size);
+
+const http_doc_info *http_get_status_info(const http_status *status);
 
 #endif //NECRONDA_SERVER_HTTP_H
