@@ -61,7 +61,7 @@ typedef struct {
     http_hdr hdr;
 } http_res;
 
-const http_status http_statuses[] = {
+static const http_status http_statuses[] = {
         {100, "Informational", "Continue"},
         {101, "Informational", "Switching Protocols"},
 
@@ -109,7 +109,7 @@ const http_status http_statuses[] = {
         {505, "Server Error",  "HTTP Version Not Supported"},
 };
 
-const http_status_msg http_status_messages[] = {
+static const http_status_msg http_status_messages[] = {
         {100, "The client SHOULD continue with its request."},
         {101, "The server understands and is willing to comply with the clients request, via the Upgrade message header field, for a change in the application protocol being used on this connection."},
 
@@ -156,7 +156,7 @@ const http_status_msg http_status_messages[] = {
         {505, "The server does not support, or refuses to support, the HTTP protocol version that was used in the request message."}
 };
 
-const char http_default_document[] =
+static const char http_default_document[] =
         "<!DOCTYPE html>\n"
         "<html lang=\"en\">\n"
         "<head>\n"
@@ -196,53 +196,53 @@ const char http_default_document[] =
         "</body>\n"
         "</html>\n";
 
-const char http_error_document[] =
+static const char http_error_document[] =
         "\t\t\t<h1>%1$i</h1>\n"
         "\t\t\t<h2>%2$s :&#xFEFF;(</h2>\n"
         "\t\t\t<p>%3$s</p>\n"
         "\t\t\t<p>%4$s</p>\n";
 
-const char http_error_icon[] =
-        "\t<link rel=\"shortcut icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
+static const char http_error_icon[] =
+        "\t<link rel=\"alternate icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
         "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
         "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiNDMDAwMDAiIHN0eWxlPSJmb250LWZhbWls"
         "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjooPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
 
 
-const char http_warning_document[] =
+static const char http_warning_document[] =
         "\t\t\t<h1>%1$i</h1>\n"
         "\t\t\t<h2>%2$s :&#xFEFF;o</h2>\n"
         "\t\t\t<p>%3$s</p>\n"
         "\t\t\t<p>%4$s</p>\n";
 
-const char http_warning_icon[] =
-        "\t<link rel=\"shortcut icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
+static const char http_warning_icon[] =
+        "\t<link rel=\"alternate icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
         "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
         "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiNFMEMwMDAiIHN0eWxlPSJmb250LWZhbWls"
         "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjpvPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
 
 
-const char http_success_document[] =
+static const char http_success_document[] =
         "\t\t\t<h1>%1$i</h1>\n"
         "\t\t\t<h2>%2$s :&#xFEFF;)</h2>\n"
         "\t\t\t<p>%3$s</p>\n"
         "\t\t\t<p>%4$s</p>\n";
 
-const char http_success_icon[] =
-        "\t<link rel=\"shortcut icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
+static const char http_success_icon[] =
+        "\t<link rel=\"alternate icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
         "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
         "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiMwMDgwMDAiIHN0eWxlPSJmb250LWZhbWls"
         "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjopPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
 
 
-const char http_info_document[] =
+static const char http_info_document[] =
         "\t\t\t<h1>%1$i</h1>\n"
         "\t\t\t<h2>%2$s :&#xFEFF;)</h2>\n"
         "\t\t\t<p>%3$s</p>\n"
         "\t\t\t<p>%4$s</p>\n";
 
-const char http_info_icon[] =
-        "\t<link rel=\"shortcut icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
+static const char http_info_icon[] =
+        "\t<link rel=\"alternate icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
         "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
         "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiM2MDYwNjAiIHN0eWxlPSJmb250LWZhbWls"
         "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjopPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
