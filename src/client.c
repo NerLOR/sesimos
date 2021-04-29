@@ -175,6 +175,20 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     }
 
     if (conf->type == CONFIG_TYPE_LOCAL) {
+        if (strcmp(req.method, "TRACE") == 0) {
+            res.status = http_get_status(200);
+            http_add_header_field(&res.hdr, "Content-Type", "message/http");
+
+            content_length = snprintf(msg_buf, sizeof(msg_buf) - content_length, "%s %s HTTP/%s\r\n",
+                                      req.method, req.uri, req.version);
+            for (int i = 0; i < req.hdr.field_num; i++) {
+                content_length += snprintf(msg_buf + content_length, sizeof(msg_buf) - content_length, "%s: %s\r\n",
+                                           req.hdr.fields[i][0], req.hdr.fields[i][1]);
+            }
+
+            goto respond;
+        }
+
         if (strncmp(uri.req_path, "/.well-known/", 13) != 0 && strstr(uri.path, "/.") != NULL) {
             res.status = http_get_status(403);
             sprintf(err_msg, "Parts of this URI are hidden.");
@@ -198,7 +212,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
         if (uri.is_static) {
             res.status = http_get_status(200);
-            http_add_header_field(&res.hdr, "Allow", "GET, HEAD");
+            http_add_header_field(&res.hdr, "Allow", "GET, HEAD, TRACE");
             http_add_header_field(&res.hdr, "Accept-Ranges", "bytes");
             if (strcmp(req.method, "GET") != 0 && strcmp(req.method, "HEAD") != 0) {
                 res.status = http_get_status(405);
