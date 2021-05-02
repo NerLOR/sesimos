@@ -33,8 +33,8 @@ int url_encode_component(const char *str, char *enc, ssize_t *size) {
         }
         ch = str[i];
         if (ch == ':' || ch == '/' || ch == '?' || ch == '#' || ch == '[' || ch == ']' || ch == '@' || ch == '!' ||
-            ch == '$' || ch == '&' || ch == '\'' || ch == '(' || ch == ')' || ch == '*' || ch == '+' || ch == ',' ||
-            ch == ';' || ch == '=' || ch < ' ' || ch > '~') {
+                ch == '$' || ch == '&' || ch == '\'' || ch == '(' || ch == ')' || ch == '*' || ch == '+' || ch == ',' ||
+                ch == ';' || ch == '=' || ch < ' ' || ch > '~') {
             if ((ptr - enc + 2) >= *size) {
                 return -1;
             }

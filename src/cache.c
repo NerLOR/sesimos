@@ -286,7 +286,7 @@ int cache_filename_comp_invalid(const char *filename) {
     int i;
     for (i = 0; i < FILE_CACHE_SIZE; i++) {
         if (cache[i].filename[0] != 0 && strlen(cache[i].filename) == strlen(filename) &&
-            strcmp(cache[i].filename, filename) == 0) {
+                strcmp(cache[i].filename, filename) == 0) {
             if (cache[i].is_updating) {
                 return 0;
             } else {
@@ -312,7 +312,7 @@ int uri_cache_init(http_uri *uri) {
     int i;
     for (i = 0; i < FILE_CACHE_SIZE; i++) {
         if (cache[i].filename[0] != 0 && strlen(cache[i].filename) == strlen(uri->filename) &&
-            strcmp(cache[i].filename, uri->filename) == 0) {
+                strcmp(cache[i].filename, uri->filename) == 0) {
             uri->meta = &cache[i].meta;
             if (cache[i].is_updating) {
                 return 0;

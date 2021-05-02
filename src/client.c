@@ -252,8 +252,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             char *if_modified_since = http_get_header_field(&req.hdr, "If-Modified-Since");
             char *if_none_match = http_get_header_field(&req.hdr, "If-None-Match");
             if ((if_none_match != NULL && strstr(if_none_match, uri.meta->etag) == NULL) ||
-                (accept_if_modified_since && if_modified_since != NULL &&
-                 strcmp(if_modified_since, last_modified) == 0)) {
+                    (accept_if_modified_since && if_modified_since != NULL &&
+                    strcmp(if_modified_since, last_modified) == 0)) {
                 res.status = http_get_status(304);
                 goto respond;
             }
@@ -304,7 +304,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
             char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
             if (uri.meta->filename_comp[0] != 0 && accept_encoding != NULL &&
-                strstr(accept_encoding, "deflate") != NULL) {
+                    strstr(accept_encoding, "deflate") != NULL) {
                 file = fopen(uri.meta->filename_comp, "rb");
                 if (file == NULL) {
                     cache_filename_comp_invalid(uri.filename);
@@ -407,7 +407,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             http_add_header_field(&res.hdr, "Accept-Ranges", "none");
         }
         if (!use_fastcgi && !use_rev_proxy && file == NULL &&
-            ((res.status->code >= 400 && res.status->code < 600) || err_msg[0] != 0)) {
+                ((res.status->code >= 400 && res.status->code < 600) || err_msg[0] != 0)) {
             http_remove_header_field(&res.hdr, "Date", HTTP_REMOVE_ALL);
             http_remove_header_field(&res.hdr, "Server", HTTP_REMOVE_ALL);
             http_add_header_field(&res.hdr, "Date", http_get_date(buf0, sizeof(buf0)));
