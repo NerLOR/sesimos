@@ -28,4 +28,6 @@ int url_encode(const char *str, char *enc, ssize_t *size);
 
 int url_decode(const char *str, char *dec, ssize_t *size);
 
+int mime_is_text(const char *type);
+
 #endif //NECRONDA_SERVER_UTILS_H

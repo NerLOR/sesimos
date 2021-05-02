@@ -174,6 +174,12 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         goto respond;
     }
 
+    if (http_get_header_field(&req.hdr, "Transfer-Encoding") != NULL) {
+        sprintf(err_msg, "This server is unable to process requests with the Transfer-Encoding header field.");
+        res.status = http_get_status(501);
+        goto respond;
+    }
+
     if (conf->type == CONFIG_TYPE_LOCAL) {
         if (strcmp(req.method, "TRACE") == 0) {
             res.status = http_get_status(200);
@@ -215,6 +221,12 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             http_add_header_field(&res.hdr, "Accept-Ranges", "bytes");
             if (strcmp(req.method, "GET") != 0 && strcmp(req.method, "HEAD") != 0) {
                 res.status = http_get_status(405);
+                goto respond;
+            }
+
+            if (http_get_header_field(&req.hdr, "Content-Length") != NULL) {
+                res.status = http_get_status(400);
+                sprintf(err_msg, "A GET request must not contain a payload");
                 goto respond;
             }
 
@@ -319,13 +331,9 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 goto respond;
             }
 
-            if (strcmp(req.method, "POST") == 0 || strcmp(req.method, "PUT") == 0) {
-                char *client_content_length = http_get_header_field(&req.hdr, "Content-Length");
-                unsigned long client_content_len;
-                if (client_content_length == NULL) {
-                    goto fastcgi_end;
-                }
-                client_content_len = strtoul(client_content_length, NULL, 10);
+            char *client_content_length = http_get_header_field(&req.hdr, "Content-Length");
+            if (client_content_length != NULL) {
+                unsigned long client_content_len = strtoul(client_content_length, NULL, 10);
                 ret = fastcgi_receive(&php_fpm, client, client_content_len);
                 if (ret != 0) {
                     if (ret < 0) {
@@ -337,7 +345,6 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                     goto respond;
                 }
             }
-            fastcgi_end:
             fastcgi_close_stdin(&php_fpm);
 
             ret = fastcgi_header(&php_fpm, &res, err_msg);
@@ -364,13 +371,18 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 }
             }
 
-            char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
-            if (accept_encoding != NULL && strstr(accept_encoding, "deflate") != NULL) {
-                http_add_header_field(&res.hdr, "Content-Encoding", "deflate");
-            }
-
             content_length = -1;
             use_fastcgi = 1;
+
+            char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
+            char *content_type = http_get_header_field(&res.hdr, "Content-Type");
+            char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding");
+            if (mime_is_compressible(content_type) && content_encoding == NULL &&
+                    accept_encoding != NULL && strstr(accept_encoding, "deflate") != NULL) {
+                http_add_header_field(&res.hdr, "Content-Encoding", "deflate");
+                use_fastcgi = 2;
+            }
+
             if (http_get_header_field(&res.hdr, "Content-Length") == NULL) {
                 http_add_header_field(&res.hdr, "Transfer-Encoding", "chunked");
             }
@@ -466,9 +478,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         } else if (use_fastcgi) {
             char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
             int chunked = transfer_encoding != NULL && strcmp(transfer_encoding, "chunked") == 0;
-            char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding");
-            int comp = content_encoding != NULL && strcmp(content_encoding, "deflate") == 0;
-            int flags = (chunked ? FASTCGI_CHUNKED : 0) | (comp ? FASTCGI_COMPRESS : 0);
+            int flags = (chunked ? FASTCGI_CHUNKED : 0) | ((use_fastcgi == 2) ? FASTCGI_COMPRESS : 0);
             fastcgi_send(&php_fpm, client, flags);
         } else if (use_rev_proxy) {
             char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
