@@ -212,7 +212,6 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
         if (uri.is_static) {
             res.status = http_get_status(200);
-            http_add_header_field(&res.hdr, "Allow", "GET, HEAD, TRACE");
             http_add_header_field(&res.hdr, "Accept-Ranges", "bytes");
             if (strcmp(req.method, "GET") != 0 && strcmp(req.method, "HEAD") != 0) {
                 res.status = http_get_status(405);
@@ -389,6 +388,9 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
     respond:
     if (!use_rev_proxy) {
+        if (conf->type == CONFIG_TYPE_LOCAL && uri.is_static && res.status->code == 405) {
+            http_add_header_field(&res.hdr, "Allow", "GET, HEAD, TRACE");
+        }
         if (http_get_header_field(&res.hdr, "Accept-Ranges") == NULL) {
             http_add_header_field(&res.hdr, "Accept-Ranges", "none");
         }
