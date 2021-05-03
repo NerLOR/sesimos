@@ -6,7 +6,30 @@
  */
 
 #include "client.h"
+#include "lib/utils.h"
+#include "lib/config.h"
+#include "lib/sock.h"
+#include "lib/http.h"
+#include "lib/rev_proxy.h"
+#include "lib/fastcgi.h"
+#include "lib/cache.h"
 
+#include <string.h>
+#include <sys/select.h>
+#include <errno.h>
+#include <unistd.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#include <signal.h>
+#include <arpa/inet.h>
+
+int server_keep_alive = 1;
+struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
+
+int server_keep_alive;
+char *log_client_prefix, *log_conn_prefix, *log_req_prefix, *client_geoip;
+char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr, *client_host_str;
+struct timeval client_timeout;
 
 host_config *get_host_config(const char *host) {
     for (int i = 0; i < MAX_HOST_CONFIG; i++) {
@@ -400,7 +423,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
     respond:
     if (!use_rev_proxy) {
-        if (conf->type == CONFIG_TYPE_LOCAL && uri.is_static && res.status->code == 405) {
+        if (conf != NULL && conf->type == CONFIG_TYPE_LOCAL && uri.is_static && res.status->code == 405) {
             http_add_header_field(&res.hdr, "Allow", "GET, HEAD, TRACE");
         }
         if (http_get_header_field(&res.hdr, "Accept-Ranges") == NULL) {

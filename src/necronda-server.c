@@ -8,21 +8,35 @@
 #define _POSIX_C_SOURCE 199309L
 
 #include "necronda-server.h"
-
-#include "config.c"
-#include "utils.c"
-#include "uri.c"
-#include "cache.c"
-#include "sock.c"
-#include "http.c"
-#include "rev_proxy.c"
 #include "client.c"
-#include "fastcgi.c"
 
+#include "lib/cache.h"
+#include "lib/config.h"
+#include "lib/sock.h"
+#include "lib/rev_proxy.h"
+
+#include <stdio.h>
+#include <sys/socket.h>
+#include <signal.h>
+#include <unistd.h>
+#include <sys/select.h>
+#include <string.h>
+#include <errno.h>
+#include <arpa/inet.h>
+#include <wait.h>
+#include <sys/types.h>
+#include <openssl/err.h>
+#include <openssl/pem.h>
+#include <openssl/ssl.h>
+#include <openssl/conf.h>
+#include <maxminddb.h>
+#include <dirent.h>
 
 int active = 1;
 const char *config_file;
-
+int sockets[NUM_SOCKETS];
+pid_t children[MAX_CHILDREN];
+MMDB_s mmdbs[MAX_MMDB];
 
 void openssl_init() {
     SSL_library_init();
@@ -273,10 +287,7 @@ int main(int argc, const char *argv[]) {
     SSL_CTX_set_cipher_list(client.ctx, "HIGH:!aNULL:!kRSA:!PSK:!SRP:!MD5:!RC4");
     SSL_CTX_set_ecdh_auto(client.ctx, 1);
 
-    rev_proxy.buf = NULL;
-    rev_proxy.buf_len = 0;
-    rev_proxy.buf_off = 0;
-    rev_proxy.ctx = SSL_CTX_new(TLS_client_method());
+    rev_proxy_preload();
 
     if (SSL_CTX_use_certificate_chain_file(client.ctx, cert_file) != 1) {
         fprintf(stderr, ERR_STR "Unable to load certificate chain file: %s: %s" CLR_STR "\n",

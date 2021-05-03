@@ -1,11 +1,16 @@
 /**
  * Necronda Web Server
  * Basic TCP and TLS socket
- * src/sock.c
+ * src/lib/sock.c
  * Lorenz Stechauner, 2021-01-07
  */
 
 #include "sock.h"
+#include <openssl/err.h>
+#include <openssl/ssl.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 const char *sock_strerror(sock *s) {
     if (s->_last_ret == 0) {

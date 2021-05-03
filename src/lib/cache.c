@@ -1,12 +1,26 @@
 /**
  * Necronda Web Server
  * File cache implementation
- * src/cache.c
+ * src/lib/cache.c
  * Lorenz Stechauner, 2020-12-19
  */
 
 #include "cache.h"
+#include "utils.h"
+#include "../necronda-server.h"
+#include <stdio.h>
+#include <zlib.h>
+#include <magic.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <string.h>
+#include <errno.h>
+#include <signal.h>
+#include <openssl/sha.h>
 
+int cache_continue = 1;
+magic_t magic;
+cache_entry *cache;
 
 int magic_init() {
     magic = magic_open(MAGIC_MIME);

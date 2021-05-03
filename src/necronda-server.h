@@ -8,26 +8,8 @@
 #ifndef NECRONDA_SERVER_NECRONDA_SERVER_H
 #define NECRONDA_SERVER_NECRONDA_SERVER_H
 
-#include <stdio.h>
-#include <sys/socket.h>
-#include <signal.h>
-#include <unistd.h>
-#include <sys/select.h>
-#include <string.h>
-#include <errno.h>
-#include <arpa/inet.h>
-#include <wait.h>
 #include <sys/types.h>
-#include <stdio.h>
-#include <openssl/err.h>
-#include <openssl/pem.h>
-#include <openssl/ssl.h>
-#include <openssl/conf.h>
-#include <openssl/engine.h>
-#include <openssl/dh.h>
 #include <maxminddb.h>
-#include <dirent.h>
-
 
 #define NUM_SOCKETS 2
 #define MAX_CHILDREN 1024
@@ -77,10 +59,8 @@
 #define DEFAULT_CONFIG_FILE "/etc/necronda-server/necronda-server.conf"
 #endif
 
-int sockets[NUM_SOCKETS];
-pid_t children[MAX_CHILDREN];
-MMDB_s mmdbs[MAX_MMDB];
-
-char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr, *client_host_str;
+extern int sockets[NUM_SOCKETS];
+extern pid_t children[MAX_CHILDREN];
+extern MMDB_s mmdbs[MAX_MMDB];
 
 #endif //NECRONDA_SERVER_NECRONDA_SERVER_H

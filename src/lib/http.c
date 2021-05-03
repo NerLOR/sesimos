@@ -1,12 +1,14 @@
 /**
  * Necronda Web Server
  * HTTP implementation
- * src/net/http.c
+ * src/lib/http.c
  * Lorenz Stechauner, 2020-12-09
  */
 
 #include "http.h"
-
+#include "utils.h"
+#include "../necronda-server.h"
+#include <string.h>
 
 void http_to_camel_case(char *str, int mode) {
     char last = '-';
@@ -245,7 +247,7 @@ int http_send_request(sock *server, http_req *req) {
 }
 
 const http_status *http_get_status(unsigned short status_code) {
-    for (int i = 0; i < sizeof(http_statuses) / sizeof(http_status); i++) {
+    for (int i = 0; i < http_statuses_size / sizeof(http_status); i++) {
         if (http_statuses[i].code == status_code) {
             return &http_statuses[i];
         }
@@ -255,7 +257,7 @@ const http_status *http_get_status(unsigned short status_code) {
 
 const http_status_msg *http_get_error_msg(const http_status *status) {
     unsigned short code = status->code;
-    for (int i = 0; i < sizeof(http_status_messages) / sizeof(http_status_msg); i++) {
+    for (int i = 0; i < http_status_messages_size / sizeof(http_status_msg); i++) {
         if (http_status_messages[i].code == code) {
             return &http_status_messages[i];
         }

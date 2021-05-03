@@ -1,15 +1,32 @@
 /**
  * Necronda Web Server
  * Reverse proxy
- * src/rev_proxy.c
+ * src/lib/rev_proxy.c
  * Lorenz Stechauner, 2021-01-07
  */
 
 #include "rev_proxy.h"
+#include "utils.h"
+#include "../client.h"
+#include "../necronda-server.h"
+#include <openssl/ssl.h>
+#include <string.h>
+#include <errno.h>
+#include <openssl/err.h>
+#include <arpa/inet.h>
+#include <sys/time.h>
 
 sock rev_proxy;
 char *rev_proxy_host = NULL;
 struct timeval server_timeout = {.tv_sec = SERVER_TIMEOUT, .tv_usec = 0};
+
+int rev_proxy_preload() {
+    rev_proxy.buf = NULL;
+    rev_proxy.buf_len = 0;
+    rev_proxy.buf_off = 0;
+    rev_proxy.ctx = SSL_CTX_new(TLS_client_method());
+    return 0;
+}
 
 int rev_proxy_request_header(http_req *req, int enc) {
     char buf1[256];

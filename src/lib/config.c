@@ -1,12 +1,22 @@
 /**
  * Necronda Web Server
  * Configuration file loader
- * src/config.c
+ * src/lib/config.c
  * Lorenz Stechauner, 2021-01-05
  */
 
 #include "config.h"
+#include "../necronda-server.h"
+#include <stdio.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <string.h>
+#include <errno.h>
+#include <malloc.h>
+#include <stdlib.h>
 
+host_config *config;
+char cert_file[256], key_file[256], geoip_dir[256], dns_server[256];
 
 int config_init() {
     int shm_id = shmget(SHM_KEY_CONFIG, MAX_HOST_CONFIG * sizeof(host_config), IPC_CREAT | IPC_EXCL | 0640);

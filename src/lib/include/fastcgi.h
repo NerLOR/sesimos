@@ -1,48 +1,12 @@
 /**
  * Necronda Web Server
- * FastCGI interface implementation (header file)
- * src/fastcgi.h
- * Lorenz Stechauner, 2020-12-26
+ * FastCGI header file
+ * src/lib/include/fastcgi.h
+ * Lorenz Stechauner, 2021-05-03
  */
 
-#ifndef NECRONDA_SERVER_FASTCGI_H
-#define NECRONDA_SERVER_FASTCGI_H
-
-#define FASTCGI_CHUNKED 1
-#define FASTCGI_COMPRESS 2
-
-#include "necronda-server.h"
-#include "http.h"
-#include "uri.h"
-#include "client.h"
-
-#include <sys/un.h>
-#include <zlib.h>
-
-
-typedef struct {
-    int socket;
-    unsigned short req_id;
-    char *out_buf;
-    unsigned short out_len;
-    unsigned short out_off;
-} fastcgi_conn;
-
-char *fastcgi_add_param(char *buf, const char *key, const char *value);
-
-int fastcgi_init(fastcgi_conn *conn, unsigned int client_num, unsigned int req_num, const sock *client,
-                 const http_req *req, const http_uri *uri);
-
-int fastcgi_close_stdin(fastcgi_conn *conn);
-
-int fastcgi_php_error(const char *msg, int msg_len, char *err_msg);
-
-int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg);
-
-int fastcgi_send(fastcgi_conn *conn, sock *client, int flags);
-
-int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len);
-
+#ifndef NECRONDA_SERVER_EXTERN_FASTCGI_H
+#define NECRONDA_SERVER_EXTERN_FASTCGI_H
 
 /*
  * Listening socket file number
@@ -155,4 +119,4 @@ typedef struct {
     FCGI_UnknownTypeBody body;
 } FCGI_UnknownTypeRecord;
 
-#endif //NECRONDA_SERVER_FASTCGI_H
+#endif //NECRONDA_SERVER_EXTERN_FASTCGI_H

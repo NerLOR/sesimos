@@ -1,12 +1,19 @@
 /**
  * Necronda Web Server
  * Reverse proxy (header file)
- * src/rev_proxy.h
+ * src/lib/rev_proxy.h
  * Lorenz Stechauner, 2021-01-07
  */
 
 #ifndef NECRONDA_SERVER_REV_PROXY_H
 #define NECRONDA_SERVER_REV_PROXY_H
+
+#include "http.h"
+#include "config.h"
+
+extern sock rev_proxy;
+
+int rev_proxy_preload();
 
 int rev_proxy_request_header(http_req *req, int enc);
 

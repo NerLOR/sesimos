@@ -1,20 +1,19 @@
 /**
  * Necronda Web Server
  * URI and path handlers (header file)
- * src/uri.h
+ * src/lib/uri.h
  * Lorenz Stechauner, 2020-12-13
  */
 
 #ifndef NECRONDA_SERVER_URI_H
 #define NECRONDA_SERVER_URI_H
 
+#include <sys/stat.h>
+
 #define URI_DIR_MODE_NO_VALIDATION 0
 #define URI_DIR_MODE_FORBIDDEN 1
 #define URI_DIR_MODE_LIST 2
 #define URI_DIR_MODE_INFO 3
-
-#include <sys/stat.h>
-
 
 typedef struct {
     char etag[64];

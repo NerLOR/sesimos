@@ -1,12 +1,14 @@
 /**
  * Necronda Web Server
  * URI and path handlers
- * src/uri.c
+ * src/lib/uri.c
  * Lorenz Stechauner, 2020-12-13
  */
 
 #include "uri.h"
-
+#include "utils.h"
+#include <stdlib.h>
+#include <string.h>
 
 int path_is_directory(const char *path) {
     struct stat statbuf;
@@ -51,12 +53,12 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     } else {
         query[0] = 0;
         query++;
-        ssize_t size = strlen(query) + 1;
+        long size = (long) strlen(query) + 1;
         uri->query = malloc(size);
         strcpy(uri->query, query);
     }
 
-    ssize_t size = strlen(uri_str) + 1;
+    long size = (long) strlen(uri_str) + 1;
     uri->req_path = malloc(size);
     url_decode(uri_str, uri->req_path, &size);
     if (query != NULL) {
@@ -66,7 +68,7 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
         return 2;
     }
 
-    size = strlen(uri->req_path) + 1;
+    size = (long) strlen(uri->req_path) + 1;
     uri->path = malloc(size);
     uri->pathinfo = malloc(size);
 
@@ -109,7 +111,7 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
         char *ptr;
         parent_dir:
         ptr = strrchr(uri->path, '/');
-        size = strlen(ptr);
+        size = (long) strlen(ptr);
         sprintf(buf3, "%.*s%s", (int) size, ptr, uri->pathinfo);
         strcpy(uri->pathinfo, buf3);
         ptr[0] = 0;
@@ -122,7 +124,7 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     if (path_is_file(buf0)) {
         uri->filename = malloc(strlen(buf0) + 1);
         strcpy(uri->filename, buf0);
-        ssize_t len = strlen(uri->path);
+        long len = (long) strlen(uri->path);
         if (strcmp(uri->path + len - 5, ".html") == 0) {
             uri->path[len - 5] = 0;
         } else if (strcmp(uri->path + len - 4, ".php") == 0) {

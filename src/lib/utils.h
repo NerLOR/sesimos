@@ -1,14 +1,16 @@
 /**
  * Necronda Web Server
  * Utilities (header file)
- * src/utils.h
+ * src/lib/utils.h
  * Lorenz Stechauner, 2020-12-03
  */
 
 #ifndef NECRONDA_SERVER_UTILS_H
 #define NECRONDA_SERVER_UTILS_H
 
-char *log_prefix;
+#include <maxminddb.h>
+
+extern char *log_prefix;
 
 #define out_1(fmt) fprintf(stdout, "%s" fmt "\n", log_prefix)
 #define out_2(fmt, args...) fprintf(stdout, "%s" fmt "\n", log_prefix, args)
@@ -28,6 +30,8 @@ int url_encode(const char *str, char *enc, ssize_t *size);
 
 int url_decode(const char *str, char *dec, ssize_t *size);
 
-int mime_is_text(const char *type);
+int mime_is_compressible(const char *type);
+
+MMDB_entry_data_list_s *mmdb_json(MMDB_entry_data_list_s *list, char *str, long *str_off, long str_len);
 
 #endif //NECRONDA_SERVER_UTILS_H

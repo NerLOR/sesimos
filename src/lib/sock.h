@@ -1,19 +1,14 @@
 /**
  * Necronda Web Server
  * Basic TCP and TLS socket (header file)
- * src/sock.h
+ * src/lib/sock.h
  * Lorenz Stechauner, 2021-01-07
  */
 
 #ifndef NECRONDA_SERVER_SOCK_H
 #define NECRONDA_SERVER_SOCK_H
 
-#include <openssl/err.h>
-#include <openssl/pem.h>
-#include <openssl/ssl.h>
-#include <openssl/conf.h>
-#include <openssl/engine.h>
-#include <openssl/dh.h>
+#include <openssl/crypto.h>
 
 typedef struct {
     unsigned int enc:1;

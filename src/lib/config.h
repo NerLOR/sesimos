@@ -1,24 +1,18 @@
 /**
  * Necronda Web Server
  * Configuration file loader (header file)
- * src/config.h
+ * src/lib/config.h
  * Lorenz Stechauner, 2021-01-05
  */
-
 
 #ifndef NECRONDA_SERVER_CONFIG_H
 #define NECRONDA_SERVER_CONFIG_H
 
+#include "uri.h"
+
 #define CONFIG_TYPE_UNSET 0
 #define CONFIG_TYPE_LOCAL 1
 #define CONFIG_TYPE_REVERSE_PROXY 2
-
-#include "uri.h"
-
-#include <stdio.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-
 
 typedef struct {
     int type;
@@ -36,10 +30,8 @@ typedef struct {
     };
 } host_config;
 
-
-host_config *config;
-char cert_file[256], key_file[256], geoip_dir[256], dns_server[256];
-
+extern host_config *config;
+extern char cert_file[256], key_file[256], geoip_dir[256], dns_server[256];
 
 int config_init();
 

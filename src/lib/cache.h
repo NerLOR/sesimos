@@ -1,7 +1,7 @@
 /**
  * Necronda Web Server
  * File cache implementation (header file)
- * src/cache.h
+ * src/lib/cache.h
  * Lorenz Stechauner, 2020-12-19
  */
 
@@ -10,15 +10,6 @@
 
 #include "uri.h"
 
-#include <stdio.h>
-#include <zlib.h>
-#include <magic.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-
-
-magic_t magic;
-
 typedef struct {
     char filename[256];
     unsigned char webroot_len;
@@ -26,9 +17,9 @@ typedef struct {
     meta_data meta;
 } cache_entry;
 
-cache_entry *cache;
+extern cache_entry *cache;
 
-int cache_continue = 1;
+extern int cache_continue;
 
 int magic_init();
 

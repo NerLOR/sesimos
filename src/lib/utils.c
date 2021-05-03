@@ -1,12 +1,15 @@
 /**
  * Necronda Web Server
  * Utilities
- * src/utils.c
+ * src/lib/utils.c
  * Lorenz Stechauner, 2020-12-03
  */
 
 #include "utils.h"
+#include <string.h>
+#include <stdlib.h>
 
+char *log_prefix;
 
 char *format_duration(unsigned long micros, char *buf) {
     if (micros < 10000) {
@@ -99,6 +102,20 @@ int url_decode(const char *str, char *dec, ssize_t *size) {
     return 0;
 }
 
+int mime_is_compressible(const char *type) {
+    return
+        strncmp(type, "text/", 5) == 0 ||
+        strncmp(type, "message/", 7) == 0 ||
+        strstr(type, "+xml") != NULL ||
+        strcmp(type, "application/javascript") == 0 ||
+        strcmp(type, "application/json") == 0 ||
+        strcmp(type, "application/xml") == 0 ||
+        strcmp(type, "application/x-www-form-urlencoded") == 0 ||
+        strcmp(type, "application/x-tex") == 0 ||
+        strcmp(type, "application/x-httpd-php") == 0 ||
+        strcmp(type, "application/x-latex") == 0;
+}
+
 MMDB_entry_data_list_s *mmdb_json(MMDB_entry_data_list_s *list, char *str, long *str_off, long str_len) {
     switch (list->entry_data.type) {
         case MMDB_DATA_TYPE_MAP:
@@ -158,18 +175,4 @@ MMDB_entry_data_list_s *mmdb_json(MMDB_entry_data_list_s *list, char *str, long 
         *str_off += sprintf(str + *str_off, "]");
     }
     return next;
-}
-
-int mime_is_compressible(const char *type) {
-    return
-        strncmp(type, "text/", 5) == 0 ||
-        strncmp(type, "message/", 7) == 0 ||
-        strstr(type, "+xml") != NULL ||
-        strcmp(type, "application/javascript") == 0 ||
-        strcmp(type, "application/json") == 0 ||
-        strcmp(type, "application/xml") == 0 ||
-        strcmp(type, "application/x-www-form-urlencoded") == 0 ||
-        strcmp(type, "application/x-tex") == 0 ||
-        strcmp(type, "application/x-httpd-php") == 0 ||
-        strcmp(type, "application/x-latex") == 0;
 }

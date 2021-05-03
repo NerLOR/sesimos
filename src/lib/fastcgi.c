@@ -1,12 +1,19 @@
 /**
  * Necronda Web Server
  * FastCGI interface implementation
- * src/fastcgi.c
+ * src/lib/fastcgi.c
  * Lorenz Stechauner, 2020-12-26
  */
 
 #include "fastcgi.h"
-
+#include "utils.h"
+#include "../client.h"
+#include "../necronda-server.h"
+#include <sys/un.h>
+#include <zlib.h>
+#include <sys/socket.h>
+#include <errno.h>
+#include <string.h>
 
 char *fastcgi_add_param(char *buf, const char *key, const char *value) {
     char *ptr = buf;
