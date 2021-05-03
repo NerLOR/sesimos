@@ -323,6 +323,8 @@ int main(int argc, const char *argv[]) {
         config_unload();
         return 1;
     } else if (ret != 0) {
+        children[0] = ret;  // pid
+    } else {
         return 0;
     }
 

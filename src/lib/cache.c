@@ -214,20 +214,18 @@ int cache_init() {
     if (pid == 0) {
         // child
         if (cache_process() == 0) {
-            return 1;
+            return 0;
         } else {
             return -6;
         }
     } else if (pid > 0) {
         // parent
         fprintf(stderr, "Started child process with PID %i as cache-updater\n", pid);
-        children[0] = pid;
+        return pid;
     } else {
         fprintf(stderr, ERR_STR "Unable to create child process: %s" CLR_STR "\n", strerror(errno));
         return -5;
     }
-
-    return 0;
 }
 
 int cache_unload() {
