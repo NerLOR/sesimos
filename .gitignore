@@ -1,7 +1,6 @@
 *
 !src
 !src/**
-!run.sh
 !Makefile
 !.gitignore
 !README.md
