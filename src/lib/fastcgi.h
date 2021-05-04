@@ -13,7 +13,13 @@
 #include "uri.h"
 
 #define FASTCGI_CHUNKED 1
-#define FASTCGI_COMPRESS 2
+#define FASTCGI_COMPRESS_GZ 2
+#define FASTCGI_COMPRESS_BR 4
+#define FASTCGI_COMPRESS 6
+
+#ifndef PHP_FPM_SOCKET
+#   define PHP_FPM_SOCKET "/var/run/php-fpm/php-fpm.sock"
+#endif
 
 typedef struct {
     int socket;

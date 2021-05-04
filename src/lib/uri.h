@@ -19,7 +19,8 @@ typedef struct {
     char etag[64];
     char type[24];
     char charset[16];
-    char filename_comp[256];
+    char filename_comp_gz[256];
+    char filename_comp_br[256];
     struct stat stat;
 } meta_data;
 

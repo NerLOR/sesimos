@@ -6,7 +6,7 @@
  */
 
 #include "http.h"
-#include "../necronda-server.h"
+#include "utils.h"
 
 const http_status http_statuses[] = {
         {100, "Informational", "Continue"},
@@ -137,7 +137,7 @@ const char http_default_document[] =
         "\t<main>\n"
         "\t\t<section>\n"
         "%3$s"
-        "\t\t\t<div class=\"footer\"><a href=\"https://%7$s/\">%7$s</a> - Necronda&nbsp;web&nbsp;server&nbsp;" NECRONDA_VERSION "</div>\n"
+        "\t\t\t<div class=\"footer\"><a href=\"https://%7$s/\">%7$s</a> - " SERVER_STR_HTML "</div>\n"
         "\t\t</section>\n"
         "\t</main>\n"
         "</body>\n"

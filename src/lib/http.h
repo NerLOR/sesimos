@@ -18,10 +18,24 @@
 #define HTTP_REMOVE_ALL 1
 #define HTTP_REMOVE_LAST 2
 
+#define HTTP_1XX_STR "\x1B[1;32m"
+#define HTTP_2XX_STR "\x1B[1;32m"
+#define HTTP_3XX_STR "\x1B[1;33m"
+#define HTTP_4XX_STR "\x1B[1;31m"
+#define HTTP_5XX_STR "\x1B[1;31m"
+
 #define HTTP_COLOR_SUCCESS "#008000"
 #define HTTP_COLOR_INFO "#606060"
 #define HTTP_COLOR_WARNING "#E0C000"
 #define HTTP_COLOR_ERROR "#C00000"
+
+#ifndef SERVER_STR
+#   define SERVER_STR "Necronda"
+#endif
+
+#ifndef SERVER_STR_HTML
+#   define SERVER_STR_HTML "Necronda&nbsp;web&nbsp;server"
+#endif
 
 typedef struct {
     unsigned short code;

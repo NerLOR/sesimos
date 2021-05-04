@@ -7,6 +7,7 @@
 
 #define _POSIX_C_SOURCE 199309L
 
+#include "necronda.h"
 #include "necronda-server.h"
 #include "client.c"
 
@@ -14,6 +15,7 @@
 #include "lib/config.h"
 #include "lib/sock.h"
 #include "lib/rev_proxy.h"
+#include "lib/geoip.h"
 
 #include <stdio.h>
 #include <sys/socket.h>
@@ -29,7 +31,6 @@
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <openssl/conf.h>
-#include <maxminddb.h>
 #include <dirent.h>
 
 int active = 1;

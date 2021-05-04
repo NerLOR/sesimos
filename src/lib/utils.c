@@ -6,6 +6,7 @@
  */
 
 #include "utils.h"
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -26,7 +27,7 @@ char *format_duration(unsigned long micros, char *buf) {
     return buf;
 }
 
-int url_encode_component(const char *str, char *enc, ssize_t *size) {
+int url_encode_component(const char *str, char *enc, long *size) {
     char *ptr = enc;
     char ch;
     memset(enc, 0, *size);
@@ -53,7 +54,7 @@ int url_encode_component(const char *str, char *enc, ssize_t *size) {
     return 0;
 }
 
-int url_encode(const char *str, char *enc, ssize_t *size) {
+int url_encode(const char *str, char *enc, long *size) {
     char *ptr = enc;
     unsigned char ch;
     memset(enc, 0, *size);
@@ -76,7 +77,7 @@ int url_encode(const char *str, char *enc, ssize_t *size) {
     return 0;
 }
 
-int url_decode(const char *str, char *dec, ssize_t *size) {
+int url_decode(const char *str, char *dec, long *size) {
     char *ptr = dec;
     char ch, buf[3];
     memset(dec, 0, *size);
@@ -107,72 +108,21 @@ int mime_is_compressible(const char *type) {
         strncmp(type, "text/", 5) == 0 ||
         strncmp(type, "message/", 7) == 0 ||
         strstr(type, "+xml") != NULL ||
+        strstr(type, "+json") != NULL ||
         strcmp(type, "application/javascript") == 0 ||
         strcmp(type, "application/json") == 0 ||
         strcmp(type, "application/xml") == 0 ||
         strcmp(type, "application/x-www-form-urlencoded") == 0 ||
         strcmp(type, "application/x-tex") == 0 ||
         strcmp(type, "application/x-httpd-php") == 0 ||
-        strcmp(type, "application/x-latex") == 0;
-}
-
-MMDB_entry_data_list_s *mmdb_json(MMDB_entry_data_list_s *list, char *str, long *str_off, long str_len) {
-    switch (list->entry_data.type) {
-        case MMDB_DATA_TYPE_MAP:
-            *str_off += sprintf(str + *str_off, "{");
-            break;
-        case MMDB_DATA_TYPE_ARRAY:
-            *str_off += sprintf(str + *str_off, "[");
-            break;
-        case MMDB_DATA_TYPE_UTF8_STRING:
-            *str_off += sprintf(str + *str_off, "\"%.*s\"", list->entry_data.data_size, list->entry_data.utf8_string);
-            break;
-        case MMDB_DATA_TYPE_UINT16:
-            *str_off += sprintf(str + *str_off, "%u", list->entry_data.uint16);
-            break;
-        case MMDB_DATA_TYPE_UINT32:
-            *str_off += sprintf(str + *str_off, "%u", list->entry_data.uint32);
-            break;
-        case MMDB_DATA_TYPE_UINT64:
-            *str_off += sprintf(str + *str_off, "%lu", list->entry_data.uint64);
-            break;
-        case MMDB_DATA_TYPE_UINT128:
-            *str_off += sprintf(str + *str_off, "%llu", (unsigned long long) list->entry_data.uint128);
-            break;
-        case MMDB_DATA_TYPE_INT32:
-            *str_off += sprintf(str + *str_off, "%i", list->entry_data.uint32);
-            break;
-        case MMDB_DATA_TYPE_BOOLEAN:
-            *str_off += sprintf(str + *str_off, "%s", list->entry_data.boolean ? "true" : "false");
-            break;
-        case MMDB_DATA_TYPE_FLOAT:
-            *str_off += sprintf(str + *str_off, "%f", list->entry_data.float_value);
-            break;
-        case MMDB_DATA_TYPE_DOUBLE:
-            *str_off += sprintf(str + *str_off, "%f", list->entry_data.double_value);
-            break;
-    }
-    if (list->entry_data.type != MMDB_DATA_TYPE_MAP && list->entry_data.type != MMDB_DATA_TYPE_ARRAY) {
-        return list->next;
-    }
-    MMDB_entry_data_list_s *next = list->next;
-    int stat = 0;
-    for (int i = 0; i < list->entry_data.data_size; i++) {
-        next = mmdb_json(next, str, str_off, str_len);
-        if (list->entry_data.type == MMDB_DATA_TYPE_MAP) {
-            stat = !stat;
-            if (stat) {
-                i--;
-                *str_off += sprintf(str + *str_off, ":");
-                continue;
-            }
-        }
-        if (i != list->entry_data.data_size - 1) *str_off += sprintf(str + *str_off, ",");
-    }
-    if (list->entry_data.type == MMDB_DATA_TYPE_MAP) {
-        *str_off += sprintf(str + *str_off, "}");
-    } else {
-        *str_off += sprintf(str + *str_off, "]");
-    }
-    return next;
+        strcmp(type, "application/x-latex") == 0 ||
+        strcmp(type, "application/vnd.ms-fontobject") == 0 ||
+        strcmp(type, "application/x-font-ttf") == 0 ||
+        strcmp(type, "application/x-javascript") == 0 ||
+        strcmp(type, "application/x-web-app-manifest+json") == 0 ||
+        strcmp(type, "font/eot") == 0 ||
+        strcmp(type, "font/opentype") == 0 ||
+        strcmp(type, "image/bmp") == 0 ||
+        strcmp(type, "image/vnd.microsoft.icon") == 0 ||
+        strcmp(type, "image/x-icon") == 0;
 }

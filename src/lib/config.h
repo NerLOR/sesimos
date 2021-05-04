@@ -10,6 +10,9 @@
 
 #include "uri.h"
 
+#define CONFIG_SHM_KEY 255642
+#define CONFIG_MAX_HOST_CONFIG 64
+
 #define CONFIG_TYPE_UNSET 0
 #define CONFIG_TYPE_LOCAL 1
 #define CONFIG_TYPE_REVERSE_PROXY 2

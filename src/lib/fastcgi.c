@@ -7,10 +7,10 @@
 
 #include "fastcgi.h"
 #include "utils.h"
-#include "../client.h"
+#include "gzip.h"
+#include "brotli.h"
 #include "../necronda-server.h"
 #include <sys/un.h>
-#include <zlib.h>
 #include <sys/socket.h>
 #include <errno.h>
 #include <string.h>
@@ -385,7 +385,7 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
 
 int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
     FCGI_Header header;
-    int ret;
+    long ret;
     char buf0[256];
     int len;
     char *content, *ptr;
@@ -393,15 +393,19 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
     char comp_out[4096];
     int finish_comp = 0;
 
-    z_stream strm;
-    if (flags & FASTCGI_COMPRESS) {
-        int level = NECRONDA_ZLIB_LEVEL;
-        strm.zalloc = Z_NULL;
-        strm.zfree = Z_NULL;
-        strm.opaque = Z_NULL;
-        if (deflateInit(&strm, level) != Z_OK) {
-            print(ERR_STR "Unable to init deflate: %s" CLR_STR, strerror(errno));
-            flags &= !FASTCGI_COMPRESS;
+    z_stream gz_state;
+    BrotliEncoderState *br_state = NULL;
+    if (flags & FASTCGI_COMPRESS_BR) {
+        flags &= !FASTCGI_COMPRESS_GZ;
+        if (brotli_init(&br_state) != 0) {
+            print(ERR_STR "Unable to init brotli: %s" CLR_STR, strerror(errno));
+            flags &= !FASTCGI_COMPRESS_BR;
+        }
+    } else if (flags & FASTCGI_COMPRESS_GZ) {
+        flags &= !FASTCGI_COMPRESS_BR;
+        if (gzip_init(&gz_state) != 0) {
+            print(ERR_STR "Unable to init gzip: %s" CLR_STR, strerror(errno));
+            flags &= !FASTCGI_COMPRESS_GZ;
         }
     }
 
@@ -455,7 +459,8 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
                 content_len = 0;
                 goto out;
                 finish:
-                deflateEnd(&strm);
+                if (flags & FASTCGI_COMPRESS_GZ) gzip_free(&gz_state);
+                if (flags & FASTCGI_COMPRESS_BR) brotli_free(br_state);
             }
 
             if (flags & FASTCGI_CHUNKED) {
@@ -466,20 +471,20 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
         } else if (header.type == FCGI_STDERR) {
             fastcgi_php_error(content, content_len, buf0);
         } else if (header.type == FCGI_STDOUT) {
+            unsigned long avail_in = content_len, avail_out;
+            void *next_in = ptr;
             out:
-            if (flags & FASTCGI_COMPRESS) {
-                strm.avail_in = content_len;
-                strm.next_in = (unsigned char *) ptr;
-            }
             do {
                 int buf_len = content_len;
                 if (flags & FASTCGI_COMPRESS) {
-                    strm.avail_out = sizeof(comp_out);
-                    strm.next_out = (unsigned char *) comp_out;
-                    deflate(&strm, finish_comp ? Z_FINISH : Z_NO_FLUSH);
-                    strm.avail_in = 0;
+                    avail_out = sizeof(comp_out);
+                    if (flags & FASTCGI_COMPRESS_GZ) {
+                        gzip_compress(&gz_state, next_in + content_len - avail_in, &avail_in, comp_out, &avail_out, finish_comp);
+                    } else if (flags & FASTCGI_COMPRESS_BR) {
+                        brotli_compress(br_state, next_in + content_len - avail_in, &avail_in, comp_out, &avail_out, finish_comp);
+                    }
                     ptr = comp_out;
-                    buf_len = (int) (sizeof(comp_out) - strm.avail_out);
+                    buf_len = (int) (sizeof(comp_out) - avail_out);
                 }
                 if (buf_len != 0) {
                     len = sprintf(buf0, "%X\r\n", buf_len);
@@ -487,7 +492,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
                     sock_send(client, ptr, buf_len, 0);
                     if (flags & FASTCGI_CHUNKED) sock_send(client, "\r\n", 2, 0);
                 }
-            } while ((flags & FASTCGI_COMPRESS) && strm.avail_out == 0);
+            } while ((flags & FASTCGI_COMPRESS) && avail_in != 0);
             if (finish_comp) goto finish;
         } else {
             print(ERR_STR "Unknown FastCGI type: %i" CLR_STR, header.type);

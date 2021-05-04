@@ -10,6 +10,18 @@
 
 #include "uri.h"
 
+#define CACHE_SHM_KEY 255641
+#define CACHE_ENTRIES 1024
+
+#ifndef CACHE_MAGIC_FILE
+#   define CACHE_MAGIC_FILE "/usr/share/file/misc/magic.mgc"
+#endif
+
+#ifndef DEFAULT_CONFIG_FILE
+#   define DEFAULT_CONFIG_FILE "/etc/necronda-server/necronda-server.conf"
+#endif
+
+
 typedef struct {
     char filename[256];
     unsigned char webroot_len;

@@ -8,7 +8,15 @@
 #ifndef NECRONDA_SERVER_UTILS_H
 #define NECRONDA_SERVER_UTILS_H
 
-#include <maxminddb.h>
+#include <stdio.h>
+
+#define ERR_STR "\x1B[1;31m"
+#define CLR_STR "\x1B[0m"
+#define BLD_STR "\x1B[1m"
+#define WRN_STR "\x1B[1;33m"
+#define BLUE_STR "\x1B[34m"
+#define HTTP_STR "\x1B[1;31m"
+#define HTTPS_STR "\x1B[1;32m"
 
 extern char *log_prefix;
 
@@ -24,14 +32,12 @@ extern char *log_prefix;
 
 char *format_duration(unsigned long micros, char *buf);
 
-int url_encode_component(const char *str, char *enc, ssize_t *size);
+int url_encode_component(const char *str, char *enc, long *size);
 
-int url_encode(const char *str, char *enc, ssize_t *size);
+int url_encode(const char *str, char *enc, long *size);
 
-int url_decode(const char *str, char *dec, ssize_t *size);
+int url_decode(const char *str, char *dec, long *size);
 
 int mime_is_compressible(const char *type);
-
-MMDB_entry_data_list_s *mmdb_json(MMDB_entry_data_list_s *list, char *str, long *str_off, long str_len);
 
 #endif //NECRONDA_SERVER_UTILS_H

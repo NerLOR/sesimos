@@ -6,20 +6,19 @@
  */
 
 #include "config.h"
-#include "../necronda-server.h"
+#include "utils.h"
 #include <stdio.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <string.h>
 #include <errno.h>
-#include <malloc.h>
 #include <stdlib.h>
 
 host_config *config;
 char cert_file[256], key_file[256], geoip_dir[256], dns_server[256];
 
 int config_init() {
-    int shm_id = shmget(SHM_KEY_CONFIG, MAX_HOST_CONFIG * sizeof(host_config), IPC_CREAT | IPC_EXCL | 0640);
+    int shm_id = shmget(CONFIG_SHM_KEY, CONFIG_MAX_HOST_CONFIG * sizeof(host_config), IPC_CREAT | IPC_EXCL | 0640);
     if (shm_id < 0) {
         fprintf(stderr, ERR_STR "Unable to create shared memory: %s" CLR_STR "\n", strerror(errno));
         return -1;
@@ -38,14 +37,14 @@ int config_init() {
         return -3;
     }
     config = shm_rw;
-    memset(config, 0, MAX_HOST_CONFIG * sizeof(host_config));
+    memset(config, 0, CONFIG_MAX_HOST_CONFIG * sizeof(host_config));
     shmdt(shm_rw);
     config = shm;
     return 0;
 }
 
 int config_unload() {
-    int shm_id = shmget(SHM_KEY_CONFIG, 0, 0);
+    int shm_id = shmget(CONFIG_SHM_KEY, 0, 0);
     if (shm_id < 0) {
         fprintf(stderr, ERR_STR "Unable to get shared memory id: %s" CLR_STR "\n", strerror(errno));
         shmdt(config);
@@ -73,8 +72,8 @@ int config_load(const char *filename) {
     fread(conf, 1, len, file);
     fclose(file);
 
-    host_config *tmp_config = malloc(MAX_HOST_CONFIG * sizeof(host_config));
-    memset(tmp_config, 0, MAX_HOST_CONFIG * sizeof(host_config));
+    host_config *tmp_config = malloc(CONFIG_MAX_HOST_CONFIG * sizeof(host_config));
+    memset(tmp_config, 0, CONFIG_MAX_HOST_CONFIG * sizeof(host_config));
 
     int i = 0;
     int mode = 0;
@@ -195,7 +194,7 @@ int config_load(const char *filename) {
         }
     }
 
-    int shm_id = shmget(SHM_KEY_CONFIG, 0, 0);
+    int shm_id = shmget(CONFIG_SHM_KEY, 0, 0);
     if (shm_id < 0) {
         fprintf(stderr, ERR_STR "Unable to get shared memory id: %s" CLR_STR "\n", strerror(errno));
         shmdt(config);
@@ -208,7 +207,7 @@ int config_load(const char *filename) {
         fprintf(stderr, ERR_STR "Unable to attach shared memory (rw): %s" CLR_STR "\n", strerror(errno));
         return -4;
     }
-    memcpy(shm_rw, tmp_config, MAX_HOST_CONFIG * sizeof(host_config));
+    memcpy(shm_rw, tmp_config, CONFIG_MAX_HOST_CONFIG * sizeof(host_config));
     free(tmp_config);
     shmdt(shm_rw);
     return 0;

@@ -5,7 +5,6 @@
  * Lorenz Stechauner, 2020-12-03
  */
 
-#include "client.h"
 #include "lib/utils.h"
 #include "lib/config.h"
 #include "lib/sock.h"
@@ -13,6 +12,7 @@
 #include "lib/rev_proxy.h"
 #include "lib/fastcgi.h"
 #include "lib/cache.h"
+#include "lib/geoip.h"
 
 #include <string.h>
 #include <sys/select.h>
@@ -32,7 +32,7 @@ char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_
 struct timeval client_timeout;
 
 host_config *get_host_config(const char *host) {
-    for (int i = 0; i < MAX_HOST_CONFIG; i++) {
+    for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
         host_config *hc = &config[i];
         if (hc->type == CONFIG_TYPE_UNSET) break;
         if (strcmp(hc->name, host) == 0) return hc;
@@ -326,16 +326,23 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             }
 
             char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
-            if (uri.meta->filename_comp[0] != 0 && accept_encoding != NULL &&
-                    strstr(accept_encoding, "deflate") != NULL) {
-                file = fopen(uri.meta->filename_comp, "rb");
-                if (file == NULL) {
-                    cache_filename_comp_invalid(uri.filename);
-                    goto not_compressed;
+            if (accept_encoding != NULL) {
+                if (uri.meta->filename_comp_br[0] != 0 && strstr(accept_encoding, "br") != NULL) {
+                    file = fopen(uri.meta->filename_comp_br, "rb");
+                    if (file == NULL) {
+                        printf("asdf\n");
+                        cache_filename_comp_invalid(uri.filename);
+                    }
+                    http_add_header_field(&res.hdr, "Content-Encoding", "br");
+                } else if (uri.meta->filename_comp_gz[0] != 0 && strstr(accept_encoding, "gzip") != NULL) {
+                    file = fopen(uri.meta->filename_comp_gz, "rb");
+                    if (file == NULL) {
+                        cache_filename_comp_invalid(uri.filename);
+                    }
+                    http_add_header_field(&res.hdr, "Content-Encoding", "gzip");
                 }
-                http_add_header_field(&res.hdr, "Content-Encoding", "deflate");
-            } else {
-                not_compressed:
+            }
+            if (file == NULL) {
                 file = fopen(uri.filename, "rb");
             }
             fseek(file, 0, SEEK_END);

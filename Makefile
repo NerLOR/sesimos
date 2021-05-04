@@ -1,6 +1,6 @@
 
 CFLAGS=-std=c11 -Wall
-INCLUDE=-lssl -lcrypto -lmagic -lz -lmaxminddb
+INCLUDE=-lssl -lcrypto -lmagic -lz -lmaxminddb -lbrotlienc
 LIBS=src/lib/*.c
 
 DEBIAN_OPTS=-D MAGIC_FILE="\"/usr/share/file/magic.mgc\"" -D PHP_FPM_SOCKET="\"/var/run/php/php7.3-fpm.sock\""

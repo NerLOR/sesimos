@@ -7,7 +7,6 @@
 
 #include "rev_proxy.h"
 #include "utils.h"
-#include "../client.h"
 #include "../necronda-server.h"
 #include <openssl/ssl.h>
 #include <string.h>
