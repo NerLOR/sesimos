@@ -410,10 +410,10 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             if (mime_is_compressible(content_type) && content_encoding == NULL && accept_encoding != NULL) {
                 if (strstr(accept_encoding, "br") != NULL) {
                     http_add_header_field(&res.hdr, "Content-Encoding", "br");
-                    use_fastcgi = FASTCGI_COMPRESS_BR;
+                    use_fastcgi |= FASTCGI_COMPRESS_BR;
                 } else if (strstr(accept_encoding, "gzip") != NULL) {
                     http_add_header_field(&res.hdr, "Content-Encoding", "gzip");
-                    use_fastcgi = FASTCGI_COMPRESS_GZ;
+                    use_fastcgi |= FASTCGI_COMPRESS_GZ;
                 }
             }
 
