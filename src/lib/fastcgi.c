@@ -471,9 +471,10 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
         } else if (header.type == FCGI_STDERR) {
             fastcgi_php_error(content, content_len, buf0);
         } else if (header.type == FCGI_STDOUT) {
-            unsigned long avail_in = content_len, avail_out;
-            void *next_in = ptr;
+            unsigned long avail_in, avail_out;
             out:
+            avail_in = content_len;
+            void *next_in = ptr;
             do {
                 int buf_len = content_len;
                 if (flags & FASTCGI_COMPRESS) {
