@@ -396,16 +396,16 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
     z_stream gz_state;
     BrotliEncoderState *br_state = NULL;
     if (flags & FASTCGI_COMPRESS_BR) {
-        flags &= !FASTCGI_COMPRESS_GZ;
+        flags &= ~FASTCGI_COMPRESS_GZ;
         if (brotli_init(&br_state) != 0) {
             print(ERR_STR "Unable to init brotli: %s" CLR_STR, strerror(errno));
-            flags &= !FASTCGI_COMPRESS_BR;
+            flags &= ~FASTCGI_COMPRESS_BR;
         }
     } else if (flags & FASTCGI_COMPRESS_GZ) {
-        flags &= !FASTCGI_COMPRESS_BR;
+        flags &= ~FASTCGI_COMPRESS_BR;
         if (gzip_init(&gz_state) != 0) {
             print(ERR_STR "Unable to init gzip: %s" CLR_STR, strerror(errno));
-            flags &= !FASTCGI_COMPRESS_GZ;
+            flags &= ~FASTCGI_COMPRESS_GZ;
         }
     }
 
