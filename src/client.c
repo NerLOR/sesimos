@@ -330,21 +330,24 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 if (uri.meta->filename_comp_br[0] != 0 && strstr(accept_encoding, "br") != NULL) {
                     file = fopen(uri.meta->filename_comp_br, "rb");
                     if (file == NULL) {
-                        printf("asdf\n");
                         cache_filename_comp_invalid(uri.filename);
+                    } else {
+                        http_add_header_field(&res.hdr, "Content-Encoding", "br");
                     }
-                    http_add_header_field(&res.hdr, "Content-Encoding", "br");
                 } else if (uri.meta->filename_comp_gz[0] != 0 && strstr(accept_encoding, "gzip") != NULL) {
                     file = fopen(uri.meta->filename_comp_gz, "rb");
                     if (file == NULL) {
                         cache_filename_comp_invalid(uri.filename);
+                    } else {
+                        http_add_header_field(&res.hdr, "Content-Encoding", "gzip");
                     }
-                    http_add_header_field(&res.hdr, "Content-Encoding", "gzip");
                 }
             }
+
             if (file == NULL) {
                 file = fopen(uri.filename, "rb");
             }
+
             fseek(file, 0, SEEK_END);
             content_length = ftell(file);
             fseek(file, 0, SEEK_SET);

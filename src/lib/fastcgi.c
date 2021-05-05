@@ -7,8 +7,7 @@
 
 #include "fastcgi.h"
 #include "utils.h"
-#include "gzip.h"
-#include "brotli.h"
+#include "compress.h"
 #include "../necronda-server.h"
 #include <sys/un.h>
 #include <sys/socket.h>
@@ -393,17 +392,16 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
     char comp_out[4096];
     int finish_comp = 0;
 
-    z_stream gz_state;
-    BrotliEncoderState *br_state = NULL;
+    compress_ctx comp_ctx;
     if (flags & FASTCGI_COMPRESS_BR) {
         flags &= ~FASTCGI_COMPRESS_GZ;
-        if (brotli_init(&br_state) != 0) {
+        if (compress_init(&comp_ctx, COMPRESS_BR) != 0) {
             print(ERR_STR "Unable to init brotli: %s" CLR_STR, strerror(errno));
             flags &= ~FASTCGI_COMPRESS_BR;
         }
     } else if (flags & FASTCGI_COMPRESS_GZ) {
         flags &= ~FASTCGI_COMPRESS_BR;
-        if (gzip_init(&gz_state) != 0) {
+        if (compress_init(&comp_ctx, COMPRESS_BR) != 0) {
             print(ERR_STR "Unable to init gzip: %s" CLR_STR, strerror(errno));
             flags &= ~FASTCGI_COMPRESS_GZ;
         }
@@ -459,8 +457,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
                 content_len = 0;
                 goto out;
                 finish:
-                if (flags & FASTCGI_COMPRESS_GZ) gzip_free(&gz_state);
-                if (flags & FASTCGI_COMPRESS_BR) brotli_free(br_state);
+                if (flags & FASTCGI_COMPRESS) compress_free(&comp_ctx);
             }
 
             if (flags & FASTCGI_CHUNKED) {
@@ -479,10 +476,9 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
                 int buf_len = content_len;
                 if (flags & FASTCGI_COMPRESS) {
                     avail_out = sizeof(comp_out);
-                    if (flags & FASTCGI_COMPRESS_GZ) {
-                        gzip_compress(&gz_state, next_in + content_len - avail_in, &avail_in, comp_out, &avail_out, finish_comp);
-                    } else if (flags & FASTCGI_COMPRESS_BR) {
-                        brotli_compress(br_state, next_in + content_len - avail_in, &avail_in, comp_out, &avail_out, finish_comp);
+                    if (flags & FASTCGI_COMPRESS) {
+                        compress_compress(&comp_ctx, next_in + content_len - avail_in, &avail_in,
+                                          comp_out, &avail_out, finish_comp);
                     }
                     ptr = comp_out;
                     buf_len = (int) (sizeof(comp_out) - avail_out);

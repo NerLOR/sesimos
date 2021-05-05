@@ -7,8 +7,7 @@
 
 #include "cache.h"
 #include "utils.h"
-#include "gzip.h"
-#include "brotli.h"
+#include "compress.h"
 #include <stdio.h>
 #include <magic.h>
 #include <sys/ipc.h>
@@ -85,7 +84,7 @@ int cache_process() {
     unsigned char hash[SHA_DIGEST_LENGTH];
     int cache_changed = 0;
     int p_len_gz, p_len_br;
-    int ret_1, ret_2;
+    int ret;
     while (cache_continue) {
         for (int i = 0; i < CACHE_ENTRIES; i++) {
             if (cache[i].filename[0] != 0 && cache[i].meta.etag[0] == 0 && !cache[i].is_updating) {
@@ -95,8 +94,7 @@ int cache_process() {
                 file = fopen(cache[i].filename, "rb");
                 compress = mime_is_compressible(cache[i].meta.type);
 
-                z_stream gz_state;
-                BrotliEncoderState *br_state = NULL;
+                compress_ctx comp_ctx;
                 FILE *comp_file_gz = NULL;
                 FILE *comp_file_br = NULL;
                 if (compress) {
@@ -136,15 +134,9 @@ int cache_process() {
                         comp_err:
                         compress = 0;
                     } else {
-                        ret_1 = gzip_init(&gz_state);
-                        ret_2 = brotli_init(&br_state);
-                        if (ret_1 != 0) {
-                            fprintf(stderr, ERR_STR "Unable to init gzip: %s" CLR_STR "\n", strerror(errno));
-                            compress = 0;
-                            fclose(comp_file_gz);
-                            fclose(comp_file_br);
-                        } else if (ret_2 != 0) {
-                            fprintf(stderr, ERR_STR "Unable to init brotli: %s" CLR_STR "\n", strerror(errno));
+                        ret = compress_init(&comp_ctx, COMPRESS_GZ | COMPRESS_BR);
+                        if (ret != 0) {
+                            fprintf(stderr, ERR_STR "Unable to init compression: %s" CLR_STR "\n", strerror(errno));
                             compress = 0;
                             fclose(comp_file_gz);
                             fclose(comp_file_br);
@@ -159,21 +151,22 @@ int cache_process() {
                         avail_in = read;
                         do {
                             avail_out = sizeof(comp_buf);
-                            gzip_compress(&gz_state, buf + read - avail_in, &avail_in, comp_buf, &avail_out, feof(file));
+                            compress_compress_mode(&comp_ctx, COMPRESS_GZ,buf + read - avail_in, &avail_in,
+                                                   comp_buf, &avail_out, feof(file));
                             fwrite(comp_buf, 1, sizeof(comp_buf) - avail_out, comp_file_gz);
                         } while (avail_in != 0);
                         avail_in = read;
                         do {
                             avail_out = sizeof(comp_buf);
-                            brotli_compress(br_state, buf + read - avail_in, &avail_in, comp_buf, &avail_out, feof(file));
+                            compress_compress_mode(&comp_ctx, COMPRESS_BR, buf + read - avail_in, &avail_in,
+                                                   comp_buf, &avail_out, feof(file));
                             fwrite(comp_buf, 1, sizeof(comp_buf) - avail_out, comp_file_br);
                         } while (avail_in != 0);
                     }
                 }
 
                 if (compress) {
-                    gzip_free(&gz_state);
-                    brotli_free(br_state);
+                    compress_free(&comp_ctx);
                     fclose(comp_file_gz);
                     fclose(comp_file_br);
                     fprintf(stdout, "[cache] Finished compressing file %s\n", cache[i].filename);

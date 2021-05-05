@@ -382,6 +382,7 @@ int rev_proxy_send(sock *client, int chunked, unsigned long len_to_send) {
     char buffer[CHUNK_SIZE];
     long len, snd_len;
     // TODO handle websockets
+    // TODO compress -> Transfer-Encoding: br/gzip
     do {
         if (chunked) {
             ret = sock_recv(&rev_proxy, buffer, 16, MSG_PEEK);
