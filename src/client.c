@@ -264,9 +264,40 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             http_add_header_field(&res.hdr, "Last-Modified", last_modified);
             sprintf(buf1, "%s; charset=%s", uri.meta->type, uri.meta->charset);
             http_add_header_field(&res.hdr, "Content-Type", buf1);
-            if (uri.meta->etag[0] != 0) {
-                http_add_header_field(&res.hdr, "ETag", uri.meta->etag);
+
+
+            char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
+            int enc = 0;
+            if (accept_encoding != NULL) {
+                if (uri.meta->filename_comp_br[0] != 0 && strstr(accept_encoding, "br") != NULL) {
+                    file = fopen(uri.meta->filename_comp_br, "rb");
+                    if (file == NULL) {
+                        cache_filename_comp_invalid(uri.filename);
+                    } else {
+                        http_add_header_field(&res.hdr, "Content-Encoding", "br");
+                        enc = COMPRESS_BR;
+                    }
+                } else if (uri.meta->filename_comp_gz[0] != 0 && strstr(accept_encoding, "gzip") != NULL) {
+                    file = fopen(uri.meta->filename_comp_gz, "rb");
+                    if (file == NULL) {
+                        cache_filename_comp_invalid(uri.filename);
+                    } else {
+                        http_add_header_field(&res.hdr, "Content-Encoding", "gzip");
+                        enc = COMPRESS_GZ;
+                    }
+                }
             }
+
+            if (uri.meta->etag[0] != 0) {
+                if (enc) {
+                    sprintf(buf0, "%s-%s", uri.meta->etag,
+                            (enc & COMPRESS_BR) ? "br" : (enc & COMPRESS_GZ) ? "gzip" : "");
+                    http_add_header_field(&res.hdr, "ETag", buf0);
+                } else {
+                    http_add_header_field(&res.hdr, "ETag", uri.meta->etag);
+                }
+            }
+
             if (strncmp(uri.meta->type, "text/", 5) == 0) {
                 http_add_header_field(&res.hdr, "Cache-Control", "public, max-age=3600");
             } else {
@@ -324,25 +355,6 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 content_length = num2 - num1 + 1;
 
                 goto respond;
-            }
-
-            char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
-            if (accept_encoding != NULL) {
-                if (uri.meta->filename_comp_br[0] != 0 && strstr(accept_encoding, "br") != NULL) {
-                    file = fopen(uri.meta->filename_comp_br, "rb");
-                    if (file == NULL) {
-                        cache_filename_comp_invalid(uri.filename);
-                    } else {
-                        http_add_header_field(&res.hdr, "Content-Encoding", "br");
-                    }
-                } else if (uri.meta->filename_comp_gz[0] != 0 && strstr(accept_encoding, "gzip") != NULL) {
-                    file = fopen(uri.meta->filename_comp_gz, "rb");
-                    if (file == NULL) {
-                        cache_filename_comp_invalid(uri.filename);
-                    } else {
-                        http_add_header_field(&res.hdr, "Content-Encoding", "gzip");
-                    }
-                }
             }
 
             if (file == NULL) {
