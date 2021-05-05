@@ -13,6 +13,7 @@
 #include "lib/fastcgi.h"
 #include "lib/cache.h"
 #include "lib/geoip.h"
+#include "lib/compress.h"
 
 #include <string.h>
 #include <sys/select.h>
@@ -407,17 +408,11 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             content_length = -1;
             use_fastcgi = 1;
 
-            char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
-            char *content_type = http_get_header_field(&res.hdr, "Content-Type");
-            char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding");
-            if (mime_is_compressible(content_type) && content_encoding == NULL && accept_encoding != NULL) {
-                if (strstr(accept_encoding, "br") != NULL) {
-                    http_add_header_field(&res.hdr, "Content-Encoding", "br");
-                    use_fastcgi |= FASTCGI_COMPRESS_BR;
-                } else if (strstr(accept_encoding, "gzip") != NULL) {
-                    http_add_header_field(&res.hdr, "Content-Encoding", "gzip");
-                    use_fastcgi |= FASTCGI_COMPRESS_GZ;
-                }
+            int http_comp = http_get_compression(&req, &res);
+            if (http_comp & COMPRESS_BR) {
+                use_fastcgi |= FASTCGI_COMPRESS_BR;
+            } else if (http_comp & COMPRESS_GZ) {
+                use_fastcgi |= FASTCGI_COMPRESS_GZ;
             }
 
             if (http_get_header_field(&res.hdr, "Content-Length") == NULL) {
@@ -428,8 +423,31 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         print("Reverse proxy for " BLD_STR "%s:%i" CLR_STR, conf->rev_proxy.hostname, conf->rev_proxy.port);
         http_remove_header_field(&res.hdr, "Date", HTTP_REMOVE_ALL);
         http_remove_header_field(&res.hdr, "Server", HTTP_REMOVE_ALL);
+
         ret = rev_proxy_init(&req, &res, conf, client, &custom_status, err_msg);
-        use_rev_proxy = ret == 0;
+        use_rev_proxy = (ret == 0);
+
+        char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
+        if (use_rev_proxy && transfer_encoding == NULL) {
+            int http_comp = http_get_compression(&req, &res);
+            if (http_comp & COMPRESS_BR) {
+                //use_rev_proxy |= REV_PROXY_COMPRESS_BR;
+            } else if (http_comp & COMPRESS_GZ) {
+                //use_rev_proxy |= REV_PROXY_COMPRESS_GZ;
+            }
+        }
+
+        int chunked = transfer_encoding != NULL && strcmp(transfer_encoding, "chunked") == 0;
+        http_remove_header_field(&res.hdr, "Transfer-Encoding", HTTP_REMOVE_ALL);
+        printf("%i\n", use_rev_proxy);
+        ret = sprintf(buf0, "%s%s%s",
+                      (use_rev_proxy & REV_PROXY_COMPRESS_BR) ? "br" :
+                      ((use_rev_proxy & REV_PROXY_COMPRESS_GZ) ? "gzip" : ""),
+                      ((use_rev_proxy & REV_PROXY_COMPRESS) && chunked) ? ", " : "",
+                      chunked ? "chunked" : "");
+        if (ret > 0) {
+            http_add_header_field(&res.hdr, "Transfer-Encoding", buf0);
+        }
     } else {
         print(ERR_STR "Unknown host type: %i" CLR_STR, conf->type);
         res.status = http_get_status(501);
@@ -515,17 +533,21 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         } else if (use_fastcgi) {
             char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
             int chunked = transfer_encoding != NULL && strcmp(transfer_encoding, "chunked") == 0;
+
             int flags = (chunked ? FASTCGI_CHUNKED : 0) | (use_fastcgi & FASTCGI_COMPRESS);
             fastcgi_send(&php_fpm, client, flags);
         } else if (use_rev_proxy) {
             char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
             int chunked = transfer_encoding != NULL && strcmp(transfer_encoding, "chunked") == 0;
+
             char *content_len = http_get_header_field(&res.hdr, "Content-Length");
             unsigned long len_to_send = 0;
             if (content_len != NULL) {
                 len_to_send = strtol(content_len, NULL, 10);
             }
-            rev_proxy_send(client, chunked, len_to_send);
+
+            int flags = (chunked ? REV_PROXY_CHUNKED : 0) | (use_rev_proxy & REV_PROXY_COMPRESS);
+            rev_proxy_send(client, len_to_send, flags);
         }
     }
 

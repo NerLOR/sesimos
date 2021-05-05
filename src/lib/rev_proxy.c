@@ -7,6 +7,7 @@
 
 #include "rev_proxy.h"
 #include "utils.h"
+#include "compress.h"
 #include "../necronda-server.h"
 #include <openssl/ssl.h>
 #include <string.h>
@@ -377,14 +378,29 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     return -1;
 }
 
-int rev_proxy_send(sock *client, int chunked, unsigned long len_to_send) {
+int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
+    // TODO handle websockets
     long ret;
     char buffer[CHUNK_SIZE];
     long len, snd_len;
-    // TODO handle websockets
-    // TODO compress -> Transfer-Encoding: br/gzip
+
+    compress_ctx comp_ctx;
+    if (flags & REV_PROXY_COMPRESS_BR) {
+        flags &= ~REV_PROXY_COMPRESS_GZ;
+        if (compress_init(&comp_ctx, COMPRESS_BR) != 0) {
+            print(ERR_STR "Unable to init brotli: %s" CLR_STR, strerror(errno));
+            flags &= ~REV_PROXY_COMPRESS_BR;
+        }
+    } else if (flags & REV_PROXY_COMPRESS_GZ) {
+        flags &= ~REV_PROXY_COMPRESS_BR;
+        if (compress_init(&comp_ctx, COMPRESS_BR) != 0) {
+            print(ERR_STR "Unable to init gzip: %s" CLR_STR, strerror(errno));
+            flags &= ~REV_PROXY_COMPRESS_GZ;
+        }
+    }
+
     do {
-        if (chunked) {
+        if (flags & REV_PROXY_CHUNKED) {
             ret = sock_recv(&rev_proxy, buffer, 16, MSG_PEEK);
             if (ret <= 0) {
                 print("Unable to receive: %s", sock_strerror(&rev_proxy));
@@ -395,7 +411,6 @@ int rev_proxy_send(sock *client, int chunked, unsigned long len_to_send) {
             char *pos = strstr(buffer, "\r\n");
             len = pos - buffer + 2;
             ret = sock_send(client, buffer, len, 0);
-
             sock_recv(&rev_proxy, buffer, len, 0);
             if (ret <= 0) break;
         }
@@ -410,7 +425,7 @@ int rev_proxy_send(sock *client, int chunked, unsigned long len_to_send) {
             snd_len += ret;
         }
         if (ret <= 0) break;
-        if (chunked) {
+        if (flags & REV_PROXY_CHUNKED) {
             sock_recv(&rev_proxy, buffer, 2, 0);
             ret = sock_send(client, "\r\n", 2, 0);
             if (ret <= 0) {
@@ -418,6 +433,6 @@ int rev_proxy_send(sock *client, int chunked, unsigned long len_to_send) {
                 break;
             }
         }
-    } while (chunked && len_to_send > 0);
+    } while ((flags & REV_PROXY_CHUNKED) && len_to_send > 0);
     return 0;
 }

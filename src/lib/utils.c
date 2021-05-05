@@ -104,25 +104,29 @@ int url_decode(const char *str, char *dec, long *size) {
 }
 
 int mime_is_compressible(const char *type) {
+    char type_parsed[64];
+    strncpy(type_parsed, type, sizeof(type_parsed));
+    char *pos = strchr(type_parsed, ';');
+    if (pos != NULL) pos[0] = 0;
     return
-        strncmp(type, "text/", 5) == 0 ||
-        strncmp(type, "message/", 7) == 0 ||
-        strstr(type, "+xml") != NULL ||
-        strstr(type, "+json") != NULL ||
-        strcmp(type, "application/javascript") == 0 ||
-        strcmp(type, "application/json") == 0 ||
-        strcmp(type, "application/xml") == 0 ||
-        strcmp(type, "application/x-www-form-urlencoded") == 0 ||
-        strcmp(type, "application/x-tex") == 0 ||
-        strcmp(type, "application/x-httpd-php") == 0 ||
-        strcmp(type, "application/x-latex") == 0 ||
-        strcmp(type, "application/vnd.ms-fontobject") == 0 ||
-        strcmp(type, "application/x-font-ttf") == 0 ||
-        strcmp(type, "application/x-javascript") == 0 ||
-        strcmp(type, "application/x-web-app-manifest+json") == 0 ||
-        strcmp(type, "font/eot") == 0 ||
-        strcmp(type, "font/opentype") == 0 ||
-        strcmp(type, "image/bmp") == 0 ||
-        strcmp(type, "image/vnd.microsoft.icon") == 0 ||
-        strcmp(type, "image/x-icon") == 0;
+        strncmp(type_parsed, "text/", 5) == 0 ||
+        strncmp(type_parsed, "message/", 7) == 0 ||
+        strstr(type_parsed, "+xml") != NULL ||
+        strstr(type_parsed, "+json") != NULL ||
+        strcmp(type_parsed, "application/javascript") == 0 ||
+        strcmp(type_parsed, "application/json") == 0 ||
+        strcmp(type_parsed, "application/xml") == 0 ||
+        strcmp(type_parsed, "application/x-www-form-urlencoded") == 0 ||
+        strcmp(type_parsed, "application/x-tex") == 0 ||
+        strcmp(type_parsed, "application/x-httpd-php") == 0 ||
+        strcmp(type_parsed, "application/x-latex") == 0 ||
+        strcmp(type_parsed, "application/vnd.ms-fontobject") == 0 ||
+        strcmp(type_parsed, "application/x-font-ttf") == 0 ||
+        strcmp(type_parsed, "application/x-javascript") == 0 ||
+        strcmp(type_parsed, "application/x-web-app-manifest+json") == 0 ||
+        strcmp(type_parsed, "font/eot") == 0 ||
+        strcmp(type_parsed, "font/opentype") == 0 ||
+        strcmp(type_parsed, "image/bmp") == 0 ||
+        strcmp(type_parsed, "image/vnd.microsoft.icon") == 0 ||
+        strcmp(type_parsed, "image/x-icon") == 0;
 }

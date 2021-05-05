@@ -7,6 +7,7 @@
 
 #include "http.h"
 #include "utils.h"
+#include "compress.h"
 #include "../necronda-server.h"
 #include <string.h>
 
@@ -311,4 +312,18 @@ const http_doc_info *http_get_status_info(const http_status *status) {
         return &info[3];
     }
     return NULL;
+}
+
+int http_get_compression(const http_req *req, const http_res *res) {
+    char *accept_encoding = http_get_header_field(&req->hdr, "Accept-Encoding");
+    char *content_type = http_get_header_field(&res->hdr, "Content-Type");
+    char *content_encoding = http_get_header_field(&res->hdr, "Content-Encoding");
+    if (mime_is_compressible(content_type) && content_encoding == NULL && accept_encoding != NULL) {
+        if (strstr(accept_encoding, "br") != NULL) {
+            return COMPRESS_BR;
+        } else if (strstr(accept_encoding, "gzip") != NULL) {
+            return COMPRESS_GZ;
+        }
+    }
+    return 0;
 }

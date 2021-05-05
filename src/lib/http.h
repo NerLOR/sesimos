@@ -122,4 +122,6 @@ char *http_get_date(char *buf, size_t size);
 
 const http_doc_info *http_get_status_info(const http_status *status);
 
+int http_get_compression(const http_req *req, const http_res *res);
+
 #endif //NECRONDA_SERVER_HTTP_H
