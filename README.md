@@ -6,11 +6,11 @@ Necronda web server
 
 * Full IPv4 and IPv6 support
 * Serving local files via HTTP and HTTPS
-  * File compression and disk cache for compressed files
+  * File compression ([gzip](https://www.gzip.org/), [Brotli](https://www.brotli.org/)) and disk cache for compressed files
 * Reverse proxy for other HTTP and HTTPS servers
 * FastCGI support (e.g. [PHP-FPM](https://php-fpm.org/))
 * Support for [MaxMind's GeoIP Database](https://www.maxmind.com/en/geoip2-services-and-databases)
-* DNS reverse lookup for connecting hosts
+* Optional DNS reverse lookup for connecting hosts
 * Automatic URL rewrite (e.g. `/index.html` -> `/`, `/test.php` -> `/test`)
 * Modern looking and responsive error documents
 
