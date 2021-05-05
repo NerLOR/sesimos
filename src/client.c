@@ -423,8 +423,10 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             int http_comp = http_get_compression(&req, &res);
             if (http_comp & COMPRESS_BR) {
                 use_fastcgi |= FASTCGI_COMPRESS_BR;
+                http_add_header_field(&res.hdr, "Content-Encoding", "br");
             } else if (http_comp & COMPRESS_GZ) {
                 use_fastcgi |= FASTCGI_COMPRESS_GZ;
+                http_add_header_field(&res.hdr, "Content-Encoding", "gzip");
             }
 
             if (http_get_header_field(&res.hdr, "Content-Length") == NULL) {
