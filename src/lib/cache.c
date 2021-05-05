@@ -155,14 +155,14 @@ int cache_process() {
                             compress_compress_mode(&comp_ctx, COMPRESS_GZ,buf + read - avail_in, &avail_in,
                                                    comp_buf, &avail_out, feof(file));
                             fwrite(comp_buf, 1, CACHE_BUF_SIZE - avail_out, comp_file_gz);
-                        } while (avail_in != 0);
+                        } while (avail_in != 0 || avail_out != CACHE_BUF_SIZE);
                         avail_in = read;
                         do {
                             avail_out = CACHE_BUF_SIZE;
                             compress_compress_mode(&comp_ctx, COMPRESS_BR, buf + read - avail_in, &avail_in,
                                                    comp_buf, &avail_out, feof(file));
                             fwrite(comp_buf, 1, CACHE_BUF_SIZE - avail_out, comp_file_br);
-                        } while (avail_in != 0);
+                        } while (avail_in != 0 || avail_out != CACHE_BUF_SIZE);
                     }
                 }
 
