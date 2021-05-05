@@ -16,6 +16,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <openssl/sha.h>
+#include <malloc.h>
 
 int cache_continue = 1;
 magic_t magic;
@@ -74,8 +75,8 @@ int cache_process() {
     }
 
     FILE *file;
-    char buf[16384];
-    char comp_buf[16384];
+    char *buf = malloc(CACHE_BUF_SIZE);
+    char *comp_buf = malloc(CACHE_BUF_SIZE);
     char filename_comp_gz[256];
     char filename_comp_br[256];
     unsigned long read;
@@ -144,23 +145,23 @@ int cache_process() {
                     }
                 }
 
-                while ((read = fread(buf, 1, sizeof(buf), file)) > 0) {
+                while ((read = fread(buf, 1, CACHE_BUF_SIZE, file)) > 0) {
                     SHA1_Update(&ctx, buf, read);
                     if (compress) {
                         unsigned long avail_in, avail_out;
                         avail_in = read;
                         do {
-                            avail_out = sizeof(comp_buf);
+                            avail_out = CACHE_BUF_SIZE;
                             compress_compress_mode(&comp_ctx, COMPRESS_GZ,buf + read - avail_in, &avail_in,
                                                    comp_buf, &avail_out, feof(file));
-                            fwrite(comp_buf, 1, sizeof(comp_buf) - avail_out, comp_file_gz);
+                            fwrite(comp_buf, 1, CACHE_BUF_SIZE - avail_out, comp_file_gz);
                         } while (avail_in != 0);
                         avail_in = read;
                         do {
-                            avail_out = sizeof(comp_buf);
+                            avail_out = CACHE_BUF_SIZE;
                             compress_compress_mode(&comp_ctx, COMPRESS_BR, buf + read - avail_in, &avail_in,
                                                    comp_buf, &avail_out, feof(file));
-                            fwrite(comp_buf, 1, sizeof(comp_buf) - avail_out, comp_file_br);
+                            fwrite(comp_buf, 1, CACHE_BUF_SIZE - avail_out, comp_file_br);
                         } while (avail_in != 0);
                     }
                 }
@@ -193,6 +194,8 @@ int cache_process() {
             cache_file = fopen("/var/necronda-server/cache", "wb");
             if (cache_file == NULL) {
                 fprintf(stderr, ERR_STR "Unable to open cache file: %s" CLR_STR "\n", strerror(errno));
+                free(buf);
+                free(comp_buf);
                 return -1;
             }
             fwrite(cache, sizeof(cache_entry), CACHE_ENTRIES, cache_file);
@@ -201,6 +204,8 @@ int cache_process() {
             sleep(1);
         }
     }
+    free(buf);
+    free(comp_buf);
     return 0;
 }
 

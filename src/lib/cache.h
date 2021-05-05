@@ -12,6 +12,7 @@
 
 #define CACHE_SHM_KEY 255641
 #define CACHE_ENTRIES 1024
+#define CACHE_BUF_SIZE 16384
 
 #ifndef CACHE_MAGIC_FILE
 #   define CACHE_MAGIC_FILE "/usr/share/file/misc/magic.mgc"
