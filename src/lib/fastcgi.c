@@ -457,7 +457,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
                 content_len = 0;
                 goto out;
                 finish:
-                if (flags & FASTCGI_COMPRESS) compress_free(&comp_ctx);
+                compress_free(&comp_ctx);
             }
 
             if (flags & FASTCGI_CHUNKED) {
@@ -476,10 +476,8 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
                 int buf_len = content_len;
                 if (flags & FASTCGI_COMPRESS) {
                     avail_out = sizeof(comp_out);
-                    if (flags & FASTCGI_COMPRESS) {
-                        compress_compress(&comp_ctx, next_in + content_len - avail_in, &avail_in,
-                                          comp_out, &avail_out, finish_comp);
-                    }
+                    compress_compress(&comp_ctx, next_in + content_len - avail_in, &avail_in, comp_out, &avail_out,
+                                      finish_comp);
                     ptr = comp_out;
                     buf_len = (int) (sizeof(comp_out) - avail_out);
                 }
