@@ -104,6 +104,7 @@ int url_decode(const char *str, char *dec, long *size) {
 }
 
 int mime_is_compressible(const char *type) {
+    if (type == NULL) return 0;
     char type_parsed[64];
     strncpy(type_parsed, type, sizeof(type_parsed));
     char *pos = strchr(type_parsed, ';');

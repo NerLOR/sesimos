@@ -427,19 +427,20 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         ret = rev_proxy_init(&req, &res, conf, client, &custom_status, err_msg);
         use_rev_proxy = (ret == 0);
 
-        char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
-        if (use_rev_proxy && transfer_encoding == NULL) {
+        char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding");
+        if (use_rev_proxy && content_encoding == NULL) {
             int http_comp = http_get_compression(&req, &res);
             if (http_comp & COMPRESS_BR) {
-                //use_rev_proxy |= REV_PROXY_COMPRESS_BR;
+                use_rev_proxy |= REV_PROXY_COMPRESS_BR;
             } else if (http_comp & COMPRESS_GZ) {
-                //use_rev_proxy |= REV_PROXY_COMPRESS_GZ;
+                use_rev_proxy |= REV_PROXY_COMPRESS_GZ;
             }
+            use_rev_proxy &= ~REV_PROXY_COMPRESS;
         }
 
+        char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
         int chunked = transfer_encoding != NULL && strcmp(transfer_encoding, "chunked") == 0;
         http_remove_header_field(&res.hdr, "Transfer-Encoding", HTTP_REMOVE_ALL);
-        printf("%i\n", use_rev_proxy);
         ret = sprintf(buf0, "%s%s%s",
                       (use_rev_proxy & REV_PROXY_COMPRESS_BR) ? "br" :
                       ((use_rev_proxy & REV_PROXY_COMPRESS_GZ) ? "gzip" : ""),
@@ -538,7 +539,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             fastcgi_send(&php_fpm, client, flags);
         } else if (use_rev_proxy) {
             char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
-            int chunked = transfer_encoding != NULL && strcmp(transfer_encoding, "chunked") == 0;
+            int chunked = transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL;
 
             char *content_len = http_get_header_field(&res.hdr, "Content-Length");
             unsigned long len_to_send = 0;

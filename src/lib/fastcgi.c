@@ -401,7 +401,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
         }
     } else if (flags & FASTCGI_COMPRESS_GZ) {
         flags &= ~FASTCGI_COMPRESS_BR;
-        if (compress_init(&comp_ctx, COMPRESS_BR) != 0) {
+        if (compress_init(&comp_ctx, COMPRESS_GZ) != 0) {
             print(ERR_STR "Unable to init gzip: %s" CLR_STR, strerror(errno));
             flags &= ~FASTCGI_COMPRESS_GZ;
         }

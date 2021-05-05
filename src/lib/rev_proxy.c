@@ -382,7 +382,11 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
     // TODO handle websockets
     long ret;
     char buffer[CHUNK_SIZE];
+    char comp_out[CHUNK_SIZE];
+    char buf[256];
     long len, snd_len;
+    int finish_comp = 0;
+    char *ptr;
 
     compress_ctx comp_ctx;
     if (flags & REV_PROXY_COMPRESS_BR) {
@@ -393,7 +397,7 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
         }
     } else if (flags & REV_PROXY_COMPRESS_GZ) {
         flags &= ~REV_PROXY_COMPRESS_BR;
-        if (compress_init(&comp_ctx, COMPRESS_BR) != 0) {
+        if (compress_init(&comp_ctx, COMPRESS_GZ) != 0) {
             print(ERR_STR "Unable to init gzip: %s" CLR_STR, strerror(errno));
             flags &= ~REV_PROXY_COMPRESS_GZ;
         }
@@ -410,29 +414,61 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
             len_to_send = strtol(buffer, NULL, 16);
             char *pos = strstr(buffer, "\r\n");
             len = pos - buffer + 2;
-            ret = sock_send(client, buffer, len, 0);
             sock_recv(&rev_proxy, buffer, len, 0);
             if (ret <= 0) break;
+
+            if (len_to_send == 0 && (flags & REV_PROXY_COMPRESS)) {
+                finish_comp = 1;
+                len = 0;
+                goto out;
+                finish:
+                compress_free(&comp_ctx);
+            }
         }
         snd_len = 0;
         while (snd_len < len_to_send) {
+            unsigned long avail_in, avail_out;
             len = sock_recv(&rev_proxy, buffer, CHUNK_SIZE < (len_to_send - snd_len) ? CHUNK_SIZE : len_to_send - snd_len, 0);
-            ret = sock_send(client, buffer, len, 0);
-            if (ret <= 0) {
-                print(ERR_STR "Unable to send: %s" CLR_STR, sock_strerror(client));
-                break;
-            }
-            snd_len += ret;
+            ptr = buffer;
+            out:
+            avail_in = len;
+            void *next_in = ptr;
+            do {
+                long buf_len = len;
+                if (flags & REV_PROXY_COMPRESS) {
+                    avail_out = sizeof(comp_out);
+                    compress_compress(&comp_ctx, next_in + len - avail_in, &avail_in, comp_out, &avail_out,
+                                      finish_comp);
+                    ptr = comp_out;
+                    buf_len = (int) (sizeof(comp_out) - avail_out);
+                    snd_len += (long) (len - avail_in);
+                }
+                if (buf_len != 0) {
+                    len = sprintf(buf, "%lX\r\n", buf_len);
+                    ret = 1;
+                    if (flags & REV_PROXY_CHUNKED) ret = sock_send(client, buf, len, 0);
+                    if (ret <= 0) goto err;
+                    ret = sock_send(client, ptr, buf_len, 0);
+                    if (ret <= 0) goto err;
+                    if (!(flags & REV_PROXY_COMPRESS)) snd_len += ret;
+                    if (flags & REV_PROXY_CHUNKED) ret = sock_send(client, "\r\n", 2, 0);
+                    if (ret <= 0) {
+                        err:
+                        print(ERR_STR "Unable to send: %s" CLR_STR, sock_strerror(client));
+                        break;
+                    }
+                }
+            } while ((flags & REV_PROXY_COMPRESS) && (avail_in != 0 || avail_out != sizeof(comp_out)));
+            if (ret <= 0) break;
+            if (finish_comp) goto finish;
         }
         if (ret <= 0) break;
-        if (flags & REV_PROXY_CHUNKED) {
-            sock_recv(&rev_proxy, buffer, 2, 0);
-            ret = sock_send(client, "\r\n", 2, 0);
-            if (ret <= 0) {
-                print(ERR_STR "Unable to send: %s" CLR_STR, sock_strerror(client));
-                break;
-            }
-        }
+        if (flags & REV_PROXY_CHUNKED) sock_recv(&rev_proxy, buffer, 2, 0);
     } while ((flags & REV_PROXY_CHUNKED) && len_to_send > 0);
+
+    if (flags & REV_PROXY_CHUNKED) {
+        sock_send(client, "0\r\n\r\n", 5, 0);
+    }
+
     return 0;
 }
