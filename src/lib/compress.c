@@ -12,8 +12,10 @@
 int compress_init(compress_ctx *ctx, int mode) {
     ctx->gzip = NULL;
     ctx->brotli = NULL;
+    ctx->mode = 0;
     int ret;
     if (mode & COMPRESS_GZ) {
+        ctx->mode |= COMPRESS_GZ;
         ctx->gzip = malloc(sizeof(z_stream));
         ctx->gzip->zalloc = Z_NULL;
         ctx->gzip->zfree = Z_NULL;
@@ -22,6 +24,7 @@ int compress_init(compress_ctx *ctx, int mode) {
         if (ret != Z_OK) return -1;
     }
     if (mode & COMPRESS_BR) {
+        ctx->mode |= COMPRESS_BR;
         ctx->brotli = BrotliEncoderCreateInstance(NULL, NULL, NULL);
         if (ctx->brotli == NULL) return -1;
         BrotliEncoderSetParameter(ctx->brotli, BROTLI_PARAM_MODE, BROTLI_MODE_GENERIC);
