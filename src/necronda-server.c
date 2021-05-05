@@ -275,6 +275,16 @@ int main(int argc, const char *argv[]) {
         closedir(geoip);
     }
 
+    ret = cache_init();
+    if (ret < 0) {
+        config_unload();
+        return 1;
+    } else if (ret != 0) {
+        children[0] = ret;  // pid
+    } else {
+        return 0;
+    }
+
     openssl_init();
 
     client.buf = NULL;
@@ -283,7 +293,7 @@ int main(int argc, const char *argv[]) {
     client.ctx = SSL_CTX_new(TLS_server_method());
     SSL_CTX_set_options(client.ctx, SSL_OP_SINGLE_DH_USE);
     SSL_CTX_set_verify(client.ctx, SSL_VERIFY_NONE, NULL);
-    SSL_CTX_set_min_proto_version(client.ctx, TLS1_VERSION);
+    SSL_CTX_set_min_proto_version(client.ctx, TLS1_2_VERSION);
     SSL_CTX_set_mode(client.ctx, SSL_MODE_ENABLE_PARTIAL_WRITE);
     SSL_CTX_set_cipher_list(client.ctx, "HIGH:!aNULL:!kRSA:!PSK:!SRP:!MD5:!RC4");
     SSL_CTX_set_ecdh_auto(client.ctx, 1);
@@ -317,16 +327,6 @@ int main(int argc, const char *argv[]) {
         if (sockets[i] > max_socket_fd) {
             max_socket_fd = sockets[i];
         }
-    }
-
-    ret = cache_init();
-    if (ret < 0) {
-        config_unload();
-        return 1;
-    } else if (ret != 0) {
-        children[0] = ret;  // pid
-    } else {
-        return 0;
     }
 
     fprintf(stderr, "Ready to accept connections\n");
@@ -375,6 +375,7 @@ int main(int argc, const char *argv[]) {
             }
         }
 
+        // TODO outsource in thread
         int status = 0;
         for (int i = 0; i < MAX_CHILDREN; i++) {
             if (children[i] != 0) {
