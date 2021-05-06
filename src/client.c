@@ -286,6 +286,9 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                         enc = COMPRESS_GZ;
                     }
                 }
+                if (enc != 0) {
+                    http_add_header_field(&res.hdr, "Vary", "Accept-Encoding");
+                }
             }
 
             if (uri.meta->etag[0] != 0) {
@@ -421,12 +424,16 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             use_fastcgi = 1;
 
             int http_comp = http_get_compression(&req, &res);
-            if (http_comp & COMPRESS_BR) {
-                use_fastcgi |= FASTCGI_COMPRESS_BR;
-                http_add_header_field(&res.hdr, "Content-Encoding", "br");
-            } else if (http_comp & COMPRESS_GZ) {
-                use_fastcgi |= FASTCGI_COMPRESS_GZ;
-                http_add_header_field(&res.hdr, "Content-Encoding", "gzip");
+            if (http_comp & COMPRESS) {
+                if (http_comp & COMPRESS_BR) {
+                    use_fastcgi |= FASTCGI_COMPRESS_BR;
+                    sprintf(buf0, "br");
+                } else if (http_comp & COMPRESS_GZ) {
+                    use_fastcgi |= FASTCGI_COMPRESS_GZ;
+                    sprintf(buf0, "gzip");
+                }
+                http_add_header_field(&res.hdr, "Vary", "Accept-Encoding");
+                http_add_header_field(&res.hdr, "Content-Encoding", buf0);
             }
 
             if (http_get_header_field(&res.hdr, "Content-Length") == NULL) {

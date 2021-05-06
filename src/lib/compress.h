@@ -16,6 +16,7 @@
 
 #define COMPRESS_GZ 1
 #define COMPRESS_BR 2
+#define COMPRESS 3
 
 typedef struct {
     int mode;
