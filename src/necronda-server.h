@@ -20,7 +20,6 @@
 #define SERVER_TIMEOUT 4
 
 #define CHUNK_SIZE 8192
-#define CLIENT_MAX_HEADER_SIZE 8192
 
 #ifndef DEFAULT_HOST
 #   define DEFAULT_HOST "www.necronda.net"

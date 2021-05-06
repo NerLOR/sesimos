@@ -278,7 +278,7 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
     FCGI_Header header;
     char *content;
     unsigned short content_len, req_id;
-    int ret;
+    long ret;
     int err = 0;
 
     while (1) {
@@ -372,7 +372,7 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
         }
 
         ret = http_parse_header_field(&res->hdr, ptr, pos0);
-        if (ret != 0) return ret;
+        if (ret != 0) return (int) ret;
         if (pos0[2] == '\r' && pos0[3] == '\n') {
             return 0;
         }

@@ -5,8 +5,8 @@
  * Lorenz Stechauner, 2021-05-03
  */
 
+#include "../necronda.h"
 #include "http.h"
-#include "utils.h"
 
 const http_status http_statuses[] = {
         {100, "Informational", "Continue"},

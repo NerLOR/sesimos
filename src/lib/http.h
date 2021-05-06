@@ -29,6 +29,8 @@
 #define HTTP_COLOR_WARNING "#E0C000"
 #define HTTP_COLOR_ERROR "#C00000"
 
+#define CLIENT_MAX_HEADER_SIZE 8192
+
 #ifndef SERVER_STR
 #   define SERVER_STR "Necronda"
 #endif
