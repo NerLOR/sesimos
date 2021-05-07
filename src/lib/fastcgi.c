@@ -423,6 +423,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
             print(ERR_STR "Unable to receive from PHP-FPM" CLR_STR);
             return -1;
         }
+
         req_id = (header.requestIdB1 << 8) | header.requestIdB0;
         content_len = (header.contentLengthB1 << 8) | header.contentLengthB0;
         content = malloc(content_len + header.paddingLength);

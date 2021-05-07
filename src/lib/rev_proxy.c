@@ -404,18 +404,21 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
     }
 
     do {
+        snd_len = 0;
         if (flags & REV_PROXY_CHUNKED) {
+            char *pos;
             ret = sock_recv(&rev_proxy, buffer, 16, MSG_PEEK);
-            if (ret <= 0) {
-                print("Unable to receive: %s", sock_strerror(&rev_proxy));
-                break;
-            }
+            if (ret <= 0) goto err0;
 
             len_to_send = strtol(buffer, NULL, 16);
-            char *pos = strstr(buffer, "\r\n");
+            pos = strstr(buffer, "\r\n");
             len = pos - buffer + 2;
             sock_recv(&rev_proxy, buffer, len, 0);
-            if (ret <= 0) break;
+            if (ret <= 0) {
+                err0:
+                print("Unable to receive from server: %s", sock_strerror(&rev_proxy));
+                break;
+            }
 
             if (len_to_send == 0 && (flags & REV_PROXY_COMPRESS)) {
                 finish_comp = 1;
@@ -425,10 +428,14 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
                 compress_free(&comp_ctx);
             }
         }
-        snd_len = 0;
         while (snd_len < len_to_send) {
             unsigned long avail_in, avail_out;
-            len = sock_recv(&rev_proxy, buffer, CHUNK_SIZE < (len_to_send - snd_len) ? CHUNK_SIZE : len_to_send - snd_len, 0);
+            ret = sock_recv(&rev_proxy, buffer, CHUNK_SIZE < (len_to_send - snd_len) ? CHUNK_SIZE : len_to_send - snd_len, 0);
+            if (ret <= 0) {
+                print("Unable to receive from server: %s", sock_strerror(&rev_proxy));
+                break;
+            }
+            len = ret;
             ptr = buffer;
             out:
             avail_in = len;
@@ -466,8 +473,14 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
         if (flags & REV_PROXY_CHUNKED) sock_recv(&rev_proxy, buffer, 2, 0);
     } while ((flags & REV_PROXY_CHUNKED) && len_to_send > 0);
 
+    if (ret <= 0) return (int) -1;
+
     if (flags & REV_PROXY_CHUNKED) {
-        sock_send(client, "0\r\n\r\n", 5, 0);
+        ret = sock_send(client, "0\r\n\r\n", 5, 0);
+        if (ret <= 0) {
+            print(ERR_STR "Unable to send: %s" CLR_STR, sock_strerror(client));
+            return -1;
+        }
     }
 
     return 0;

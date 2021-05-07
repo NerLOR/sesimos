@@ -52,12 +52,12 @@ long sock_send(sock *s, void *buf, unsigned long len, int flags) {
     long ret;
     if (s->enc) {
         ret = SSL_write(s->ssl, buf, (int) len);
+        s->_ssl_error = ERR_get_error();
     } else {
         ret = send(s->socket, buf, len, flags);
     }
     s->_last_ret = ret;
     s->_errno = errno;
-    s->_ssl_error = ERR_get_error();
     return ret >= 0 ? ret : -1;
 }
 
@@ -69,12 +69,12 @@ long sock_recv(sock *s, void *buf, unsigned long len, int flags) {
         } else {
             ret = SSL_read(s->ssl, buf, (int) len);
         }
+        s->_ssl_error = ERR_get_error();
     } else {
         ret = recv(s->socket, buf, len, flags);
     }
     s->_last_ret = ret;
     s->_errno = errno;
-    s->_ssl_error = ERR_get_error();
     return ret >= 0 ? ret : -1;
 }
 
@@ -97,14 +97,14 @@ long sock_splice(sock *dst, sock *src, void *buf, unsigned long buf_len, unsigne
 
 int sock_close(sock *s) {
     if ((int) s->enc && s->ssl != NULL) {
-        SSL_shutdown(s->ssl);
+        if (s->_last_ret >= 0) SSL_shutdown(s->ssl);
         SSL_free(s->ssl);
+        s->ssl = NULL;
     }
     shutdown(s->socket, SHUT_RDWR);
     close(s->socket);
     s->socket = 0;
     s->enc = 0;
-    s->ssl = NULL;
     return 0;
 }
 

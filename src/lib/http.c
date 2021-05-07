@@ -33,7 +33,7 @@ void http_free_hdr(http_hdr *hdr) {
 }
 
 void http_free_req(http_req *req) {
-    if (req->uri == NULL) free(req->uri);
+    if (req->uri != NULL) free(req->uri);
     req->uri = NULL;
     http_free_hdr(&req->hdr);
 }
@@ -85,19 +85,19 @@ int http_receive_request(sock *client, http_req *req) {
     while (1) {
         rcv_len  = sock_recv(client, buf, CLIENT_MAX_HEADER_SIZE, 0);
         if (rcv_len <= 0) {
-            print("Unable to receive: %s", sock_strerror(client));
+            print("Unable to receive http header: %s", sock_strerror(client));
             return -1;
         }
 
         unsigned long header_len = strstr(buf, "\r\n\r\n") - buf + 4;
         if (header_len <= 0) {
-            print(ERR_STR "Unable to parse header: End of header not found" CLR_STR);
+            print(ERR_STR "Unable to parse http header: End of header not found" CLR_STR);
             return 5;
         }
 
         for (int i = 0; i < header_len; i++) {
             if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {
-                print(ERR_STR "Unable to parse header: Header contains illegal characters" CLR_STR);
+                print(ERR_STR "Unable to parse http header: Header contains illegal characters" CLR_STR);
                 return 4;
             }
         }
@@ -106,7 +106,7 @@ int http_receive_request(sock *client, http_req *req) {
         while (header_len > (ptr - buf + 2)) {
             pos0 = strstr(ptr, "\r\n");
             if (pos0 == NULL) {
-                print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);
+                print(ERR_STR "Unable to parse http header: Invalid header format" CLR_STR);
                 return 1;
             }
 
@@ -115,13 +115,13 @@ int http_receive_request(sock *client, http_req *req) {
                 if (pos1 == NULL) goto err_hdr_fmt;
 
                 if (pos1 - ptr - 1 >= sizeof(req->method)) {
-                    print(ERR_STR "Unable to parse header: Method name too long" CLR_STR);
+                    print(ERR_STR "Unable to parse http header: Method name too long" CLR_STR);
                     return 2;
                 }
 
                 for (int i = 0; i < (pos1 - ptr - 1); i++) {
                     if (ptr[i] < 'A' || ptr[i] > 'Z') {
-                        print(ERR_STR "Unable to parse header: Invalid method" CLR_STR);
+                        print(ERR_STR "Unable to parse http header: Invalid method" CLR_STR);
                         return 2;
                     }
                 }
@@ -130,12 +130,12 @@ int http_receive_request(sock *client, http_req *req) {
                 pos2 = memchr(pos1, ' ', rcv_len - (pos1 - buf)) + 1;
                 if (pos2 == NULL) {
                     err_hdr_fmt:
-                    print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);
+                    print(ERR_STR "Unable to parse http header: Invalid header format" CLR_STR);
                     return 1;
                 }
 
                 if (memcmp(pos2, "HTTP/", 5) != 0 || memcmp(pos2 + 8, "\r\n", 2) != 0) {
-                    print(ERR_STR "Unable to parse header: Invalid version" CLR_STR);
+                    print(ERR_STR "Unable to parse http header: Invalid version" CLR_STR);
                     return 3;
                 }
 

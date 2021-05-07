@@ -102,15 +102,15 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         if (ret < 0) {
             goto abort;
         } else if (ret == 1) {
-            sprintf(err_msg, "Unable to parse header: Invalid header format.");
+            sprintf(err_msg, "Unable to parse http header: Invalid header format.");
         } else if (ret == 2) {
-            sprintf(err_msg, "Unable to parse header: Invalid method.");
+            sprintf(err_msg, "Unable to parse http header: Invalid method.");
         } else if (ret == 3) {
-            sprintf(err_msg, "Unable to parse header: Invalid version.");
+            sprintf(err_msg, "Unable to parse http header: Invalid version.");
         } else if (ret == 4) {
-            sprintf(err_msg, "Unable to parse header: Header contains illegal characters.");
+            sprintf(err_msg, "Unable to parse http header: Header contains illegal characters.");
         } else if (ret == 5) {
-            sprintf(err_msg, "Unable to parse header: End of header not found.");
+            sprintf(err_msg, "Unable to parse http header: End of header not found.");
         }
         res.status = http_get_status(400);
         goto respond;
@@ -138,7 +138,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         strcpy(host, host_ptr);
     }
 
-    sprintf(log_req_prefix, "[%s%24s%s]%s ", BLD_STR, host, CLR_STR, log_client_prefix);
+    sprintf(log_req_prefix, "[%6i][%s%24s%s]%s ", getpid(), BLD_STR, host, CLR_STR, log_client_prefix);
     log_prefix = log_req_prefix;
     print(BLD_STR "%s %s" CLR_STR, req.method, req.uri);
 
@@ -448,6 +448,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         ret = rev_proxy_init(&req, &res, conf, client, &custom_status, err_msg);
         use_rev_proxy = (ret == 0);
 
+        /*
         char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding");
         if (use_rev_proxy && content_encoding == NULL) {
             int http_comp = http_get_compression(&req, &res);
@@ -456,7 +457,6 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             } else if (http_comp & COMPRESS_GZ) {
                 use_rev_proxy |= REV_PROXY_COMPRESS_GZ;
             }
-            use_rev_proxy &= ~REV_PROXY_COMPRESS;
         }
 
         char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
@@ -470,6 +470,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         if (ret > 0) {
             http_add_header_field(&res.hdr, "Transfer-Encoding", buf0);
         }
+        */
     } else {
         print(ERR_STR "Unknown host type: %i" CLR_STR, conf->type);
         res.status = http_get_status(501);
@@ -706,6 +707,7 @@ int client_connection_handler(sock *client, unsigned long client_num) {
         client->_ssl_error = ERR_get_error();
         if (ret <= 0) {
             print(ERR_STR "Unable to perform handshake: %s" CLR_STR, sock_strerror(client));
+            ret = -1;
             goto close;
         }
     }
@@ -768,12 +770,13 @@ int client_handler(sock *client, unsigned long client_num, struct sockaddr_in6 *
             ntohs(client_addr->sin6_port), CLR_STR);
 
     log_conn_prefix = malloc(256);
-    sprintf(log_conn_prefix, "[%24s]%s ", server_addr_str, log_client_prefix);
+    sprintf(log_conn_prefix, "[%6i][%24s]%s ", getpid(), server_addr_str, log_client_prefix);
     log_prefix = log_conn_prefix;
 
     print("Started child process with PID %i", getpid());
 
     ret = client_connection_handler(client, client_num);
+
     free(client_addr_str_ptr);
     client_addr_str_ptr = NULL;
     free(server_addr_str_ptr);
@@ -788,5 +791,6 @@ int client_handler(sock *client, unsigned long client_num, struct sockaddr_in6 *
     log_req_prefix = NULL;
     free(log_client_prefix);
     log_client_prefix = NULL;
+
     return ret;
 }
