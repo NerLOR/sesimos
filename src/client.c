@@ -219,6 +219,10 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             goto respond;
         }
 
+        if (strncmp(uri.req_path, "/.well-known/", 13) == 0) {
+            http_add_header_field(&res.hdr, "Access-Control-Allow-Origin", "*");
+        }
+
         if (strncmp(uri.req_path, "/.well-known/", 13) != 0 && strstr(uri.path, "/.") != NULL) {
             res.status = http_get_status(403);
             sprintf(err_msg, "Parts of this URI are hidden.");
