@@ -22,7 +22,7 @@ compile:
 compile-debian:
 	@mkdir -p bin
 	gcc $(LIBS) -o bin/libnecronda-server.so --shared -fPIC $(CFLAGS) $(INCLUDE) \
-		$(DEBIAN_OPTS)
+		$(DEBIAN_OPTS) -O3
 	gcc src/necronda-server.c -o bin/necronda-server $(CFLAGS) $(INCLUDE) \
 		-Lbin -lnecronda-server -Wl,-rpath=$(shell pwd)/bin \
-		$(DEBIAN_OPTS)
+		$(DEBIAN_OPTS) -O3

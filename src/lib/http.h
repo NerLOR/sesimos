@@ -65,13 +65,13 @@ typedef struct {
 typedef struct {
     char method[16];
     char *uri;
-    char version[3];
+    char version[4];
     http_hdr hdr;
 } http_req;
 
 typedef struct {
     const http_status *status;
-    char version[3];
+    char version[4];
     http_hdr hdr;
 } http_res;
 
