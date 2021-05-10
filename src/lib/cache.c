@@ -291,11 +291,11 @@ int cache_update_entry(int entry_num, const char *filename, const char *webroot)
     const char *type = magic_file(magic, filename);
     char type_new[24];
     sprintf(type_new, "%s", type);
-    if (strcmp(type, "text/plain") == 0) {
+    if (strncmp(type, "text/", 5) == 0) {
         if (strcmp(filename + strlen(filename) - 4, ".css") == 0) {
             sprintf(type_new, "text/css");
         } else if (strcmp(filename + strlen(filename) - 3, ".js") == 0) {
-            sprintf(type_new, "text/javascript");
+            sprintf(type_new, "application/javascript");
         }
     }
     strcpy(cache[entry_num].meta.type, type_new);
