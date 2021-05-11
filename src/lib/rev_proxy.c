@@ -341,7 +341,8 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
             if (res->status == NULL && status_code >= 100 && status_code <= 999) {
                 custom_status->code = status_code;
                 strcpy(custom_status->type, "");
-                strncpy(custom_status->msg, ptr + 13, strchr(ptr, '\r') - ptr - 13);
+                snprintf(custom_status->msg, sizeof(custom_status->msg), "%.*s",
+                         (int) (strchr(ptr, '\r') - ptr - 13), ptr + 13);
                 res->status = custom_status;
             } else if (res->status == NULL) {
                 res->status = http_get_status(502);

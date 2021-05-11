@@ -42,7 +42,7 @@
 typedef struct {
     unsigned short code;
     char type[16];
-    char msg[32];
+    char msg[64];
 } http_status;
 
 typedef struct {

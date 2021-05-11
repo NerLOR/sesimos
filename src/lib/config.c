@@ -85,7 +85,7 @@ int config_load(const char *filename) {
         len = strlen(ptr);
         if (ptr[0] == '[') {
             if (ptr[len - 1] != ']') goto err;
-            strncpy(tmp_config[i].name, ptr + 1, len - 2);
+            snprintf(tmp_config[i].name, sizeof(tmp_config[i].name), "%.*s", (int) len - 2, ptr + 1);
             i++;
             continue;
         } else if (i == 0) {

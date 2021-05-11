@@ -682,7 +682,7 @@ int client_connection_handler(sock *client, unsigned long client_num) {
         if (pos != NULL) {
             pos = strstr(pos, "\"iso_code\":");
             pos += 12;
-            strncpy(client_cc, pos, 2);
+            snprintf(client_cc, sizeof(client_cc), "%s", pos);
         }
     }
 

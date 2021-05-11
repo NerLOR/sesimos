@@ -125,7 +125,7 @@ int http_receive_request(sock *client, http_req *req) {
                         return 2;
                     }
                 }
-                strncpy(req->method, ptr, pos1 - ptr - 1);
+                snprintf(req->method, sizeof(req->method), "%.*s", (int) (pos1 - ptr - 1), ptr);
 
                 pos2 = memchr(pos1, ' ', rcv_len - (pos1 - buf)) + 1;
                 if (pos2 == NULL) {
