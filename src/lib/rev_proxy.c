@@ -186,7 +186,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
         goto rev_proxy_timeout_err;
     if (setsockopt(client->socket, SOL_SOCKET, SO_SNDTIMEO, &server_timeout, sizeof(server_timeout)) < 0) {
         rev_proxy_timeout_err:
-        res->status = http_get_status(502);
+        res->status = http_get_status(500);
         print(ERR_STR "Unable to set timeout for socket: %s" CLR_STR, strerror(errno));
         sprintf(err_msg, "Unable to set timeout for socket: %s", strerror(errno));
         goto proxy_err;
@@ -194,7 +194,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
 
     struct hostent *host_ent = gethostbyname(conf->rev_proxy.hostname);
     if (host_ent == NULL) {
-        res->status = http_get_status(502);
+        res->status = http_get_status(503);
         print(ERR_STR "Unable to connect to server: Name or service not known" CLR_STR);
         sprintf(err_msg, "Unable to connect to server: Name or service not known.");
         goto proxy_err;
@@ -210,7 +210,13 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     }
 
     if (connect(rev_proxy.socket, (struct sockaddr *) &address, sizeof(address)) < 0) {
-        res->status = http_get_status(502);
+        if (errno == ETIMEDOUT) {
+            res->status = http_get_status(504);
+        } else if (errno == ECONNREFUSED) {
+            res->status = http_get_status(503);
+        } else {
+            res->status = http_get_status(500);
+        }
         print(ERR_STR "Unable to connect to server: %s" CLR_STR, strerror(errno));
         sprintf(err_msg, "Unable to connect to server: %s.", strerror(errno));
         goto proxy_err;

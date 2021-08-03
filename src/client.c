@@ -379,7 +379,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
             res.status = http_get_status(200);
             if (fastcgi_init(&php_fpm, client_num, req_num, client, &req, &uri) != 0) {
-                res.status = http_get_status(502);
+                res.status = http_get_status(503);
                 sprintf(err_msg, "Unable to communicate with PHP-FPM.");
                 goto respond;
             }
