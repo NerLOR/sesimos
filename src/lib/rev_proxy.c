@@ -209,6 +209,9 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
         memcpy(&address.sin6_addr, addr, 16);
     }
 
+    inet_ntop(address.sin6_family, (void *) &address.sin6_addr, buffer, sizeof(buffer));
+
+    print(BLUE_STR "Connecting to " BLD_STR "[%s]:%i" CLR_STR BLUE_STR "..." CLR_STR, buffer, conf->rev_proxy.port);
     if (connect(rev_proxy.socket, (struct sockaddr *) &address, sizeof(address)) < 0) {
         if (errno == ETIMEDOUT) {
             res->status = http_get_status(504);
@@ -217,7 +220,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
         } else {
             res->status = http_get_status(500);
         }
-        print(ERR_STR "Unable to connect to server: %s" CLR_STR, strerror(errno));
+        print(ERR_STR "Unable to connect to [%s]%i: %s" CLR_STR, buffer, conf->rev_proxy.port, strerror(errno));
         sprintf(err_msg, "Unable to connect to server: %s.", strerror(errno));
         goto proxy_err;
     }
@@ -241,7 +244,6 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     }
 
     rev_proxy_host = conf->name;
-    inet_ntop(address.sin6_family, (void *) &address.sin6_addr, buffer, sizeof(buffer));
     print(BLUE_STR "Established new connection with " BLD_STR "[%s]:%i" CLR_STR, buffer, conf->rev_proxy.port);
 
     rev_proxy:
