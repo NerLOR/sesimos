@@ -192,12 +192,15 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
         goto proxy_err;
     }
 
-    struct hostent *host_ent = gethostbyname(conf->rev_proxy.hostname);
+    struct hostent *host_ent = gethostbyname2(conf->rev_proxy.hostname, AF_INET6);
     if (host_ent == NULL) {
-        res->status = http_get_status(503);
-        print(ERR_STR "Unable to connect to server: Name or service not known" CLR_STR);
-        sprintf(err_msg, "Unable to connect to server: Name or service not known.");
-        goto proxy_err;
+        host_ent = gethostbyname2(conf->rev_proxy.hostname, AF_INET);
+        if (host_ent == NULL) {
+            res->status = http_get_status(503);
+            print(ERR_STR "Unable to connect to server: Name or service not known" CLR_STR);
+            sprintf(err_msg, "Unable to connect to server: Name or service not known.");
+            goto proxy_err;
+        }
     }
 
     struct sockaddr_in6 address = {.sin6_family = AF_INET6, .sin6_port = htons(conf->rev_proxy.port)};

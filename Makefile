@@ -1,5 +1,5 @@
 
-CFLAGS=-std=c11 -Wall
+CFLAGS=-std=gnu11 -Wall
 INCLUDE=-lssl -lcrypto -lmagic -lz -lmaxminddb -lbrotlienc
 LIBS=src/lib/*.c
 
