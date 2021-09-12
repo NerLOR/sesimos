@@ -3,7 +3,7 @@ CFLAGS=-std=c11 -Wall
 INCLUDE=-lssl -lcrypto -lmagic -lz -lmaxminddb -lbrotlienc
 LIBS=src/lib/*.c
 
-DEBIAN_OPTS=-D CACHE_MAGIC_FILE="\"/usr/share/file/magic.mgc\"" -D PHP_FPM_SOCKET="\"/var/run/php/php7.3-fpm.sock\""
+DEBIAN_OPTS=-D CACHE_MAGIC_FILE="\"/usr/share/file/magic.mgc\"" -D PHP_FPM_SOCKET="\"/var/run/php/php7.4-fpm.sock\""
 
 packages:
 	@echo "Installing packages..."
