@@ -57,14 +57,17 @@ int cache_process() {
     }
     cache = shm_rw;
 
-    if (mkdir("/var/necronda-server/", 0755) < 0) {
-        if (errno != EEXIST) {
-            fprintf(stderr, ERR_STR "Unable to create directory '/var/necronda-server/': %s" CLR_STR "\n", strerror(errno));
-            return -3;
-        }
+    if (mkdir("/var/necronda/", 0755) < 0 && errno != EEXIST) {
+        fprintf(stderr, ERR_STR "Unable to create directory '/var/necronda/': %s" CLR_STR "\n", strerror(errno));
+        return -3;
     }
 
-    FILE *cache_file = fopen("/var/necronda-server/cache", "rb");
+    if (mkdir("/var/necronda/server/", 0755) < 0 && errno != EEXIST) {
+        fprintf(stderr, ERR_STR "Unable to create directory '/var/necronda/server/': %s" CLR_STR "\n", strerror(errno));
+        return -3;
+    }
+
+    FILE *cache_file = fopen("/var/necronda/server/cache", "rb");
     if (cache_file != NULL) {
         fread(cache, sizeof(cache_entry), CACHE_ENTRIES, cache_file);
         fclose(cache_file);
@@ -191,7 +194,7 @@ int cache_process() {
 
         if (cache_changed) {
             cache_changed = 0;
-            cache_file = fopen("/var/necronda-server/cache", "wb");
+            cache_file = fopen("/var/necronda/server/cache", "wb");
             if (cache_file == NULL) {
                 fprintf(stderr, ERR_STR "Unable to open cache file: %s" CLR_STR "\n", strerror(errno));
                 free(buf);

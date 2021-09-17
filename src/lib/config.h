@@ -17,6 +17,11 @@
 #define CONFIG_TYPE_LOCAL 1
 #define CONFIG_TYPE_REVERSE_PROXY 2
 
+#ifndef DEFAULT_CONFIG_FILE
+#   define DEFAULT_CONFIG_FILE "/etc/necronda/server.conf"
+#endif
+
+
 typedef struct {
     int type;
     char name[256];
