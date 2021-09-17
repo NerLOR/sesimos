@@ -49,7 +49,7 @@ char *fastcgi_add_param(char *buf, const char *key, const char *value) {
     return ptr;
 }
 
-int fastcgi_init(fastcgi_conn *conn, unsigned int client_num, unsigned int req_num, const sock *client,
+int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned int req_num, const sock *client,
                  const http_req *req, const http_uri *uri) {
     unsigned short req_id = (client_num & 0xFFF) << 4;
     if (client_num == 0) {
@@ -57,20 +57,27 @@ int fastcgi_init(fastcgi_conn *conn, unsigned int client_num, unsigned int req_n
     } else {
         req_id |= req_num & 0xF;
     }
+    conn->mode = mode;
     conn->req_id = req_id;
     conn->out_buf = NULL;
     conn->out_off = 0;
 
-    int php_fpm = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (php_fpm < 0) {
+    int fcgi_sock = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fcgi_sock < 0) {
         print(ERR_STR "Unable to create unix socket: %s" CLR_STR, strerror(errno));
         return -1;
     }
-    conn->socket = php_fpm;
+    conn->socket = fcgi_sock;
 
-    struct sockaddr_un php_fpm_addr = {AF_UNIX, PHP_FPM_SOCKET};
-    if (connect(conn->socket, (struct sockaddr *) &php_fpm_addr, sizeof(php_fpm_addr)) < 0) {
-        print(ERR_STR "Unable to connect to unix socket of PHP-FPM: %s" CLR_STR, strerror(errno));
+    struct sockaddr_un sock_addr = {AF_UNIX};
+    if (conn->mode == FASTCGI_NECRONDA) {
+        snprintf(sock_addr.sun_path, sizeof(sock_addr.sun_path) - 1, "%s", NECRONDA_BACKEND_SOCKET);
+    } else if (conn->mode == FASTCGI_PHP) {
+        snprintf(sock_addr.sun_path, sizeof(sock_addr.sun_path) - 1, "%s", PHP_FPM_SOCKET);
+    }
+
+    if (connect(conn->socket, (struct sockaddr *) &sock_addr, sizeof(sock_addr)) < 0) {
+        print(ERR_STR "Unable to connect to unix socket of FastCGI socket: %s" CLR_STR, strerror(errno));
         return -1;
     }
 
@@ -90,7 +97,7 @@ int fastcgi_init(fastcgi_conn *conn, unsigned int client_num, unsigned int req_n
             {.roleB1 = (FCGI_RESPONDER >> 8) & 0xFF, .roleB0 = FCGI_RESPONDER & 0xFF, .flags = 0}
     };
     if (send(conn->socket, &begin, sizeof(begin), 0) != sizeof(begin)) {
-        print(ERR_STR "Unable to send to PHP-FPM: %s" CLR_STR, strerror(errno));
+        print(ERR_STR "Unable to send to FastCGI socket: %s" CLR_STR, strerror(errno));
         return -2;
     }
 
@@ -173,7 +180,7 @@ int fastcgi_init(fastcgi_conn *conn, unsigned int client_num, unsigned int req_n
     header.contentLengthB0 = param_len & 0xFF;
     memcpy(param_buf, &header, sizeof(header));
     if (send(conn->socket, param_buf, param_len + sizeof(header), 0) != param_len + sizeof(header)) {
-        print(ERR_STR "Unable to send to PHP-FPM: %s" CLR_STR, strerror(errno));
+        print(ERR_STR "Unable to send to FastCGI socket: %s" CLR_STR, strerror(errno));
         return -2;
     }
 
@@ -181,7 +188,7 @@ int fastcgi_init(fastcgi_conn *conn, unsigned int client_num, unsigned int req_n
     header.contentLengthB1 = 0;
     header.contentLengthB0 = 0;
     if (send(conn->socket, &header, sizeof(header), 0) != sizeof(header)) {
-        print(ERR_STR "Unable to send to PHP-FPM: %s" CLR_STR, strerror(errno));
+        print(ERR_STR "Unable to send to FastCGI socket: %s" CLR_STR, strerror(errno));
         return -2;
     }
 
@@ -201,7 +208,7 @@ int fastcgi_close_stdin(fastcgi_conn *conn) {
     };
 
     if (send(conn->socket, &header, sizeof(header), 0) != sizeof(header)) {
-        print(ERR_STR "Unable to send to PHP-FPM: %s" CLR_STR, strerror(errno));
+        print(ERR_STR "Unable to send to FastCGI socket: %s" CLR_STR, strerror(errno));
         return -2;
     }
 
@@ -285,13 +292,13 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
         ret = recv(conn->socket, &header, sizeof(header), 0);
         if (ret < 0) {
             res->status = http_get_status(502);
-            sprintf(err_msg, "Unable to communicate with PHP-FPM.");
-            print(ERR_STR "Unable to receive from PHP-FPM: %s" CLR_STR, strerror(errno));
+            sprintf(err_msg, "Unable to communicate with FastCGI socket.");
+            print(ERR_STR "Unable to receive from FastCGI socket: %s" CLR_STR, strerror(errno));
             return 1;
         } else if (ret != sizeof(header)) {
             res->status = http_get_status(502);
-            sprintf(err_msg, "Unable to communicate with PHP-FPM.");
-            print(ERR_STR "Unable to receive from PHP-FPM" CLR_STR);
+            sprintf(err_msg, "Unable to communicate with FastCGI socket.");
+            print(ERR_STR "Unable to receive from FastCGI socket" CLR_STR);
             return 1;
         }
         req_id = (header.requestIdB1 << 8) | header.requestIdB0;
@@ -300,14 +307,14 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
         ret = recv(conn->socket, content, content_len + header.paddingLength, 0);
         if (ret < 0) {
             res->status = http_get_status(502);
-            sprintf(err_msg, "Unable to communicate with PHP-FPM.");
-            print(ERR_STR "Unable to receive from PHP-FPM: %s" CLR_STR, strerror(errno));
+            sprintf(err_msg, "Unable to communicate with FastCGI socket.");
+            print(ERR_STR "Unable to receive from FastCGI socket: %s" CLR_STR, strerror(errno));
             free(content);
             return 1;
         } else if (ret != (content_len + header.paddingLength)) {
             res->status = http_get_status(502);
-            sprintf(err_msg, "Unable to communicate with PHP-FPM.");
-            print(ERR_STR "Unable to receive from PHP-FPM" CLR_STR);
+            sprintf(err_msg, "Unable to communicate with FastCGI socket.");
+            print(ERR_STR "Unable to receive from FastCGI socket" CLR_STR);
             free(content);
             return 1;
         }
@@ -331,7 +338,10 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
             free(content);
             return 1;
         } else if (header.type == FCGI_STDERR) {
-            err = err || fastcgi_php_error(content, content_len, err_msg);
+            // TODO implement Necronda backend error handling
+            if (conn->mode == FASTCGI_PHP) {
+                err = err || fastcgi_php_error(content, content_len, err_msg);
+            }
         } else if (header.type == FCGI_STDOUT) {
             break;
         } else {
@@ -417,10 +427,10 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
     while (1) {
         ret = recv(conn->socket, &header, sizeof(header), 0);
         if (ret < 0) {
-            print(ERR_STR "Unable to receive from PHP-FPM: %s" CLR_STR, strerror(errno));
+            print(ERR_STR "Unable to receive from FastCGI socket: %s" CLR_STR, strerror(errno));
             return -1;
         } else if (ret != sizeof(header)) {
-            print(ERR_STR "Unable to receive from PHP-FPM" CLR_STR);
+            print(ERR_STR "Unable to receive from FastCGI socket" CLR_STR);
             return -1;
         }
 
@@ -430,11 +440,11 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
         ptr = content;
         ret = recv(conn->socket, content, content_len + header.paddingLength, 0);
         if (ret < 0) {
-            print(ERR_STR "Unable to receive from PHP-FPM: %s" CLR_STR, strerror(errno));
+            print(ERR_STR "Unable to receive from FastCGI socket: %s" CLR_STR, strerror(errno));
             free(content);
             return -1;
         } else if (ret != (content_len + header.paddingLength)) {
-            print(ERR_STR "Unable to receive from PHP-FPM" CLR_STR);
+            print(ERR_STR "Unable to receive from FastCGI socket" CLR_STR);
             free(content);
             return -1;
         }
@@ -467,7 +477,10 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
 
             return 0;
         } else if (header.type == FCGI_STDERR) {
-            fastcgi_php_error(content, content_len, buf0);
+            // TODO implement Necronda backend error handling
+            if (conn->mode == FASTCGI_PHP) {
+                fastcgi_php_error(content, content_len, buf0);
+            }
         } else if (header.type == FCGI_STDOUT) {
             unsigned long avail_in, avail_out;
             out:
@@ -532,7 +545,7 @@ int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len) {
         if (send(conn->socket, &header, sizeof(header), 0) != sizeof(header)) goto err;
         if (send(conn->socket, buf, ret, 0) != ret) {
             err:
-            print(ERR_STR "Unable to send to PHP-FPM: %s" CLR_STR, strerror(errno));
+            print(ERR_STR "Unable to send to FastCGI socket: %s" CLR_STR, strerror(errno));
             return -2;
         }
     }

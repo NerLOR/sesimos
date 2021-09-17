@@ -30,6 +30,7 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     char buf1[1024];
     char buf2[1024];
     char buf3[1024];
+    char buf4[1024];
     int p_len;
     uri->webroot = NULL;
     uri->req_path = NULL;
@@ -99,12 +100,18 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
 
     while (1) {
         sprintf(buf0, "%s%s", uri->webroot, uri->path);
-        p_len = snprintf(buf1, sizeof(buf1), "%s.php", buf0);
+        p_len = snprintf(buf1, sizeof(buf1), "%s.ncr", buf0);
         if (p_len < 0 || p_len >= sizeof(buf1)) return -1;
-        p_len = snprintf(buf2, sizeof(buf2), "%s.html", buf0);
+        p_len = snprintf(buf2, sizeof(buf2), "%s.php", buf0);
         if (p_len < 0 || p_len >= sizeof(buf2)) return -1;
+        p_len = snprintf(buf3, sizeof(buf3), "%s.html", buf0);
+        if (p_len < 0 || p_len >= sizeof(buf3)) return -1;
 
-        if (strlen(uri->path) <= 1 || path_exists(buf0) || path_is_file(buf1) || path_is_file(buf2)) {
+        if (strlen(uri->path) <= 1 ||
+            path_exists(buf0) ||
+            path_is_file(buf1) ||
+            path_is_file(buf2) ||
+            path_is_file(buf3)) {
             break;
         }
 
@@ -112,37 +119,42 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
         parent_dir:
         ptr = strrchr(uri->path, '/');
         size = (long) strlen(ptr);
-        sprintf(buf3, "%.*s%s", (int) size, ptr, uri->pathinfo);
-        strcpy(uri->pathinfo, buf3);
+        sprintf(buf4, "%.*s%s", (int) size, ptr, uri->pathinfo);
+        strcpy(uri->pathinfo, buf4);
         ptr[0] = 0;
     }
     if (uri->pathinfo[0] != 0) {
-        sprintf(buf3, "%s", uri->pathinfo + 1);
-        strcpy(uri->pathinfo, buf3);
+        sprintf(buf4, "%s", uri->pathinfo + 1);
+        strcpy(uri->pathinfo, buf4);
     }
 
     if (path_is_file(buf0)) {
         uri->filename = malloc(strlen(buf0) + 1);
         strcpy(uri->filename, buf0);
         long len = (long) strlen(uri->path);
-        if (strcmp(uri->path + len - 5, ".html") == 0) {
-            uri->path[len - 5] = 0;
-        } else if (strcmp(uri->path + len - 4, ".php") == 0) {
+        if (strcmp(uri->path + len - 4, ".ncr") == 0 || strcmp(uri->path + len - 4, ".php") == 0) {
             uri->path[len - 4] = 0;
             uri->is_static = 0;
+        } else if (strcmp(uri->path + len - 5, ".html") == 0) {
+            uri->path[len - 5] = 0;
         }
     } else if (path_is_file(buf1)) {
         uri->is_static = 0;
         uri->filename = malloc(strlen(buf1) + 1);
         strcpy(uri->filename, buf1);
     } else if (path_is_file(buf2)) {
+        uri->is_static = 0;
         uri->filename = malloc(strlen(buf2) + 1);
         strcpy(uri->filename, buf2);
+    } else if (path_is_file(buf3)) {
+        uri->filename = malloc(strlen(buf3) + 1);
+        strcpy(uri->filename, buf3);
     } else {
         uri->is_dir = 1;
         strcpy(uri->path + strlen(uri->path), "/");
-        sprintf(buf1, "%s%sindex.php", uri->webroot, uri->path);
-        sprintf(buf2, "%s%sindex.html", uri->webroot, uri->path);
+        sprintf(buf1, "%s%sindex.ncr", uri->webroot, uri->path);
+        sprintf(buf2, "%s%sindex.php", uri->webroot, uri->path);
+        sprintf(buf3, "%s%sindex.html", uri->webroot, uri->path);
         if (path_is_file(buf1)) {
             uri->filename = malloc(strlen(buf1) + 1);
             strcpy(uri->filename, buf1);
@@ -150,6 +162,10 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
         } else if (path_is_file(buf2)) {
             uri->filename = malloc(strlen(buf2) + 1);
             strcpy(uri->filename, buf2);
+            uri->is_static = 0;
+        } else if (path_is_file(buf3)) {
+            uri->filename = malloc(strlen(buf3) + 1);
+            strcpy(uri->filename, buf3);
         } else {
             if (dir_mode == URI_DIR_MODE_FORBIDDEN) {
                 uri->is_static = 1;
@@ -169,7 +185,9 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     if (strcmp(uri->path + strlen(uri->path) - 5, "index") == 0) {
         uri->path[strlen(uri->path) - 5] = 0;
     }
-    if (strcmp(uri->pathinfo, "index.php") == 0 || strcmp(uri->pathinfo, "index.html") == 0) {
+    if (strcmp(uri->pathinfo, "index.ncr") == 0 ||
+        strcmp(uri->pathinfo, "index.php") == 0 ||
+        strcmp(uri->pathinfo, "index.html") == 0) {
         uri->pathinfo[0] = 0;
     }
 

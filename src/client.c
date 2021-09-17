@@ -67,7 +67,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     int use_fastcgi = 0;
     int use_rev_proxy = 0;
     int p_len;
-    fastcgi_conn php_fpm = {.socket = 0, .req_id = 0};
+    fastcgi_conn fcgi_conn = {.socket = 0, .req_id = 0};
     http_status custom_status;
 
     http_res res;
@@ -372,35 +372,46 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             content_length = ftell(file);
             fseek(file, 0, SEEK_SET);
         } else {
+            int mode;
+            if (strcmp(uri.filename + strlen(uri.filename) - 4, ".ncr") == 0) {
+                mode = FASTCGI_NECRONDA;
+            } else if (strcmp(uri.filename + strlen(uri.filename) - 4, ".php") == 0) {
+                mode = FASTCGI_PHP;
+            } else {
+                res.status = http_get_status(500);
+                print(ERR_STR "Invalid FastCGI extension: %s" CLR_STR, uri.filename);
+                goto respond;
+            }
+
             struct stat statbuf;
             stat(uri.filename, &statbuf);
             char *last_modified = http_format_date(statbuf.st_mtime, buf0, sizeof(buf0));
             http_add_header_field(&res.hdr, "Last-Modified", last_modified);
 
             res.status = http_get_status(200);
-            if (fastcgi_init(&php_fpm, client_num, req_num, client, &req, &uri) != 0) {
+            if (fastcgi_init(&fcgi_conn, mode, client_num, req_num, client, &req, &uri) != 0) {
                 res.status = http_get_status(503);
-                sprintf(err_msg, "Unable to communicate with PHP-FPM.");
+                sprintf(err_msg, "Unable to communicate with FastCGI socket.");
                 goto respond;
             }
 
             char *client_content_length = http_get_header_field(&req.hdr, "Content-Length");
             if (client_content_length != NULL) {
                 unsigned long client_content_len = strtoul(client_content_length, NULL, 10);
-                ret = fastcgi_receive(&php_fpm, client, client_content_len);
+                ret = fastcgi_receive(&fcgi_conn, client, client_content_len);
                 if (ret != 0) {
                     if (ret < 0) {
                         goto abort;
                     } else {
-                        sprintf(err_msg, "Unable to communicate with PHP-FPM.");
+                        sprintf(err_msg, "Unable to communicate with FastCGI socket.");
                     }
                     res.status = http_get_status(502);
                     goto respond;
                 }
             }
-            fastcgi_close_stdin(&php_fpm);
+            fastcgi_close_stdin(&fcgi_conn);
 
-            ret = fastcgi_header(&php_fpm, &res, err_msg);
+            ret = fastcgi_header(&fcgi_conn, &res, err_msg);
             if (ret != 0) {
                 if (ret < 0) {
                     goto abort;
@@ -562,7 +573,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             int chunked = transfer_encoding != NULL && strcmp(transfer_encoding, "chunked") == 0;
 
             int flags = (chunked ? FASTCGI_CHUNKED : 0) | (use_fastcgi & FASTCGI_COMPRESS);
-            fastcgi_send(&php_fpm, client, flags);
+            fastcgi_send(&fcgi_conn, client, flags);
         } else if (use_rev_proxy) {
             char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
             int chunked = transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL;
@@ -589,10 +600,10 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
     uri_free(&uri);
     abort:
-    if (php_fpm.socket != 0) {
-        shutdown(php_fpm.socket, SHUT_RDWR);
-        close(php_fpm.socket);
-        php_fpm.socket = 0;
+    if (fcgi_conn.socket != 0) {
+        shutdown(fcgi_conn.socket, SHUT_RDWR);
+        close(fcgi_conn.socket);
+        fcgi_conn.socket = 0;
     }
     http_free_req(&req);
     http_free_res(&res);

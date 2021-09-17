@@ -17,11 +17,17 @@
 #define FASTCGI_COMPRESS_BR 4
 #define FASTCGI_COMPRESS 6
 
+#define FASTCGI_PHP 1
+#define FASTCGI_NECRONDA 2
+
 #ifndef PHP_FPM_SOCKET
 #   define PHP_FPM_SOCKET "/var/run/php-fpm/php-fpm.sock"
 #endif
 
+#define NECRONDA_BACKEND_SOCKET "/var/run/necronda/necronda-backend.sock"
+
 typedef struct {
+    int mode;
     int socket;
     unsigned short req_id;
     char *out_buf;
@@ -31,7 +37,7 @@ typedef struct {
 
 char *fastcgi_add_param(char *buf, const char *key, const char *value);
 
-int fastcgi_init(fastcgi_conn *conn, unsigned int client_num, unsigned int req_num, const sock *client,
+int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned int req_num, const sock *client,
                  const http_req *req, const http_uri *uri);
 
 int fastcgi_close_stdin(fastcgi_conn *conn);
