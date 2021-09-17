@@ -223,7 +223,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
         } else {
             res->status = http_get_status(500);
         }
-        print(ERR_STR "Unable to connect to [%s]%i: %s" CLR_STR, buffer, conf->rev_proxy.port, strerror(errno));
+        print(ERR_STR "Unable to connect to [%s]:%i: %s" CLR_STR, buffer, conf->rev_proxy.port, strerror(errno));
         sprintf(err_msg, "Unable to connect to server: %s.", strerror(errno));
         goto proxy_err;
     }
