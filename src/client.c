@@ -138,7 +138,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         strcpy(host, host_ptr);
     }
 
-    sprintf(log_req_prefix, "[%6i][%s%24s%s]%s ", getpid(), BLD_STR, host, CLR_STR, log_client_prefix);
+    sprintf(log_req_prefix, "[%6i][%s%*s%s]%s ", getpid(), BLD_STR, INET6_ADDRSTRLEN, host, CLR_STR, log_client_prefix);
     log_prefix = log_req_prefix;
     print(BLD_STR "%s %s" CLR_STR, req.method, req.uri);
 
@@ -781,11 +781,11 @@ int client_handler(sock *client, unsigned long client_num, struct sockaddr_in6 *
     log_req_prefix = malloc(256);
     log_client_prefix = malloc(256);
     sprintf(log_client_prefix, "[%s%4i%s]%s[%*s][%5i]%s", (int) client->enc ? HTTPS_STR : HTTP_STR,
-            ntohs(server_addr->sin6_port), CLR_STR, color_table[client_num % 6], INET_ADDRSTRLEN, client_addr_str,
+            ntohs(server_addr->sin6_port), CLR_STR, color_table[client_num % 6], INET6_ADDRSTRLEN, client_addr_str,
             ntohs(client_addr->sin6_port), CLR_STR);
 
     log_conn_prefix = malloc(256);
-    sprintf(log_conn_prefix, "[%6i][%24s]%s ", getpid(), server_addr_str, log_client_prefix);
+    sprintf(log_conn_prefix, "[%6i][%*s]%s ", getpid(), INET6_ADDRSTRLEN, server_addr_str, log_client_prefix);
     log_prefix = log_conn_prefix;
 
     print("Started child process with PID %i", getpid());
