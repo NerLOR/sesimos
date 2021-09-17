@@ -260,7 +260,7 @@ int fastcgi_php_error(const char *msg, int msg_len, char *err_msg) {
             if (ptr3 != NULL && (ptr3 - ptr2) < len2) {
                 len2 = (int) (ptr3 - ptr2);
             }
-            print("%s%.*s%s", msg_type == 1 ? WRN_STR : msg_type == 2 ? ERR_STR : "", len2, ptr2, msg_type != 0 ? CLR_STR : "");
+            print("%s%.*s%s", msg_type == 1 ? WRN_STR : msg_type == 2 ? ERR_STR : "", len2, ptr2, CLR_STR);
             if (msg_type == 2 && ptr2 == ptr0) {
                 sprintf(err_msg, "%.*s", len2, ptr2);
                 err = 1;
