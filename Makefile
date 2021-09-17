@@ -1,7 +1,7 @@
 
+CC=gcc
 CFLAGS=-std=gnu11 -Wall
-INCLUDE=-lssl -lcrypto -lmagic -lz -lmaxminddb -lbrotlienc
-LIBS=src/lib/*.c
+LIBS=-lssl -lcrypto -lmagic -lz -lmaxminddb -lbrotlienc
 
 DEBIAN_OPTS=-D CACHE_MAGIC_FILE="\"/usr/share/file/magic.mgc\"" -D PHP_FPM_SOCKET="\"/var/run/php/php7.4-fpm.sock\""
 
@@ -15,14 +15,12 @@ permit:
 
 compile:
 	@mkdir -p bin
-	gcc $(LIBS) -o bin/libnecronda-server.so --shared -fPIC $(CFLAGS) $(INCLUDE)
-	gcc src/necronda-server.c -o bin/necronda-server $(CFLAGS) $(INCLUDE) \
+	$(CC) src/lib/*.c -o bin/libnecrondaserver.so --shared -fPIC $(CFLAGS) $(LIBS)
+	$(CC) src/necronda-server.c -o bin/necronda-server $(CFLAGS) $(LIBS) \
 		-Lbin -lnecronda-server -Wl,-rpath=$(shell pwd)/bin
 
-compile-debian:
+compile-prod:
 	@mkdir -p bin
-	gcc $(LIBS) -o bin/libnecronda-server.so --shared -fPIC $(CFLAGS) $(INCLUDE) \
-		$(DEBIAN_OPTS) -O3
-	gcc src/necronda-server.c -o bin/necronda-server $(CFLAGS) $(INCLUDE) \
-		-Lbin -lnecronda-server -Wl,-rpath=$(shell pwd)/bin \
-		$(DEBIAN_OPTS) -O3
+	$(CC) src/lib/*.c -o bin/libnecrondaserver.so --shared -fPIC $(CFLAGS) $(LIBS) $(DEBIAN_OPTS) -O3
+	$(CC) src/necronda-server.c -o bin/necronda-server $(CFLAGS) $(LIBS) $(DEBIAN_OPTS) -O3 \
+		-Lbin -lnecrondaserver -Wl,-rpath=$(shell pwd)/bin
