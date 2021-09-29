@@ -431,7 +431,8 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
             print(ERR_STR "Unable to receive from FastCGI socket: %s" CLR_STR, strerror(errno));
             return -1;
         } else if (ret != sizeof(header)) {
-            print(ERR_STR "Unable to receive from FastCGI socket" CLR_STR);
+            print(ERR_STR "Unable to receive from FastCGI socket: received len (%li) != header len (%li)" CLR_STR,
+                  ret, sizeof(header));
             return -1;
         }
 
@@ -439,15 +440,16 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
         content_len = (header.contentLengthB1 << 8) | header.contentLengthB0;
         content = malloc(content_len + header.paddingLength);
         ptr = content;
-        ret = recv(conn->socket, content, content_len + header.paddingLength, 0);
-        if (ret < 0) {
-            print(ERR_STR "Unable to receive from FastCGI socket: %s" CLR_STR, strerror(errno));
-            free(content);
-            return -1;
-        } else if (ret != (content_len + header.paddingLength)) {
-            print(ERR_STR "Unable to receive from FastCGI socket" CLR_STR);
-            free(content);
-            return -1;
+
+        long rcv_len = 0;
+        while (rcv_len < content_len + header.paddingLength) {
+            ret = recv(conn->socket, content + rcv_len, content_len + header.paddingLength - rcv_len, 0);
+            if (ret < 0) {
+                print(ERR_STR "Unable to receive from FastCGI socket: %s" CLR_STR, strerror(errno));
+                free(content);
+                return -1;
+            }
+            rcv_len += ret;
         }
 
         if (header.type == FCGI_END_REQUEST) {
