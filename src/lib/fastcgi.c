@@ -331,7 +331,7 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
                 print(ERR_STR "FastCGI protocol error: %i" CLR_STR, body->protocolStatus);
             }
             if (app_status != 0) {
-                print(ERR_STR "Script terminated with exit code %i" CLR_STR, app_status);
+                print(ERR_STR "FastCGI app terminated with exit code %i" CLR_STR, app_status);
             }
             close(conn->socket);
             conn->socket = 0;
@@ -457,7 +457,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
                 print(ERR_STR "FastCGI protocol error: %i" CLR_STR, body->protocolStatus);
             }
             if (app_status != 0) {
-                print(ERR_STR "Script terminated with exit code %i" CLR_STR, app_status);
+                print(ERR_STR "FastCGI app terminated with exit code %i" CLR_STR, app_status);
             }
             close(conn->socket);
             conn->socket = 0;
