@@ -131,3 +131,13 @@ int mime_is_compressible(const char *type) {
         strcmp(type_parsed, "image/vnd.microsoft.icon") == 0 ||
         strcmp(type_parsed, "image/x-icon") == 0;
 }
+
+int strcpy_rem_webroot(char *dst, const char *src, long len, const char *webroot) {
+    strncpy(dst, src, len);
+    if (webroot == NULL) return 0;
+    char *pos;
+    while ((pos = strstr(dst, webroot)) != NULL) {
+        strcpy(pos, pos + strlen(webroot));
+    }
+    return 0;
+}

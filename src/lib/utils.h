@@ -40,4 +40,6 @@ int url_decode(const char *str, char *dec, long *size);
 
 int mime_is_compressible(const char *type);
 
+int strcpy_rem_webroot(char *dst, const char *str, long len, const char *webroot);
+
 #endif //NECRONDA_SERVER_UTILS_H

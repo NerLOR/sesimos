@@ -61,6 +61,7 @@ int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned
     conn->req_id = req_id;
     conn->out_buf = NULL;
     conn->out_off = 0;
+    conn->webroot = uri->webroot;
 
     int fcgi_sock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fcgi_sock < 0) {
@@ -215,7 +216,7 @@ int fastcgi_close_stdin(fastcgi_conn *conn) {
     return 0;
 }
 
-int fastcgi_php_error(const char *msg, int msg_len, char *err_msg) {
+int fastcgi_php_error(const fastcgi_conn *conn, const char *msg, int msg_len, char *err_msg) {
     char *msg_str = malloc(msg_len + 1);
     char *ptr0 = msg_str;
     strncpy(msg_str, msg, msg_len);
@@ -262,7 +263,7 @@ int fastcgi_php_error(const char *msg, int msg_len, char *err_msg) {
             }
             print("%s%.*s%s", msg_type == 1 ? WRN_STR : msg_type == 2 ? ERR_STR : "", len2, ptr2, CLR_STR);
             if (msg_type == 2 && ptr2 == ptr0) {
-                sprintf(err_msg, "%.*s", len2, ptr2);
+                strcpy_rem_webroot(err_msg, ptr2, len2, conn->webroot);
                 err = 1;
             }
             if (ptr3 == NULL) {
@@ -340,7 +341,7 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
         } else if (header.type == FCGI_STDERR) {
             // TODO implement Necronda backend error handling
             if (conn->mode == FASTCGI_PHP) {
-                err = err || fastcgi_php_error(content, content_len, err_msg);
+                err = err || fastcgi_php_error(conn, content, content_len, err_msg);
             }
         } else if (header.type == FCGI_STDOUT) {
             break;
@@ -479,7 +480,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
         } else if (header.type == FCGI_STDERR) {
             // TODO implement Necronda backend error handling
             if (conn->mode == FASTCGI_PHP) {
-                fastcgi_php_error(content, content_len, buf0);
+                fastcgi_php_error(conn, content, content_len, buf0);
             }
         } else if (header.type == FCGI_STDOUT) {
             unsigned long avail_in, avail_out;

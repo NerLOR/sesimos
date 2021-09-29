@@ -31,6 +31,7 @@ typedef struct {
     int socket;
     unsigned short req_id;
     char *out_buf;
+    const char *webroot;
     unsigned short out_len;
     unsigned short out_off;
 } fastcgi_conn;
@@ -42,7 +43,7 @@ int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned
 
 int fastcgi_close_stdin(fastcgi_conn *conn);
 
-int fastcgi_php_error(const char *msg, int msg_len, char *err_msg);
+int fastcgi_php_error(const fastcgi_conn *conn, const char *msg, int msg_len, char *err_msg);
 
 int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg);
 
