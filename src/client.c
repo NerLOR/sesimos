@@ -573,7 +573,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             int chunked = transfer_encoding != NULL && strcmp(transfer_encoding, "chunked") == 0;
 
             int flags = (chunked ? FASTCGI_CHUNKED : 0) | (use_fastcgi & FASTCGI_COMPRESS);
-            fastcgi_send(&fcgi_conn, client, flags);
+            ret = fastcgi_send(&fcgi_conn, client, flags);
         } else if (use_rev_proxy) {
             char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
             int chunked = transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL;
@@ -585,7 +585,11 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             }
 
             int flags = (chunked ? REV_PROXY_CHUNKED : 0) | (use_rev_proxy & REV_PROXY_COMPRESS);
-            rev_proxy_send(client, len_to_send, flags);
+            ret = rev_proxy_send(client, len_to_send, flags);
+        }
+
+        if (ret < 0) {
+            client_keep_alive = 0;
         }
     }
 
