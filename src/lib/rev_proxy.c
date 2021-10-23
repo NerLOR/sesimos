@@ -182,9 +182,9 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
 
     server_timeout.tv_sec = SERVER_TIMEOUT;
     server_timeout.tv_usec = 0;
-    if (setsockopt(client->socket, SOL_SOCKET, SO_RCVTIMEO, &server_timeout, sizeof(server_timeout)) < 0)
+    if (setsockopt(rev_proxy.socket, SOL_SOCKET, SO_RCVTIMEO, &server_timeout, sizeof(server_timeout)) < 0)
         goto rev_proxy_timeout_err;
-    if (setsockopt(client->socket, SOL_SOCKET, SO_SNDTIMEO, &server_timeout, sizeof(server_timeout)) < 0) {
+    if (setsockopt(rev_proxy.socket, SOL_SOCKET, SO_SNDTIMEO, &server_timeout, sizeof(server_timeout)) < 0) {
         rev_proxy_timeout_err:
         res->status = http_get_status(500);
         print(ERR_STR "Unable to set timeout for socket: %s" CLR_STR, strerror(errno));
