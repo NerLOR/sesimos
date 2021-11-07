@@ -520,6 +520,7 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
 }
 
 int rev_proxy_void() {
-    while (sock_recv(&rev_proxy, NULL, 1024, 0) > 0);
+    // FIXME rev_proxy_void
+    sock_close(&rev_proxy);
     return 0;
 }
