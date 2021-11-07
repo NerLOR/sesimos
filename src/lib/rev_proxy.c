@@ -36,7 +36,7 @@ int rev_proxy_request_header(http_req *req, int enc) {
     http_add_header_field(&req->hdr, "Connection", "keep-alive");
 
     char *via = http_get_header_field(&req->hdr, "Via");
-    sprintf(buf1, "HTTP/%s %s", req->version, DEFAULT_HOST);
+    sprintf(buf1, "HTTP/%s %s", req->version, SERVER_NAME);
     if (via == NULL) {
         http_add_header_field(&req->hdr, "Via", buf1);
     } else {
@@ -134,7 +134,7 @@ int rev_proxy_response_header(http_req *req, http_res *res) {
     int p_len;
 
     char *via = http_get_header_field(&res->hdr, "Via");
-    p_len = snprintf(buf1, sizeof(buf1), "HTTP/%s %s", req->version, DEFAULT_HOST);
+    p_len = snprintf(buf1, sizeof(buf1), "HTTP/%s %s", req->version, SERVER_NAME);
     if (p_len < 0 || p_len >= sizeof(buf1)) {
         print(ERR_STR "Appended part of header field 'Via' too long" CLR_STR);
         return -1;
@@ -154,8 +154,8 @@ int rev_proxy_response_header(http_req *req, http_res *res) {
     return 0;
 }
 
-int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client, http_status *custom_status,
-                   char *err_msg) {
+int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config *conf, sock *client,
+                   http_status *custom_status, char *err_msg) {
     char buffer[CHUNK_SIZE];
     long ret;
     int tries = 0;
@@ -177,6 +177,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     if (rev_proxy.socket  < 0) {
         print(ERR_STR "Unable to create socket: %s" CLR_STR, strerror(errno));
         res->status = http_get_status(500);
+        ctx->origin = INTERNAL;
         return -1;
     }
 
@@ -187,6 +188,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     if (setsockopt(rev_proxy.socket, SOL_SOCKET, SO_SNDTIMEO, &server_timeout, sizeof(server_timeout)) < 0) {
         rev_proxy_timeout_err:
         res->status = http_get_status(500);
+        ctx->origin = INTERNAL;
         print(ERR_STR "Unable to set timeout for socket: %s" CLR_STR, strerror(errno));
         sprintf(err_msg, "Unable to set timeout for socket: %s", strerror(errno));
         goto proxy_err;
@@ -197,6 +199,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
         host_ent = gethostbyname2(conf->rev_proxy.hostname, AF_INET);
         if (host_ent == NULL) {
             res->status = http_get_status(503);
+            ctx->origin = SERVER_REQ;
             print(ERR_STR "Unable to connect to server: Name or service not known" CLR_STR);
             sprintf(err_msg, "Unable to connect to server: Name or service not known.");
             goto proxy_err;
@@ -218,10 +221,13 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     if (connect(rev_proxy.socket, (struct sockaddr *) &address, sizeof(address)) < 0) {
         if (errno == ETIMEDOUT) {
             res->status = http_get_status(504);
+            ctx->origin = SERVER_REQ;
         } else if (errno == ECONNREFUSED) {
             res->status = http_get_status(503);
+            ctx->origin = SERVER_REQ;
         } else {
             res->status = http_get_status(500);
+            ctx->origin = INTERNAL;
         }
         print(ERR_STR "Unable to connect to [%s]:%i: %s" CLR_STR, buffer, conf->rev_proxy.port, strerror(errno));
         sprintf(err_msg, "Unable to connect to server: %s.", strerror(errno));
@@ -240,6 +246,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
         rev_proxy.enc = 1;
         if (ret < 0) {
             res->status = http_get_status(502);
+            ctx->origin = SERVER_REQ;
             print(ERR_STR "Unable to perform handshake: %s" CLR_STR, sock_strerror(&rev_proxy));
             sprintf(err_msg, "Unable to perform handshake: %s.", sock_strerror(&rev_proxy));
             goto proxy_err;
@@ -253,12 +260,14 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     ret = rev_proxy_request_header(req, (int) client->enc);
     if (ret != 0) {
         res->status = http_get_status(500);
+        ctx->origin = INTERNAL;
         return -1;
     }
 
     ret = http_send_request(&rev_proxy, req);
     if (ret < 0) {
         res->status = http_get_status(502);
+        ctx->origin = SERVER_REQ;
         print(ERR_STR "Unable to send request to server (1): %s" CLR_STR, sock_strerror(&rev_proxy));
         sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&rev_proxy));
         retry = tries < 4;
@@ -276,6 +285,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
             ret = sock_send(&rev_proxy, client->buf, len, 0);
             if (ret <= 0) {
                 res->status = http_get_status(502);
+                ctx->origin = SERVER_REQ;
                 print(ERR_STR "Unable to send request to server (2): %s" CLR_STR, sock_strerror(&rev_proxy));
                 sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&rev_proxy));
                 retry = tries < 4;
@@ -288,16 +298,19 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
             if (ret <= 0) {
                 if (ret == -1) {
                     res->status = http_get_status(502);
+                    ctx->origin = SERVER_REQ;
                     print(ERR_STR "Unable to send request to server (3): %s" CLR_STR, sock_strerror(&rev_proxy));
                     sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&rev_proxy));
                     goto proxy_err;
                 } else if (ret == -2) {
                     res->status = http_get_status(400);
+                    ctx->origin = CLIENT_REQ;
                     print(ERR_STR "Unable to receive request from client: %s" CLR_STR, sock_strerror(client));
                     sprintf(err_msg, "Unable to receive request from client: %s.", sock_strerror(client));
                     return -1;
                 }
                 res->status = http_get_status(500);
+                ctx->origin = INTERNAL;
                 print(ERR_STR "Unknown Error" CLR_STR);
                 return -1;
             }
@@ -307,6 +320,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     ret = sock_recv(&rev_proxy, buffer, sizeof(buffer), MSG_PEEK);
     if (ret <= 0) {
         res->status = http_get_status(502);
+        ctx->origin = SERVER_RES;
         print(ERR_STR "Unable to receive response from server: %s" CLR_STR, sock_strerror(&rev_proxy));
         sprintf(err_msg, "Unable to receive response from server: %s.", sock_strerror(&rev_proxy));
         goto proxy_err;
@@ -317,6 +331,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
 
     if (header_len <= 0) {
         res->status = http_get_status(502);
+        ctx->origin = SERVER_RES;
         print(ERR_STR "Unable to parse header: End of header not found" CLR_STR);
         sprintf(err_msg, "Unable to parser header: End of header not found.");
         goto proxy_err;
@@ -325,6 +340,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     for (int i = 0; i < header_len; i++) {
         if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {
             res->status = http_get_status(502);
+            ctx->origin = SERVER_RES;
             print(ERR_STR "Unable to parse header: Header contains illegal characters" CLR_STR);
             sprintf(err_msg, "Unable to parse header: Header contains illegal characters.");
             goto proxy_err;
@@ -336,6 +352,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
         char *pos0 = strstr(ptr, "\r\n");
         if (pos0 == NULL) {
             res->status = http_get_status(502);
+            ctx->origin = SERVER_RES;
             print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);
             sprintf(err_msg, "Unable to parse header: Invalid header format.");
             goto proxy_err;
@@ -343,6 +360,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
         if (ptr == buf) {
             if (strncmp(ptr, "HTTP/", 5) != 0) {
                 res->status = http_get_status(502);
+                ctx->origin = SERVER_RES;
                 print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);
                 sprintf(err_msg, "Unable to parse header: Invalid header format.");
                 goto proxy_err;
@@ -357,6 +375,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
                 res->status = custom_status;
             } else if (res->status == NULL) {
                 res->status = http_get_status(502);
+                ctx->origin = SERVER_RES;
                 print(ERR_STR "Unable to parse header: Invalid or unknown status code" CLR_STR);
                 sprintf(err_msg, "Unable to parse header: Invalid or unknown status code.");
                 goto proxy_err;
@@ -365,6 +384,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
             ret = http_parse_header_field(&res->hdr, ptr, pos0);
             if (ret != 0) {
                 res->status = http_get_status(502);
+                ctx->origin = SERVER_RES;
                 print(ERR_STR "Unable to parse header" CLR_STR);
                 sprintf(err_msg, "Unable to parse header.");
                 goto proxy_err;
@@ -380,6 +400,7 @@ int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client
     ret = rev_proxy_response_header(req, res);
     if (ret != 0) {
         res->status = http_get_status(500);
+        ctx->origin = INTERNAL;
         return -1;
     }
 
@@ -495,5 +516,10 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
         }
     }
 
+    return 0;
+}
+
+int rev_proxy_void() {
+    while (sock_recv(&rev_proxy, NULL, 1024, 0) > 0);
     return 0;
 }

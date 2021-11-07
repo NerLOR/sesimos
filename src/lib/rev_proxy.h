@@ -13,6 +13,10 @@
 #define REV_PROXY_COMPRESS_BR 4
 #define REV_PROXY_COMPRESS 6
 
+#ifndef SERVER_NAME
+#   define SERVER_NAME "revproxy"
+#endif
+
 #include "http.h"
 #include "config.h"
 
@@ -24,9 +28,11 @@ int rev_proxy_request_header(http_req *req, int enc);
 
 int rev_proxy_response_header(http_req *req, http_res *res);
 
-int rev_proxy_init(http_req *req, http_res *res, host_config *conf, sock *client, http_status *custom_status,
-                   char *err_msg);
+int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config *conf, sock *client,
+                   http_status *custom_status, char *err_msg);
 
 int rev_proxy_send(sock *client, unsigned long len_to_send, int flags);
+
+int rev_proxy_void();
 
 #endif //NECRONDA_SERVER_REV_PROXY_H

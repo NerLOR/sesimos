@@ -75,12 +75,22 @@ typedef struct {
     http_hdr hdr;
 } http_res;
 
+typedef enum {
+    NONE, INTERNAL, CLIENT_REQ, SERVER_REQ, SERVER, SERVER_RES, CLIENT_RES
+} http_error_origin;
+
+typedef struct {
+    unsigned short status;
+    http_error_origin origin;
+} http_status_ctx;
+
 extern const http_status http_statuses[];
 extern const http_status_msg http_status_messages[];
 extern const int http_statuses_size;
 extern const int http_status_messages_size;
 
 extern const char http_default_document[];
+extern const char http_rev_proxy_document[];
 extern const char http_error_document[];
 extern const char http_error_icon[];
 extern const char http_warning_document[];

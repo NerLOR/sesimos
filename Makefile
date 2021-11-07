@@ -17,7 +17,7 @@ compile:
 	@mkdir -p bin
 	$(CC) src/lib/*.c -o bin/libnecrondaserver.so --shared -fPIC $(CFLAGS) $(LIBS)
 	$(CC) src/necronda-server.c -o bin/necronda-server $(CFLAGS) $(LIBS) \
-		-Lbin -lnecronda-server -Wl,-rpath=$(shell pwd)/bin
+		-Lbin -lnecrondaserver -Wl,-rpath=$(shell pwd)/bin
 
 compile-prod:
 	@mkdir -p bin

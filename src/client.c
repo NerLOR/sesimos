@@ -55,7 +55,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     long ret;
     int client_keep_alive;
     char buf0[1024], buf1[1024];
-    char msg_buf[4096], msg_pre_buf[4096], err_msg[256];
+    char msg_buf[8192], msg_pre_buf_1[4096], msg_pre_buf_2[4096], err_msg[256];
     char buffer[CHUNK_SIZE];
     err_msg[0] = 0;
     char host[256], *host_ptr, *hdr_connection;
@@ -70,10 +70,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     fastcgi_conn fcgi_conn = {.socket = 0, .req_id = 0};
     http_status custom_status;
 
-    http_res res;
-    sprintf(res.version, "1.1");
-    res.status = http_get_status(501);
-    res.hdr.field_num = 0;
+    http_res res = {.version = "1.1", .status = http_get_status(501), .hdr.field_num = 0};
+    http_status_ctx ctx = {.status = 0, .origin = NONE};
 
     clock_gettime(CLOCK_MONOTONIC, &begin);
 
@@ -460,8 +458,23 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         http_remove_header_field(&res.hdr, "Date", HTTP_REMOVE_ALL);
         http_remove_header_field(&res.hdr, "Server", HTTP_REMOVE_ALL);
 
-        ret = rev_proxy_init(&req, &res, conf, client, &custom_status, err_msg);
+        ret = rev_proxy_init(&req, &res, &ctx, conf, client, &custom_status, err_msg);
         use_rev_proxy = (ret == 0);
+
+        if (use_rev_proxy && res.status->code >= 400 && res.status->code < 600) {
+            const char *content_type = http_get_header_field(&res.hdr, "Content-Type");
+            const char *content_length_f = http_get_header_field(&res.hdr, "Content-Length");
+            if (content_type != NULL && content_length_f != NULL && strncmp(content_type, "text/html", 9) == 0) {
+                long content_len = strtol(content_length_f, NULL, 10);
+                if (content_len <= 1000) {
+                    ctx.status = res.status->code;
+                    ctx.origin = SERVER;
+
+                    use_rev_proxy = 0;
+                    rev_proxy_void();
+                }
+            }
+        }
 
         /*
         char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding");
@@ -499,25 +512,53 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         if (http_get_header_field(&res.hdr, "Accept-Ranges") == NULL) {
             http_add_header_field(&res.hdr, "Accept-Ranges", "none");
         }
-        if (!use_fastcgi && !use_rev_proxy && file == NULL &&
-                ((res.status->code >= 400 && res.status->code < 600) || err_msg[0] != 0)) {
+        if (!use_fastcgi && file == NULL && ((res.status->code >= 400 && res.status->code < 600) || err_msg[0] != 0)) {
             http_remove_header_field(&res.hdr, "Date", HTTP_REMOVE_ALL);
             http_remove_header_field(&res.hdr, "Server", HTTP_REMOVE_ALL);
+            http_remove_header_field(&res.hdr, "Cache-Control", HTTP_REMOVE_ALL);
+            http_remove_header_field(&res.hdr, "Content-Type", HTTP_REMOVE_ALL);
+            http_remove_header_field(&res.hdr, "Content-Encoding", HTTP_REMOVE_ALL);
             http_add_header_field(&res.hdr, "Date", http_get_date(buf0, sizeof(buf0)));
             http_add_header_field(&res.hdr, "Server", SERVER_STR);
+            http_add_header_field(&res.hdr, "Cache-Control", "no-cache");
+            http_add_header_field(&res.hdr, "Content-Type", "text/html; charset=UTF-8");
 
             // TODO list Locations on 3xx Redirects
             const http_doc_info *info = http_get_status_info(res.status);
             const http_status_msg *http_msg = http_get_error_msg(res.status);
 
-            sprintf(msg_pre_buf, info->doc, res.status->code, res.status->msg,
+            char *rev_proxy_doc = "";
+            if (conf->type == CONFIG_TYPE_REVERSE_PROXY) {
+                const http_status *status = http_get_status(ctx.status);
+                char stat_str[4];
+                sprintf(stat_str, "%03i", ctx.status);
+                sprintf(msg_pre_buf_2, http_rev_proxy_document,
+                        " success",
+                        (ctx.origin == CLIENT_REQ) ? " error" : " success",
+                        (ctx.origin == INTERNAL) ? " error" : " success",
+                        (ctx.origin == SERVER_REQ) ? " error" : (ctx.status == 0 ? "" : " success"),
+                        (ctx.origin == CLIENT_RES) ? " error" : " success",
+                        (ctx.origin == SERVER) ? " error" : (ctx.status == 0 ? "" : " success"),
+                        (ctx.origin == SERVER_RES) ? " error" : (ctx.status == 0 ? "" : " success"),
+                        (ctx.origin == INTERNAL) ? " error" : " success",
+                        (ctx.origin == INTERNAL || ctx.origin == SERVER) ? " error" : " success",
+                        res.status->code,
+                        res.status->msg,
+                        (ctx.status == 0) ? "???" : stat_str,
+                        (status != NULL) ? status->msg : "",
+                        host);
+                rev_proxy_doc = msg_pre_buf_2;
+            }
+
+            sprintf(msg_pre_buf_1, info->doc, res.status->code, res.status->msg,
                     http_msg != NULL ? http_msg->msg : "", err_msg[0] != 0 ? err_msg : "");
             content_length = snprintf(msg_buf, sizeof(msg_buf), http_default_document, res.status->code,
-                                      res.status->msg, msg_pre_buf, info->mode, info->icon, info->color, host);
-            http_add_header_field(&res.hdr, "Content-Type", "text/html; charset=UTF-8");
+                                      res.status->msg, msg_pre_buf_1, info->mode, info->icon, info->color, host,
+                                      rev_proxy_doc);
         }
         if (content_length >= 0) {
             sprintf(buf0, "%li", content_length);
+            http_remove_header_field(&res.hdr, "Content-Length", HTTP_REMOVE_ALL);
             http_add_header_field(&res.hdr, "Content-Length", buf0);
         } else if (http_get_header_field(&res.hdr, "Transfer-Encoding") == NULL) {
             server_keep_alive = 0;

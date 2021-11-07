@@ -21,10 +21,6 @@
 
 #define CHUNK_SIZE 8192
 
-#ifndef DEFAULT_HOST
-#   define DEFAULT_HOST "www.necronda.net"
-#endif
-
 extern int sockets[NUM_SOCKETS];
 extern pid_t children[MAX_CHILDREN];
 extern MMDB_s mmdbs[MAX_MMDB];
