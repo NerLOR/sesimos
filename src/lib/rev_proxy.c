@@ -219,7 +219,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
 
     print(BLUE_STR "Connecting to " BLD_STR "[%s]:%i" CLR_STR BLUE_STR "..." CLR_STR, buffer, conf->rev_proxy.port);
     if (connect(rev_proxy.socket, (struct sockaddr *) &address, sizeof(address)) < 0) {
-        if (errno == ETIMEDOUT) {
+        if (errno == ETIMEDOUT || errno == EINPROGRESS) {
             res->status = http_get_status(504);
             ctx->origin = SERVER_REQ;
         } else if (errno == ECONNREFUSED) {
