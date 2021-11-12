@@ -12,6 +12,10 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+int sock_enc_error(sock *s) {
+    return (int) s->enc ? SSL_get_error(s->ssl, (int) s->_last_ret) : 0;
+}
+
 const char *sock_strerror(sock *s) {
     if (s->_last_ret == 0) {
         return "closed";
@@ -21,7 +25,7 @@ const char *sock_strerror(sock *s) {
         }
         const char *err1 = ERR_reason_error_string(s->_ssl_error);
         const char *err2 = strerror(errno);
-        switch (SSL_get_error(s->ssl, (int) s->_last_ret)) {
+        switch (sock_enc_error(s)) {
             case SSL_ERROR_NONE:
                 return NULL;
             case SSL_ERROR_ZERO_RETURN:

@@ -181,18 +181,12 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
         return -1;
     }
 
-    server_timeout.tv_sec = SERVER_TIMEOUT;
+    server_timeout.tv_sec = SERVER_TIMEOUT_INIT;
     server_timeout.tv_usec = 0;
     if (setsockopt(rev_proxy.socket, SOL_SOCKET, SO_RCVTIMEO, &server_timeout, sizeof(server_timeout)) < 0)
         goto rev_proxy_timeout_err;
-    if (setsockopt(rev_proxy.socket, SOL_SOCKET, SO_SNDTIMEO, &server_timeout, sizeof(server_timeout)) < 0) {
-        rev_proxy_timeout_err:
-        res->status = http_get_status(500);
-        ctx->origin = INTERNAL;
-        print(ERR_STR "Unable to set timeout for socket: %s" CLR_STR, strerror(errno));
-        sprintf(err_msg, "Unable to set timeout for socket: %s", strerror(errno));
-        goto proxy_err;
-    }
+    if (setsockopt(rev_proxy.socket, SOL_SOCKET, SO_SNDTIMEO, &server_timeout, sizeof(server_timeout)) < 0)
+        goto rev_proxy_timeout_err;
 
     struct hostent *host_ent = gethostbyname2(conf->rev_proxy.hostname, AF_INET6);
     if (host_ent == NULL) {
@@ -231,6 +225,19 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
         }
         print(ERR_STR "Unable to connect to [%s]:%i: %s" CLR_STR, buffer, conf->rev_proxy.port, strerror(errno));
         sprintf(err_msg, "Unable to connect to server: %s.", strerror(errno));
+        goto proxy_err;
+    }
+
+    server_timeout.tv_sec = SERVER_TIMEOUT;
+    server_timeout.tv_usec = 0;
+    if (setsockopt(rev_proxy.socket, SOL_SOCKET, SO_RCVTIMEO, &server_timeout, sizeof(server_timeout)) < 0)
+        goto rev_proxy_timeout_err;
+    if (setsockopt(rev_proxy.socket, SOL_SOCKET, SO_SNDTIMEO, &server_timeout, sizeof(server_timeout)) < 0) {
+        rev_proxy_timeout_err:
+        res->status = http_get_status(500);
+        ctx->origin = INTERNAL;
+        print(ERR_STR "Unable to set timeout for reverse proxy socket: %s" CLR_STR, strerror(errno));
+        sprintf(err_msg, "Unable to set timeout for reverse proxy socket: %s", strerror(errno));
         goto proxy_err;
     }
 
@@ -319,8 +326,16 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
 
     ret = sock_recv(&rev_proxy, buffer, sizeof(buffer), MSG_PEEK);
     if (ret <= 0) {
-        res->status = http_get_status(502);
-        ctx->origin = SERVER_RES;
+        int enc_err = sock_enc_error(&rev_proxy);
+        if (errno == EAGAIN || errno == EINPROGRESS || enc_err == SSL_ERROR_WANT_READ ||
+            enc_err == SSL_ERROR_WANT_WRITE)
+        {
+            res->status = http_get_status(504);
+            ctx->origin = SERVER_RES;
+        } else {
+            res->status = http_get_status(502);
+            ctx->origin = SERVER_RES;
+        }
         print(ERR_STR "Unable to receive response from server: %s" CLR_STR, sock_strerror(&rev_proxy));
         sprintf(err_msg, "Unable to receive response from server: %s.", sock_strerror(&rev_proxy));
         goto proxy_err;

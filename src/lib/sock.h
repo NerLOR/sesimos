@@ -23,6 +23,8 @@ typedef struct {
     unsigned long _ssl_error;
 } sock;
 
+int sock_enc_error(sock *s);
+
 const char *sock_strerror(sock *s);
 
 long sock_send(sock *s, void *buf, unsigned long len, int flags);
