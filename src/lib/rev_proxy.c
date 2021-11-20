@@ -534,8 +534,8 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
     return 0;
 }
 
-int rev_proxy_void() {
-    // FIXME rev_proxy_void
+int rev_proxy_dump(char *buf, long len) {
+    sock_recv(&rev_proxy, buf, len, 0);
     sock_close(&rev_proxy);
     return 0;
 }

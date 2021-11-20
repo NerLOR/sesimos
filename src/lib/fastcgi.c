@@ -513,6 +513,72 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
     }
 }
 
+int fastcgi_dump(fastcgi_conn *conn, char *buf, long len) {
+    FCGI_Header header;
+    long ret;
+    char buf0[256];
+    char *content, *ptr = buf;
+    unsigned short req_id, content_len;
+
+    if (conn->out_buf != NULL && conn->out_len > conn->out_off) {
+        ptr += snprintf(ptr, len, "%.*s", conn->out_len - conn->out_off, conn->out_buf + conn->out_off);
+    }
+
+    while (1) {
+        ret = recv(conn->socket, &header, sizeof(header), 0);
+        if (ret < 0) {
+            print(ERR_STR "Unable to receive from FastCGI socket: %s" CLR_STR, strerror(errno));
+            return -1;
+        } else if (ret != sizeof(header)) {
+            print(ERR_STR "Unable to receive from FastCGI socket: received len (%li) != header len (%li)" CLR_STR,
+                  ret, sizeof(header));
+            return -1;
+        }
+
+        req_id = (header.requestIdB1 << 8) | header.requestIdB0;
+        content_len = (header.contentLengthB1 << 8) | header.contentLengthB0;
+        content = malloc(content_len + header.paddingLength);
+
+        long rcv_len = 0;
+        while (rcv_len < content_len + header.paddingLength) {
+            ret = recv(conn->socket, content + rcv_len, content_len + header.paddingLength - rcv_len, 0);
+            if (ret < 0) {
+                print(ERR_STR "Unable to receive from FastCGI socket: %s" CLR_STR, strerror(errno));
+                free(content);
+                return -1;
+            }
+            rcv_len += ret;
+        }
+
+        if (header.type == FCGI_END_REQUEST) {
+            FCGI_EndRequestBody *body = (FCGI_EndRequestBody *) content;
+            int app_status = (body->appStatusB3 << 24) | (body->appStatusB2 << 16) | (body->appStatusB1 << 8) |
+                             body->appStatusB0;
+            if (body->protocolStatus != FCGI_REQUEST_COMPLETE) {
+                print(ERR_STR "FastCGI protocol error: %i" CLR_STR, body->protocolStatus);
+            }
+            if (app_status != 0) {
+                print(ERR_STR "FastCGI app terminated with exit code %i" CLR_STR, app_status);
+            }
+            close(conn->socket);
+            conn->socket = 0;
+            free(content);
+
+            return 0;
+        } else if (header.type == FCGI_STDERR) {
+            // TODO implement Necronda backend error handling
+            if (conn->mode == FASTCGI_PHP) {
+                fastcgi_php_error(conn, content, content_len, buf0);
+            }
+        } else if (header.type == FCGI_STDOUT) {
+            ptr += snprintf(ptr, len - (ptr - buf), "%.*s", content_len, content);
+        } else {
+            print(ERR_STR "Unknown FastCGI type: %i" CLR_STR, header.type);
+        }
+        free(content);
+    }
+}
+
 int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len) {
     unsigned long rcv_len = 0;
     char *buf[16384];

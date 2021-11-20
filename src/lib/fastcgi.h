@@ -49,6 +49,8 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg);
 
 int fastcgi_send(fastcgi_conn *conn, sock *client, int flags);
 
+int fastcgi_dump(fastcgi_conn *conn, char *buf, long len);
+
 int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len);
 
 #endif //NECRONDA_SERVER_FASTCGI_H

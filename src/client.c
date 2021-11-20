@@ -54,19 +54,26 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     struct timespec begin, end;
     long ret;
     int client_keep_alive;
+
     char buf0[1024], buf1[1024];
     char msg_buf[8192], msg_pre_buf_1[4096], msg_pre_buf_2[4096], err_msg[256];
+    char msg_content[1024];
     char buffer[CHUNK_SIZE];
-    err_msg[0] = 0;
     char host[256], *host_ptr, *hdr_connection;
-    host_config *conf = NULL;
-    long content_length = 0;
-    FILE *file = NULL;
+
     msg_buf[0] = 0;
+    err_msg[0] = 0;
+    msg_content[0] = 0;
+
+    host_config *conf = NULL;
+    FILE *file = NULL;
+
+    long content_length = 0;
     int accept_if_modified_since = 0;
     int use_fastcgi = 0;
     int use_rev_proxy = 0;
     int p_len;
+
     fastcgi_conn fcgi_conn = {.socket = 0, .req_id = 0};
     http_status custom_status;
 
@@ -431,6 +438,21 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                     sprintf(err_msg, "The status code was set to an invalid or unknown value.");
                     goto respond;
                 }
+
+                if (status_code >= 300 && status_code < 600) {
+                    const char *content_type = http_get_header_field(&res.hdr, "Content-Type");
+                    const char *content_length_f = http_get_header_field(&res.hdr, "Content-Length");
+                    const char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding");
+                    if (content_encoding == NULL && content_type != NULL && content_length_f != NULL &&
+                        strncmp(content_type, "text/html", 9) == 0)
+                    {
+                        long content_len = strtol(content_length_f, NULL, 10);
+                        if (content_len <= sizeof(msg_content)) {
+                            fastcgi_dump(&fcgi_conn, msg_content, content_len);
+                            goto respond;
+                        }
+                    }
+                }
             }
 
             content_length = -1;
@@ -461,17 +483,20 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         ret = rev_proxy_init(&req, &res, &ctx, conf, client, &custom_status, err_msg);
         use_rev_proxy = (ret == 0);
 
-        if (use_rev_proxy && res.status->code >= 400 && res.status->code < 600) {
+        // Let 300 be formatted by origin server
+        if (use_rev_proxy && res.status->code >= 301 && res.status->code < 600) {
             const char *content_type = http_get_header_field(&res.hdr, "Content-Type");
             const char *content_length_f = http_get_header_field(&res.hdr, "Content-Length");
-            if (content_type != NULL && content_length_f != NULL && strncmp(content_type, "text/html", 9) == 0) {
+            const char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding");
+            if (content_encoding == NULL && content_type != NULL && content_length_f != NULL &&
+                strncmp(content_type, "text/html", 9) == 0)
+            {
                 long content_len = strtol(content_length_f, NULL, 10);
-                if (content_len <= 1000) {
+                if (content_len <= sizeof(msg_content)) {
                     ctx.status = res.status->code;
-                    ctx.origin = SERVER;
-
+                    ctx.origin = res.status->code >= 400 ? SERVER : NONE;
                     use_rev_proxy = 0;
-                    rev_proxy_void();
+                    rev_proxy_dump(msg_content, content_len);
                 }
             }
         }
@@ -512,7 +537,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         if (http_get_header_field(&res.hdr, "Accept-Ranges") == NULL) {
             http_add_header_field(&res.hdr, "Accept-Ranges", "none");
         }
-        if (!use_fastcgi && file == NULL && ((res.status->code >= 400 && res.status->code < 600) || err_msg[0] != 0)) {
+        if (!use_fastcgi && file == NULL && ((res.status->code >= 300 && res.status->code < 600) || err_msg[0] != 0)) {
             http_remove_header_field(&res.hdr, "Date", HTTP_REMOVE_ALL);
             http_remove_header_field(&res.hdr, "Server", HTTP_REMOVE_ALL);
             http_remove_header_field(&res.hdr, "Cache-Control", HTTP_REMOVE_ALL);
@@ -526,6 +551,14 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             // TODO list Locations on 3xx Redirects
             const http_doc_info *info = http_get_status_info(res.status);
             const http_status_msg *http_msg = http_get_error_msg(res.status);
+
+            if (res.status->code >= 300 && res.status->code < 400 && msg_content[0] == 0) {
+                const char *location = http_get_header_field(&res.hdr, "Location");
+                if (location != NULL) {
+                    snprintf(msg_content, sizeof(msg_content),
+                             "<ul>\n\t<li><a href=\"%1$s\">%1$s</a></li>\n</ul>\n", location);
+                }
+            }
 
             char *rev_proxy_doc = "";
             if (conf->type == CONFIG_TYPE_REVERSE_PROXY) {
@@ -554,7 +587,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                     http_msg != NULL ? http_msg->msg : "", err_msg[0] != 0 ? err_msg : "");
             content_length = snprintf(msg_buf, sizeof(msg_buf), http_default_document, res.status->code,
                                       res.status->msg, msg_pre_buf_1, info->mode, info->icon, info->color, host,
-                                      rev_proxy_doc);
+                                      rev_proxy_doc, msg_content[0] != 0 ? msg_content : "");
         }
         if (content_length >= 0) {
             sprintf(buf0, "%li", content_length);

@@ -33,6 +33,6 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
 
 int rev_proxy_send(sock *client, unsigned long len_to_send, int flags);
 
-int rev_proxy_void();
+int rev_proxy_dump(char *buf, long len);
 
 #endif //NECRONDA_SERVER_REV_PROXY_H
