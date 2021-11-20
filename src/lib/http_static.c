@@ -127,6 +127,7 @@ const char http_default_document[] =
         "\t\tdiv.footer{color:var(--soft);font-size:0.75em;text-align:center;margin:2em 0 0.5em 0;}\n"
         "\t\tdiv.footer a{color:var(--soft);}\n"
         "\t\tul,ol{width:fit-content;margin:auto;}\n"
+        "\t\tpre{width:fit-content;margin:2em auto 0 auto;}\n"
         "\n"
         "\t\tsection.error-ctx{display:flex;padding:0;border:none;}\n"
         "\t\tdiv.box{flex:100%% 1 1;border:1px solid var(--info);color:var(--info);position:relative;padding:1em;box-sizing:border-box;text-align:center;}\n"
