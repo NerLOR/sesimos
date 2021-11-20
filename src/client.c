@@ -447,8 +447,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                         strncmp(content_type, "text/html", 9) == 0)
                     {
                         long content_len = strtol(content_length_f, NULL, 10);
-                        if (content_len <= sizeof(msg_content)) {
-                            fastcgi_dump(&fcgi_conn, msg_content, content_len);
+                        if (content_len <= sizeof(msg_content) - 1) {
+                            fastcgi_dump(&fcgi_conn, msg_content, sizeof(msg_content));
                             goto respond;
                         }
                     }
@@ -492,7 +492,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 strncmp(content_type, "text/html", 9) == 0)
             {
                 long content_len = strtol(content_length_f, NULL, 10);
-                if (content_len <= sizeof(msg_content)) {
+                if (content_len <= sizeof(msg_content) - 1) {
                     ctx.status = res.status->code;
                     ctx.origin = res.status->code >= 400 ? SERVER : NONE;
                     use_rev_proxy = 0;
