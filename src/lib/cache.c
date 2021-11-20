@@ -103,15 +103,21 @@ int cache_process() {
                 FILE *comp_file_br = NULL;
                 if (compress) {
                     sprintf(buf, "%.*s/.necronda-server", cache[i].webroot_len, cache[i].filename);
-                    mkdir(buf, 0755);
+                    if (mkdir(buf, 0755) != 0 && errno != EEXIST) {
+                        fprintf(stderr, ERR_STR "Unable to create directory %s: %s" CLR_STR "\n", buf, strerror(errno));
+                        goto comp_err;
+                    }
+
                     sprintf(buf, "%.*s/.necronda-server/cache", cache[i].webroot_len, cache[i].filename);
-                    mkdir(buf, 0700);
+                    if (mkdir(buf, 0700) != 0 && errno != EEXIST) {
+                        fprintf(stderr, ERR_STR "Unable to create directory %s: %s" CLR_STR "\n", buf, strerror(errno));
+                        goto comp_err;
+                    }
+
                     char *rel_path = cache[i].filename + cache[i].webroot_len + 1;
                     for (int j = 0; j < strlen(rel_path); j++) {
                         char ch = rel_path[j];
-                        if (ch == '/') {
-                            ch = '_';
-                        }
+                        if (ch == '/') ch = '_';
                         buf[j] = ch;
                     }
                     buf[strlen(rel_path)] = 0;
@@ -123,7 +129,8 @@ int cache_process() {
                                         "%.*s/.necronda-server/cache/%s.br",
                                         cache[i].webroot_len, cache[i].filename, buf);
                     if (p_len_gz < 0 || p_len_gz >= sizeof(filename_comp_gz) ||
-                            p_len_br < 0 || p_len_br >= sizeof(filename_comp_br)) {
+                        p_len_br < 0 || p_len_br >= sizeof(filename_comp_br))
+                    {
                         fprintf(stderr, ERR_STR "Unable to open cached file: "
                                                 "File name for compressed file too long" CLR_STR "\n");
                         goto comp_err;
