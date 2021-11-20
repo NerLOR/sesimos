@@ -262,7 +262,7 @@ const char http_error_icon[] =
 
 const char http_warning_document[] =
         "\t\t\t<h1>%1$i</h1>\n"
-        "\t\t\t<h2>%2$s :&#xFEFF;o</h2>\n"
+        "\t\t\t<h2>%2$s :&#xFEFF;)</h2>\n"
         "\t\t\t<p>%3$s</p>\n"
         "\t\t\t<p>%4$s</p>\n";
 
@@ -270,7 +270,7 @@ const char http_warning_icon[] =
         "\t<link rel=\"alternate icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
         "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
         "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiNFMEMwMDAiIHN0eWxlPSJmb250LWZhbWls"
-        "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjpvPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
+        "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjopPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
 
 
 const char http_success_document[] =
