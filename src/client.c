@@ -418,11 +418,10 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
             ret = fastcgi_header(&fcgi_conn, &res, err_msg);
             if (ret != 0) {
-                if (ret < 0) {
-                    goto abort;
-                }
+                if (ret < 0) goto abort;
                 goto respond;
             }
+
             char *status = http_get_header_field(&res.hdr, "Status");
             if (status != NULL) {
                 int status_code = (int) strtoul(status, NULL, 10);
@@ -438,25 +437,30 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                     sprintf(err_msg, "The status code was set to an invalid or unknown value.");
                     goto respond;
                 }
+            }
 
-                if (status_code >= 300 && status_code < 600) {
-                    const char *content_type = http_get_header_field(&res.hdr, "Content-Type");
-                    const char *content_length_f = http_get_header_field(&res.hdr, "Content-Length");
-                    const char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding");
-                    if (content_encoding == NULL && content_type != NULL && content_length_f != NULL &&
-                        strncmp(content_type, "text/html", 9) == 0)
-                    {
-                        long content_len = strtol(content_length_f, NULL, 10);
-                        if (content_len <= sizeof(msg_content) - 1) {
-                            fastcgi_dump(&fcgi_conn, msg_content, sizeof(msg_content));
-                            goto respond;
-                        }
-                    }
-                }
+            const char *content_length_f = http_get_header_field(&res.hdr, "Content-Length");
+            content_length = (content_length_f == NULL) ? -1 : strtol(content_length_f, NULL, 10);
+
+            const char *content_type = http_get_header_field(&res.hdr, "Content-Type");
+            const char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding");
+            if (content_encoding == NULL &&
+                content_type != NULL &&
+                strncmp(content_type, "text/html", 9) == 0 &&
+                content_length != -1 &&
+                content_length <= sizeof(msg_content) - 1)
+            {
+                fastcgi_dump(&fcgi_conn, msg_content, sizeof(msg_content));
+                goto respond;
+            }
+
+            use_fastcgi = 1;
+
+            if (content_length != -1 && content_length < 1024000) {
+                use_fastcgi |= FASTCGI_COMPRESS_HOLD;
             }
 
             content_length = -1;
-            use_fastcgi = 1;
 
             int http_comp = http_get_compression(&req, &res);
             if (http_comp & COMPRESS) {
@@ -469,6 +473,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 }
                 http_add_header_field(&res.hdr, "Vary", "Accept-Encoding");
                 http_add_header_field(&res.hdr, "Content-Encoding", buf0);
+                http_remove_header_field(&res.hdr, "Content-Length", HTTP_REMOVE_ALL);
             }
 
             if (http_get_header_field(&res.hdr, "Content-Length") == NULL) {
@@ -537,7 +542,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         if (http_get_header_field(&res.hdr, "Accept-Ranges") == NULL) {
             http_add_header_field(&res.hdr, "Accept-Ranges", "none");
         }
-        if (!use_fastcgi && file == NULL && ((res.status->code >= 300 && res.status->code < 600) || err_msg[0] != 0)) {
+        if (!use_fastcgi && file == NULL) {
             http_remove_header_field(&res.hdr, "Date", HTTP_REMOVE_ALL);
             http_remove_header_field(&res.hdr, "Server", HTTP_REMOVE_ALL);
             http_remove_header_field(&res.hdr, "Cache-Control", HTTP_REMOVE_ALL);
@@ -646,7 +651,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
             int chunked = transfer_encoding != NULL && strcmp(transfer_encoding, "chunked") == 0;
 
-            int flags = (chunked ? FASTCGI_CHUNKED : 0) | (use_fastcgi & FASTCGI_COMPRESS);
+            int flags = (chunked ? FASTCGI_CHUNKED : 0) | (use_fastcgi & (FASTCGI_COMPRESS | FASTCGI_COMPRESS_HOLD));
             ret = fastcgi_send(&fcgi_conn, client, flags);
         } else if (use_rev_proxy) {
             char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
