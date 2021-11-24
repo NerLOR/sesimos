@@ -292,12 +292,12 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
     while (1) {
         ret = recv(conn->socket, &header, sizeof(header), 0);
         if (ret < 0) {
-            res->status = http_get_status(502);
+            res->status = http_get_status(500);
             sprintf(err_msg, "Unable to communicate with FastCGI socket.");
             print(ERR_STR "Unable to receive from FastCGI socket: %s" CLR_STR, strerror(errno));
             return 1;
         } else if (ret != sizeof(header)) {
-            res->status = http_get_status(502);
+            res->status = http_get_status(500);
             sprintf(err_msg, "Unable to communicate with FastCGI socket.");
             print(ERR_STR "Unable to receive from FastCGI socket" CLR_STR);
             return 1;
@@ -307,13 +307,13 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
         content = malloc(content_len + header.paddingLength);
         ret = recv(conn->socket, content, content_len + header.paddingLength, 0);
         if (ret < 0) {
-            res->status = http_get_status(502);
+            res->status = http_get_status(500);
             sprintf(err_msg, "Unable to communicate with FastCGI socket.");
             print(ERR_STR "Unable to receive from FastCGI socket: %s" CLR_STR, strerror(errno));
             free(content);
             return 1;
         } else if (ret != (content_len + header.paddingLength)) {
-            res->status = http_get_status(502);
+            res->status = http_get_status(500);
             sprintf(err_msg, "Unable to communicate with FastCGI socket.");
             print(ERR_STR "Unable to receive from FastCGI socket" CLR_STR);
             free(content);
