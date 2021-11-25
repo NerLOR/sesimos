@@ -121,7 +121,7 @@ const char http_default_document[] =
         "\t\tmain{max-width:650px;margin:2em auto;}\n"
         "\t\tsection{margin:2em 1em;background-color:#FFFFFF;border: 1px solid var(--color);border-radius:4px;padding:1em;}\n"
         "\t\th1,h2,h3,h4,h5,h6{text-align:center;color:var(--color);font-weight:normal;}\n"
-        "\t\th1{font-size:3em;margin:0.125em 0 0.125em 0;}\n"
+        "\t\th1{font-size:3em;margin:0.125em 0;}\n"
         "\t\th2{font-size:1.5em;margin:0.25em 0 1em 0;}\n"
         "\t\tp{text-align:center;font-size:0.875em;}\n"
         "\t\tdiv.footer{color:var(--soft);font-size:0.75em;text-align:center;margin:2em 0 0.5em 0;}\n"
