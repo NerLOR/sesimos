@@ -129,6 +129,7 @@ int mime_is_compressible(const char *type) {
         strcmp(type_parsed, "font/opentype") == 0 ||
         strcmp(type_parsed, "image/bmp") == 0 ||
         strcmp(type_parsed, "image/vnd.microsoft.icon") == 0 ||
+        strcmp(type_parsed, "image/vnd.microsoft.iconbinary") == 0 ||
         strcmp(type_parsed, "image/x-icon") == 0;
 }
 
