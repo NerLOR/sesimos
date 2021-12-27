@@ -12,6 +12,7 @@
 
 #define CONFIG_SHM_KEY 255642
 #define CONFIG_MAX_HOST_CONFIG 64
+#define CONFIG_MAX_CERT_CONFIG 64
 
 #define CONFIG_TYPE_UNSET 0
 #define CONFIG_TYPE_LOCAL 1
@@ -25,6 +26,8 @@
 typedef struct {
     int type;
     char name[256];
+    char cert_name[256];
+    int cert;
     union {
         struct {
             char hostname[256];
@@ -38,8 +41,19 @@ typedef struct {
     };
 } host_config;
 
-extern host_config *config;
-extern char cert_file[256], key_file[256], geoip_dir[256], dns_server[256];
+typedef struct {
+    char name[256];
+    char full_chain[256];
+    char priv_key[256];
+} cert_config;
+
+typedef struct {
+    host_config hosts[CONFIG_MAX_HOST_CONFIG];
+    cert_config certs[CONFIG_MAX_CERT_CONFIG];
+} t_config;
+
+extern t_config *config;
+extern char geoip_dir[256], dns_server[256];
 
 int config_init();
 

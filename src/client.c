@@ -34,7 +34,7 @@ struct timeval client_timeout;
 
 host_config *get_host_config(const char *host) {
     for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
-        host_config *hc = &config[i];
+        host_config *hc = &config->hosts[i];
         if (hc->type == CONFIG_TYPE_UNSET) break;
         if (strcmp(hc->name, host) == 0) return hc;
     }

@@ -38,12 +38,28 @@ const char *config_file;
 int sockets[NUM_SOCKETS];
 pid_t children[MAX_CHILDREN];
 MMDB_s mmdbs[MAX_MMDB];
+SSL_CTX *contexts[CONFIG_MAX_CERT_CONFIG];
 
 void openssl_init() {
     SSL_library_init();
     SSL_load_error_strings();
     ERR_load_BIO_strings();
     OpenSSL_add_all_algorithms();
+}
+
+static int ssl_servername_cb(SSL *ssl, int *ad, void *arg) {
+    const char *servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
+    if (servername != NULL) {
+        for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
+            const host_config *conf = &config->hosts[i];
+            if (conf->type == CONFIG_TYPE_UNSET) break;
+            if (strcmp(conf->name, servername) == 0) {
+                SSL_set_SSL_CTX(ssl, contexts[conf->cert]);
+                break;
+            }
+        }
+    }
+    return SSL_TLSEXT_ERR_OK;
 }
 
 void destroy() {
@@ -290,28 +306,39 @@ int main(int argc, const char *argv[]) {
     client.buf = NULL;
     client.buf_len = 0;
     client.buf_off = 0;
-    client.ctx = SSL_CTX_new(TLS_server_method());
-    SSL_CTX_set_options(client.ctx, SSL_OP_SINGLE_DH_USE);
-    SSL_CTX_set_verify(client.ctx, SSL_VERIFY_NONE, NULL);
-    SSL_CTX_set_min_proto_version(client.ctx, TLS1_2_VERSION);
-    SSL_CTX_set_mode(client.ctx, SSL_MODE_ENABLE_PARTIAL_WRITE);
-    SSL_CTX_set_cipher_list(client.ctx, "HIGH:!aNULL:!kRSA:!PSK:!SRP:!MD5:!RC4");
-    SSL_CTX_set_ecdh_auto(client.ctx, 1);
+
+    for (int i = 0; i < CONFIG_MAX_CERT_CONFIG; i++) {
+        const cert_config *conf = &config->certs[i];
+        if (conf->name[0] == 0) break;
+
+        contexts[i] = SSL_CTX_new(TLS_server_method());
+        SSL_CTX *ctx = contexts[i];
+        SSL_CTX_set_options(ctx, SSL_OP_SINGLE_DH_USE);
+        SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+        SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
+        SSL_CTX_set_mode(ctx, SSL_MODE_ENABLE_PARTIAL_WRITE);
+        SSL_CTX_set_cipher_list(ctx, "HIGH:!aNULL:!kRSA:!PSK:!SRP:!MD5:!RC4");
+        SSL_CTX_set_ecdh_auto(ctx, 1);
+        SSL_CTX_set_tlsext_servername_callback(ctx, ssl_servername_cb);
+
+        if (SSL_CTX_use_certificate_chain_file(ctx, conf->full_chain) != 1) {
+            fprintf(stderr, ERR_STR "Unable to load certificate chain file: %s: %s" CLR_STR "\n",
+                    ERR_reason_error_string(ERR_get_error()), conf->full_chain);
+            config_unload();
+            return 1;
+        }
+        if (SSL_CTX_use_PrivateKey_file(ctx, conf->priv_key, SSL_FILETYPE_PEM) != 1) {
+            fprintf(stderr, ERR_STR "Unable to load private key file: %s: %s" CLR_STR "\n",
+                    ERR_reason_error_string(ERR_get_error()), conf->priv_key);
+            config_unload();
+            return 1;
+        }
+    }
+
+    client.ctx = contexts[0];
+
 
     rev_proxy_preload();
-
-    if (SSL_CTX_use_certificate_chain_file(client.ctx, cert_file) != 1) {
-        fprintf(stderr, ERR_STR "Unable to load certificate chain file: %s: %s" CLR_STR "\n",
-                ERR_reason_error_string(ERR_get_error()), cert_file);
-        config_unload();
-        return 1;
-    }
-    if (SSL_CTX_use_PrivateKey_file(client.ctx, key_file, SSL_FILETYPE_PEM) != 1) {
-        fprintf(stderr, ERR_STR "Unable to load private key file: %s: %s" CLR_STR "\n",
-                ERR_reason_error_string(ERR_get_error()), key_file);
-        config_unload();
-        return 1;
-    }
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         if (listen(sockets[i], LISTEN_BACKLOG) < 0) {
