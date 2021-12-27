@@ -568,7 +568,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             char *rev_proxy_doc = "";
             if (conf != NULL && conf->type == CONFIG_TYPE_REVERSE_PROXY) {
                 const http_status *status = http_get_status(ctx.status);
-                char stat_str[4];
+                char stat_str[8];
                 sprintf(stat_str, "%03i", ctx.status);
                 sprintf(msg_pre_buf_2, http_rev_proxy_document,
                         " success",
