@@ -77,16 +77,28 @@ int config_load(const char *filename) {
 
     int i = 0;
     int j = 0;
+    int line = 0;
     int mode = 0;
     char section = 0;
     char *ptr = NULL;
     char *source, *target;
-    while ((ptr = strtok(ptr == NULL ? conf :  NULL, "\n")) != NULL) {
+    while ((ptr = strsep(&conf, "\r\n")) != NULL) {
+        line++;
         char *comment = strchr(ptr, '#');
         if (comment != NULL) comment[0] = 0;
+
         len = strlen(ptr);
+        char *end_ptr = ptr + len - 1;
+        while (end_ptr[0] == ' ' || end_ptr[0] == '\t') {
+            end_ptr[0] = 0;
+            end_ptr--;
+        }
+        len = strlen(ptr);
+        if (len == 0) continue;
+
         if (ptr[0] == '[') {
             if (ptr[len - 1] != ']') goto err;
+            ptr++;
             int l = 0;
             if (strncmp(ptr, "host", 4) == 0 && (ptr[4] == ' ' || ptr[4] == '\t')) {
                 ptr += 4;
@@ -115,6 +127,8 @@ int config_load(const char *filename) {
             } else if (len > 11 && strncmp(ptr, "dns_server", 10) == 0 && (ptr[10] == ' ' || ptr[10] == '\t')) {
                 source = ptr + 10;
                 target = dns_server;
+            } else {
+                goto err;
             }
         } else if (section == 'c') {
             cert_config *cc = &tmp_config->certs[j - 1];
@@ -124,6 +138,8 @@ int config_load(const char *filename) {
             } else if (len > 12 && strncmp(ptr, "private_key", 11) == 0 && (ptr[11] == ' ' || ptr[11] == '\t')) {
                 source = ptr + 11;
                 target = cc->priv_key;
+            } else {
+                goto err;
             }
         } else if (section == 'h') {
             host_config *hc = &tmp_config->hosts[i - 1];
@@ -180,21 +196,22 @@ int config_load(const char *filename) {
                     hc->rev_proxy.enc = 1;
                 }
                 continue;
+            } else {
+                goto err;
             }
         } else {
             goto err;
         }
-        char *end_ptr = source + strlen(source) - 1;
+
         while (source[0] == ' ' || source[0] == '\t') source++;
-        while (end_ptr[0] == ' ' || end_ptr[0] == '\t') end_ptr--;
-        if (end_ptr <= source) {
+        if (strlen(source) == 0) {
             err:
             free(conf);
             free(tmp_config);
-            fprintf(stderr, ERR_STR "Unable to parse config file" CLR_STR "\n");
+            fprintf(stderr, ERR_STR "Unable to parse config file (line %i)" CLR_STR "\n", line);
             return -2;
         }
-        end_ptr[1] = 0;
+
         if (target != NULL) {
             strcpy(target, source);
         } else if (mode == 1) {
