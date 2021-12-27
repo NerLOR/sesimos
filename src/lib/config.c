@@ -68,7 +68,7 @@ int config_load(const char *filename) {
     fseek(file, 0, SEEK_END);
     unsigned long len = ftell(file);
     fseek(file, 0, SEEK_SET);
-    char *conf = malloc(len);
+    char *conf = alloca(len);
     fread(conf, 1, len, file);
     fclose(file);
 
@@ -206,7 +206,6 @@ int config_load(const char *filename) {
         while (source[0] == ' ' || source[0] == '\t') source++;
         if (strlen(source) == 0) {
             err:
-            free(conf);
             free(tmp_config);
             fprintf(stderr, ERR_STR "Unable to parse config file (line %i)" CLR_STR "\n", line);
             return -2;
@@ -228,7 +227,6 @@ int config_load(const char *filename) {
             tmp_config->hosts[i - 1].rev_proxy.port = (unsigned short) strtoul(source, NULL, 10);
         }
     }
-    free(conf);
 
     for (int k = 0; k < i; k++) {
         host_config *hc = &tmp_config->hosts[k];
