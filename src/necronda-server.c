@@ -50,14 +50,8 @@ void openssl_init() {
 static int ssl_servername_cb(SSL *ssl, int *ad, void *arg) {
     const char *servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
     if (servername != NULL) {
-        for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
-            const host_config *conf = &config->hosts[i];
-            if (conf->type == CONFIG_TYPE_UNSET) break;
-            if (strcmp(conf->name, servername) == 0) {
-                SSL_set_SSL_CTX(ssl, contexts[conf->cert]);
-                break;
-            }
-        }
+        const host_config *conf = get_host_config(servername);
+        if (conf != NULL) SSL_set_SSL_CTX(ssl, contexts[conf->cert]);
     }
     return SSL_TLSEXT_ERR_OK;
 }

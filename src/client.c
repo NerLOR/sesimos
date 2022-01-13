@@ -37,6 +37,10 @@ host_config *get_host_config(const char *host) {
         host_config *hc = &config->hosts[i];
         if (hc->type == CONFIG_TYPE_UNSET) break;
         if (strcmp(hc->name, host) == 0) return hc;
+        if (hc->name[0] == '*' && hc->name[1] == '.') {
+            const char *pos = strstr(host, hc->name + 1);
+            if (pos != NULL && strlen(pos) == strlen(hc->name + 1)) return hc;
+        }
     }
     return NULL;
 }
