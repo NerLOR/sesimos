@@ -68,8 +68,9 @@ int config_load(const char *filename) {
     fseek(file, 0, SEEK_END);
     unsigned long len = ftell(file);
     fseek(file, 0, SEEK_SET);
-    char *conf = alloca(len);
+    char *conf = alloca(len + 1);
     fread(conf, 1, len, file);
+    conf[len] = 0;
     fclose(file);
 
     t_config *tmp_config = malloc(sizeof(t_config));
