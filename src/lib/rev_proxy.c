@@ -131,7 +131,7 @@ int rev_proxy_request_header(http_req *req, int enc) {
 int rev_proxy_response_header(http_req *req, http_res *res, host_config *conf) {
     char buf1[256];
     char buf2[256];
-    int p_len, s_len;
+    int p_len;
 
     char *via = http_get_header_field(&res->hdr, "Via");
     p_len = snprintf(buf1, sizeof(buf1), "HTTP/%s %s", req->version, SERVER_NAME);
@@ -153,12 +153,8 @@ int rev_proxy_response_header(http_req *req, http_res *res, host_config *conf) {
 
     char *location = http_get_header_field(&res->hdr, "Location");
     if (location != NULL) {
-        buf2[0] = 0;
-        s_len = (int) strlen(location);
-
         char *hostnames[] = {conf->name, conf->rev_proxy.hostname};
-
-        for (int i = 0; i < sizeof(hostnames); i++) {
+        for (int i = 0; i < sizeof(hostnames) / sizeof(hostnames[0]); i++) {
             char *hostname = hostnames[i];
 
             p_len = snprintf(buf1, sizeof(buf1), "http://%s/", hostname);
@@ -176,9 +172,8 @@ int rev_proxy_response_header(http_req *req, http_res *res, host_config *conf) {
 
         if (0) {
             match:
-            snprintf(buf2, sizeof(buf2), "%.*s", s_len - p_len + 1, location + p_len - 1);
             http_remove_header_field(&res->hdr, "Location", HTTP_REMOVE_ALL);
-            http_add_header_field(&res->hdr, "Location", buf2);
+            http_add_header_field(&res->hdr, "Location", location + p_len - 1);
         }
     }
 
