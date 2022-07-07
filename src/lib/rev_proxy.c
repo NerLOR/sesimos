@@ -128,10 +128,10 @@ int rev_proxy_request_header(http_req *req, int enc) {
     return 0;
 }
 
-int rev_proxy_response_header(http_req *req, http_res *res) {
+int rev_proxy_response_header(http_req *req, http_res *res, host_config *conf) {
     char buf1[256];
     char buf2[256];
-    int p_len;
+    int p_len, s_len;
 
     char *via = http_get_header_field(&res->hdr, "Via");
     p_len = snprintf(buf1, sizeof(buf1), "HTTP/%s %s", req->version, SERVER_NAME);
@@ -149,6 +149,37 @@ int rev_proxy_response_header(http_req *req, http_res *res) {
         }
         http_remove_header_field(&res->hdr, "Via", HTTP_REMOVE_ALL);
         http_add_header_field(&res->hdr, "Via", buf2);
+    }
+
+    char *location = http_get_header_field(&res->hdr, "Location");
+    if (location != NULL) {
+        buf2[0] = 0;
+        s_len = (int) strlen(location);
+
+        char *hostnames[] = {conf->name, conf->rev_proxy.hostname};
+
+        for (int i = 0; i < sizeof(hostnames); i++) {
+            char *hostname = hostnames[i];
+
+            p_len = snprintf(buf1, sizeof(buf1), "http://%s/", hostname);
+            if (strncmp(location, buf1, p_len) == 0) goto match;
+
+            p_len = snprintf(buf1, sizeof(buf1), "https://%s/", hostname);
+            if (strncmp(location, buf1, p_len) == 0) goto match;
+
+            p_len = snprintf(buf1, sizeof(buf1), "http://%s:%i/", hostname, conf->rev_proxy.port);
+            if (strncmp(location, buf1, p_len) == 0) goto match;
+
+            p_len = snprintf(buf1, sizeof(buf1), "https://%s:%i/", hostname, conf->rev_proxy.port);
+            if (strncmp(location, buf1, p_len) == 0) goto match;
+        }
+
+        if (0) {
+            match:
+            snprintf(buf2, sizeof(buf2), "%.*s", s_len - p_len + 1, location + p_len - 1);
+            http_remove_header_field(&res->hdr, "Location", HTTP_REMOVE_ALL);
+            http_add_header_field(&res->hdr, "Location", buf2);
+        }
     }
 
     return 0;
@@ -412,7 +443,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
     }
     sock_recv(&rev_proxy, buffer, header_len, 0);
 
-    ret = rev_proxy_response_header(req, res);
+    ret = rev_proxy_response_header(req, res, conf);
     if (ret != 0) {
         res->status = http_get_status(500);
         ctx->origin = INTERNAL;
