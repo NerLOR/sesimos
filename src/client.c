@@ -570,6 +570,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 }
             } else if (strncmp(msg_content, "<!DOCTYPE html>", 15) == 0 || strncmp(msg_content, "<html", 5) == 0) {
                 msg_content[0] = 0;
+                // TODO let relevant information pass?
             }
 
             char *rev_proxy_doc = "";
