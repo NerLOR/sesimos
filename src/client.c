@@ -561,12 +561,15 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             const http_doc_info *info = http_get_status_info(res.status);
             const http_status_msg *http_msg = http_get_error_msg(res.status);
 
-            if (res.status->code >= 300 && res.status->code < 400 && msg_content[0] == 0) {
-                const char *location = http_get_header_field(&res.hdr, "Location");
-                if (location != NULL) {
-                    snprintf(msg_content, sizeof(msg_content),
-                             "<ul>\n\t<li><a href=\"%1$s\">%1$s</a></li>\n</ul>\n", location);
+            if (msg_content[0] == 0) {
+                if (res.status->code >= 300 && res.status->code < 400) {
+                    const char *location = http_get_header_field(&res.hdr, "Location");
+                    if (location != NULL) {
+                        snprintf(msg_content, sizeof(msg_content), "<ul>\n\t<li><a href=\"%1$s\">%1$s</a></li>\n</ul>\n", location);
+                    }
                 }
+            } else if (strncmp(msg_content, "<!DOCTYPE html>", 15) == 0 || strncmp(msg_content, "<html", 5) == 0) {
+                msg_content[0] = 0;
             }
 
             char *rev_proxy_doc = "";
