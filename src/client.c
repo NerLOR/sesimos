@@ -95,9 +95,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     http_add_header_field(&res.hdr, "Date", http_get_date(buf0, sizeof(buf0)));
     http_add_header_field(&res.hdr, "Server", SERVER_STR);
     if (ret <= 0) {
-        if (errno != 0) {
-            return 1;
-        }
+        if (errno != 0) return 1;
+
         client_keep_alive = 0;
         res.status = http_get_status(408);
         goto respond;
@@ -126,8 +125,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     }
 
     hdr_connection = http_get_header_field(&req.hdr, "Connection");
-    client_keep_alive = hdr_connection != NULL &&
-                        (strcmp(hdr_connection, "keep-alive") == 0 || strcmp(hdr_connection, "Keep-Alive") == 0);
+    client_keep_alive = (hdr_connection != NULL && (strcmp(hdr_connection, "keep-alive") == 0 || strcmp(hdr_connection, "Keep-Alive") == 0));
     host_ptr = http_get_header_field(&req.hdr, "Host");
     if (host_ptr != NULL && strlen(host_ptr) > 255) {
         host[0] = 0;
@@ -161,7 +159,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     }
 
     http_uri uri;
-    unsigned char dir_mode = conf->type == CONFIG_TYPE_LOCAL ? conf->local.dir_mode : URI_DIR_MODE_NO_VALIDATION;
+    unsigned char dir_mode = (conf->type == CONFIG_TYPE_LOCAL ? conf->local.dir_mode : URI_DIR_MODE_NO_VALIDATION);
     ret = uri_init(&uri, conf->local.webroot, req.uri, dir_mode);
     if (ret != 0) {
         if (ret == 1) {
@@ -218,11 +216,9 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             res.status = http_get_status(200);
             http_add_header_field(&res.hdr, "Content-Type", "message/http");
 
-            content_length = snprintf(msg_buf, sizeof(msg_buf) - content_length, "%s %s HTTP/%s\r\n",
-                                      req.method, req.uri, req.version);
+            content_length = snprintf(msg_buf, sizeof(msg_buf) - content_length, "%s %s HTTP/%s\r\n", req.method, req.uri, req.version);
             for (int i = 0; i < req.hdr.field_num; i++) {
-                content_length += snprintf(msg_buf + content_length, sizeof(msg_buf) - content_length, "%s: %s\r\n",
-                                           req.hdr.fields[i][0], req.hdr.fields[i][1]);
+                content_length += snprintf(msg_buf + content_length, sizeof(msg_buf) - content_length, "%s: %s\r\n", req.hdr.fields[i][0], req.hdr.fields[i][1]);
             }
 
             goto respond;
@@ -306,8 +302,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
             if (uri.meta->etag[0] != 0) {
                 if (enc) {
-                    sprintf(buf0, "%s-%s", uri.meta->etag,
-                            (enc & COMPRESS_BR) ? "br" : (enc & COMPRESS_GZ) ? "gzip" : "");
+                    sprintf(buf0, "%s-%s", uri.meta->etag, (enc & COMPRESS_BR) ? "br" : (enc & COMPRESS_GZ) ? "gzip" : "");
                     http_add_header_field(&res.hdr, "ETag", buf0);
                 } else {
                     http_add_header_field(&res.hdr, "ETag", uri.meta->etag);
@@ -323,8 +318,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             char *if_modified_since = http_get_header_field(&req.hdr, "If-Modified-Since");
             char *if_none_match = http_get_header_field(&req.hdr, "If-None-Match");
             if ((if_none_match != NULL && strstr(if_none_match, uri.meta->etag) == NULL) ||
-                    (accept_if_modified_since && if_modified_since != NULL &&
-                    strcmp(if_modified_since, last_modified) == 0)) {
+                (accept_if_modified_since && if_modified_since != NULL && strcmp(if_modified_since, last_modified) == 0))
+            {
                 res.status = http_get_status(304);
                 goto respond;
             }
@@ -596,8 +591,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 rev_proxy_doc = msg_pre_buf_2;
             }
 
-            sprintf(msg_pre_buf_1, info->doc, res.status->code, res.status->msg,
-                    http_msg != NULL ? http_msg->msg : "", err_msg[0] != 0 ? err_msg : "");
+            sprintf(msg_pre_buf_1, info->doc, res.status->code, res.status->msg, http_msg != NULL ? http_msg->msg : "", err_msg[0] != 0 ? err_msg : "");
             content_length = snprintf(msg_buf, sizeof(msg_buf), http_default_document, res.status->code,
                                       res.status->msg, msg_pre_buf_1, info->mode, info->icon, info->color, host,
                                       rev_proxy_doc, msg_content[0] != 0 ? msg_content : "");
@@ -612,7 +606,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     }
 
     char *conn = http_get_header_field(&res.hdr, "Connection");
-    int close_proxy = conn == NULL || (strcmp(conn, "keep-alive") != 0 && strcmp(conn, "Keep-Alive") != 0);
+    int close_proxy = (conn == NULL || (strcmp(conn, "keep-alive") != 0 && strcmp(conn, "Keep-Alive") != 0));
     http_remove_header_field(&res.hdr, "Connection", HTTP_REMOVE_ALL);
     http_remove_header_field(&res.hdr, "Keep-Alive", HTTP_REMOVE_ALL);
     if (server_keep_alive && client_keep_alive) {
@@ -657,7 +651,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             }
         } else if (use_fastcgi) {
             char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
-            int chunked = transfer_encoding != NULL && strcmp(transfer_encoding, "chunked") == 0;
+            int chunked = (transfer_encoding != NULL && strcmp(transfer_encoding, "chunked") == 0);
 
             int flags = (chunked ? FASTCGI_CHUNKED : 0) | (use_fastcgi & (FASTCGI_COMPRESS | FASTCGI_COMPRESS_HOLD));
             ret = fastcgi_send(&fcgi_conn, client, flags);

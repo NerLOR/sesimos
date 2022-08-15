@@ -65,13 +65,11 @@ void destroy() {
         if (children[i] != 0) {
             ret = waitpid(children[i], &status, WNOHANG);
             if (ret < 0) {
-                fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n",
-                        children[i], strerror(errno));
+                fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n", children[i], strerror(errno));
             } else if (ret == children[i]) {
                 children[i] = 0;
                 if (status != 0) {
-                    fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n",
-                            ret, status);
+                    fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n", ret, status);
                 }
             } else {
                 kill(children[i], SIGKILL);
@@ -106,13 +104,11 @@ void terminate() {
         if (children[i] != 0) {
             ret = waitpid(children[i], &status, WNOHANG);
             if (ret < 0) {
-                fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n",
-                        children[i], strerror(errno));
+                fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n", children[i], strerror(errno));
             } else if (ret == children[i]) {
                 children[i] = 0;
                 if (status != 0) {
-                    fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n",
-                            ret, status);
+                    fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n", ret, status);
                 }
             } else {
                 kill(children[i], SIGTERM);
@@ -129,13 +125,11 @@ void terminate() {
         if (children[i] != 0) {
             ret = waitpid(children[i], &status, 0);
             if (ret < 0) {
-                fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n",
-                        children[i], strerror(errno));
+                fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n", children[i], strerror(errno));
             } else if (ret == children[i]) {
                 children[i] = 0;
                 if (status != 0) {
-                    fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n",
-                            ret, status);
+                    fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n", ret, status);
                 }
             }
         }
@@ -316,14 +310,12 @@ int main(int argc, const char *argv[]) {
         SSL_CTX_set_tlsext_servername_callback(ctx, ssl_servername_cb);
 
         if (SSL_CTX_use_certificate_chain_file(ctx, conf->full_chain) != 1) {
-            fprintf(stderr, ERR_STR "Unable to load certificate chain file: %s: %s" CLR_STR "\n",
-                    ERR_reason_error_string(ERR_get_error()), conf->full_chain);
+            fprintf(stderr, ERR_STR "Unable to load certificate chain file: %s: %s" CLR_STR "\n", ERR_reason_error_string(ERR_get_error()), conf->full_chain);
             config_unload();
             return 1;
         }
         if (SSL_CTX_use_PrivateKey_file(ctx, conf->priv_key, SSL_FILETYPE_PEM) != 1) {
-            fprintf(stderr, ERR_STR "Unable to load private key file: %s: %s" CLR_STR "\n",
-                    ERR_reason_error_string(ERR_get_error()), conf->priv_key);
+            fprintf(stderr, ERR_STR "Unable to load private key file: %s: %s" CLR_STR "\n", ERR_reason_error_string(ERR_get_error()), conf->priv_key);
             config_unload();
             return 1;
         }
@@ -378,7 +370,7 @@ int main(int argc, const char *argv[]) {
                     signal(SIGTERM, SIG_IGN);
 
                     client.socket = client_fd;
-                    client.enc = i == 1;
+                    client.enc = (i == 1);
                     return client_handler(&client, client_num, &client_addr);
                 } else if (pid > 0) {
                     // parent
@@ -402,13 +394,11 @@ int main(int argc, const char *argv[]) {
             if (children[i] != 0) {
                 ret = waitpid(children[i], &status, WNOHANG);
                 if (ret < 0) {
-                    fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n",
-                            children[i], strerror(errno));
+                    fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n", children[i], strerror(errno));
                 } else if (ret == children[i]) {
                     children[i] = 0;
                     if (status != 0) {
-                        fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n",
-                                ret, status);
+                        fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n", ret, status);
                     }
                 }
             }
