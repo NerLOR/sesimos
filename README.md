@@ -7,7 +7,8 @@ Necronda web server
 * Full IPv4 and IPv6 support
 * TLS Server Name Inspection (SNI)
 * Serving local files via HTTP and HTTPS
-  * File compression ([gzip](https://www.gzip.org/), [Brotli](https://www.brotli.org/)) and disk cache for compressed files
+  * File compression ([gzip](https://www.gzip.org/), [Brotli](https://www.brotli.org/))
+  * Disk cache for compressed files
 * Reverse proxy for other HTTP and HTTPS servers
   * Transparent WebSocket reverse proxy **[WIP]**
 * FastCGI support (e.g. [PHP-FPM](https://php-fpm.org/))
