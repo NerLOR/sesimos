@@ -221,7 +221,8 @@ int fastcgi_close_stdin(fastcgi_conn *conn) {
 int fastcgi_php_error(const fastcgi_conn *conn, const char *msg, int msg_len, char *err_msg) {
     char *msg_str = malloc(msg_len + 1);
     char *ptr0 = msg_str;
-    strncpy(msg_str, msg, msg_len);
+    memcpy(msg_str, msg, msg_len);
+    msg_str[msg_len] = 0;
     char *ptr1 = NULL;
     int len;
     int err = 0;

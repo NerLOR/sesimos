@@ -262,21 +262,27 @@ int http_add_header_field_len(http_hdr *hdr, const char *name, unsigned long nam
 
     if (name_len < sizeof(f->normal.name) && value_len < sizeof(f->normal.value)) {
         f->type = HTTP_FIELD_NORMAL;
-        strncpy(f->normal.name, name, name_len);
-        strncpy(f->normal.value, value, value_len);
+        memcpy(f->normal.name, name, name_len);
+        memcpy(f->normal.value, value, value_len);
+        f->normal.name[name_len] = 0;
+        f->normal.value[value_len] = 0;
         http_to_camel_case(f->normal.name, HTTP_PRESERVE);
     } else if (name_len < sizeof(f->ex_value.name)) {
         f->type = HTTP_FIELD_EX_VALUE;
         f->ex_value.value = malloc(value_len + 1);
-        strncpy(f->ex_value.name, name, name_len);
-        strncpy(f->ex_value.value, value, value_len);
+        memcpy(f->ex_value.name, name, name_len);
+        memcpy(f->ex_value.value, value, value_len);
+        f->ex_value.name[name_len] = 0;
+        f->ex_value.value[value_len] = 0;
         http_to_camel_case(f->ex_value.name, HTTP_PRESERVE);
     } else {
         f->type = HTTP_FIELD_EX_NAME;
         f->ex_name.name = malloc(name_len + 1);
         f->ex_name.value = malloc(value_len + 1);
-        strncpy(f->ex_name.name, name, name_len);
-        strncpy(f->ex_name.value, value, value_len);
+        memcpy(f->ex_name.name, name, name_len);
+        memcpy(f->ex_name.value, value, value_len);
+        f->ex_name.name[name_len] = 0;
+        f->ex_name.value[value_len] = 0;
         http_to_camel_case(f->ex_name.name, HTTP_PRESERVE);
     }
 

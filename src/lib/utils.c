@@ -135,7 +135,8 @@ int mime_is_compressible(const char *type) {
 }
 
 int strcpy_rem_webroot(char *dst, const char *src, long len, const char *webroot) {
-    strncpy(dst, src, len);
+    memcpy(dst, src, len);
+    dst[len] = 0;
     if (webroot == NULL)
         return 0;
 
