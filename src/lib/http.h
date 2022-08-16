@@ -130,6 +130,8 @@ const char *http_field_get_name(const http_field *field);
 
 const char *http_field_get_value(const http_field *field);
 
+void http_free_field(http_field *f);
+
 void http_free_hdr(http_hdr *hdr);
 
 void http_free_req(http_req *req);

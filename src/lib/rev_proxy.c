@@ -29,8 +29,7 @@ int rev_proxy_preload() {
 }
 
 int rev_proxy_request_header(http_req *req, int enc) {
-    char buf1[256];
-    char buf2[256];
+    char buf1[256], buf2[256];
     int p_len;
     http_remove_header_field(&req->hdr, "Connection", HTTP_REMOVE_ALL);
     http_add_header_field(&req->hdr, "Connection", "keep-alive");
@@ -52,7 +51,7 @@ int rev_proxy_request_header(http_req *req, int enc) {
     const char *host = http_get_header_field(&req->hdr, "Host");
     const char *forwarded = http_get_header_field(&req->hdr, "Forwarded");
     int client_ipv6 = strchr(client_addr_str, ':') != NULL;
-    int server_ipv6 =  strchr(server_addr_str, ':') != NULL;
+    int server_ipv6 = strchr(server_addr_str, ':') != NULL;
 
     p_len = snprintf(buf1, sizeof(buf1), "by=%s%s%s;for=%s%s%s;host=%s;proto=%s",
                      server_ipv6 ? "\"[" : "", server_addr_str, server_ipv6 ? "]\"" : "",
@@ -62,6 +61,7 @@ int rev_proxy_request_header(http_req *req, int enc) {
         print(ERR_STR "Appended part of header field 'Forwarded' too long" CLR_STR);
         return -1;
     }
+
     if (forwarded == NULL) {
         http_add_header_field(&req->hdr, "Forwarded", buf1);
     } else {
@@ -129,8 +129,7 @@ int rev_proxy_request_header(http_req *req, int enc) {
 }
 
 int rev_proxy_response_header(http_req *req, http_res *res, host_config *conf) {
-    char buf1[256];
-    char buf2[256];
+    char buf1[256], buf2[256];
     int p_len;
 
     const char *via = http_get_header_field(&res->hdr, "Via");
@@ -172,20 +171,19 @@ int rev_proxy_response_header(http_req *req, http_res *res, host_config *conf) {
 
         if (0) {
             match:
+            strcpy(buf1, location + p_len - 1);
             http_remove_header_field(&res->hdr, "Location", HTTP_REMOVE_ALL);
-            http_add_header_field(&res->hdr, "Location", location + p_len - 1);
+            http_add_header_field(&res->hdr, "Location", buf1);
         }
     }
 
     return 0;
 }
 
-int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config *conf, sock *client,
-                   http_status *custom_status, char *err_msg) {
+int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config *conf, sock *client, http_status *custom_status, char *err_msg) {
     char buffer[CHUNK_SIZE];
     long ret;
-    int tries = 0;
-    int retry = 0;
+    int tries = 0, retry = 0;
 
     if (rev_proxy.socket != 0 && strcmp(rev_proxy_host, conf->name) == 0 && sock_check(&rev_proxy) == 0) {
         goto rev_proxy;
@@ -455,13 +453,9 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
 
 int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
     // TODO handle websockets
-    long ret = 0;
-    char buffer[CHUNK_SIZE];
-    char comp_out[CHUNK_SIZE];
-    char buf[256];
-    long len, snd_len;
+    char buffer[CHUNK_SIZE], comp_out[CHUNK_SIZE], buf[256], *ptr;
+    long ret = 0, len, snd_len;
     int finish_comp = 0;
-    char *ptr;
 
     compress_ctx comp_ctx;
     if (flags & REV_PROXY_COMPRESS_BR) {

@@ -498,9 +498,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             const char *content_type = http_get_header_field(&res.hdr, "Content-Type");
             const char *content_length_f = http_get_header_field(&res.hdr, "Content-Length");
             const char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding");
-            if (content_encoding == NULL && content_type != NULL && content_length_f != NULL &&
-                strncmp(content_type, "text/html", 9) == 0)
-            {
+            if (content_encoding == NULL && content_type != NULL && content_length_f != NULL && strncmp(content_type, "text/html", 9) == 0) {
                 long content_len = strtol(content_length_f, NULL, 10);
                 if (content_len <= sizeof(msg_content) - 1) {
                     ctx.status = res.status->code;

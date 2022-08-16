@@ -48,22 +48,25 @@ const char *http_field_get_value(const http_field *field) {
     return NULL;
 }
 
+void http_free_field(http_field *f) {
+    if (f->type == HTTP_FIELD_NORMAL) {
+        f->normal.name[0] = 0;
+        f->normal.value[0] = 0;
+    } else if (f->type == HTTP_FIELD_EX_VALUE) {
+        f->ex_value.name[0] = 0;
+        free(f->ex_value.value);
+        f->ex_value.value = NULL;
+    } else if (f->type == HTTP_FIELD_EX_NAME) {
+        free(f->ex_name.name);
+        free(f->ex_name.value);
+        f->ex_name.name = NULL;
+        f->ex_name.value = NULL;
+    }
+}
+
 void http_free_hdr(http_hdr *hdr) {
     for (int i = 0; i < hdr->field_num; i++) {
-        http_field *f = &hdr->fields[i];
-        if (f->type == HTTP_FIELD_NORMAL) {
-            f->normal.name[0] = 0;
-            f->normal.value[0] = 0;
-        } else if (f->type == HTTP_FIELD_EX_VALUE) {
-            f->ex_value.name[0] = 0;
-            free(f->ex_value.value);
-            f->ex_value.value = NULL;
-        } else if (f->type == HTTP_FIELD_EX_NAME) {
-            free(f->ex_name.name);
-            free(f->ex_name.value);
-            f->ex_name.name = NULL;
-            f->ex_name.value = NULL;
-        }
+        http_free_field(&hdr->fields[i]);
     }
     hdr->field_num = 0;
     hdr->last_field_num = -1;
@@ -326,6 +329,7 @@ void http_remove_header_field(http_hdr *hdr, const char *field_name, int mode) {
         strcpy(field_name_2, http_field_get_name(&hdr->fields[i]));
         http_to_camel_case(field_name_2, HTTP_LOWER);
         if (strcmp(field_name_1, field_name_2) == 0) {
+            http_free_field(&hdr->fields[i]);
             memmove(&hdr->fields[i], &hdr->fields[i + 1], sizeof(hdr->fields[0]) * (hdr->field_num - i));
             hdr->field_num--;
             if (mode == HTTP_REMOVE_ALL) {
