@@ -1,6 +1,6 @@
 /**
  * Necronda Web Server
- * Client connection and request handlers
+ * Client connection and request handlers (header file)
  * src/client.h
  * Lorenz Stechauner, 2022-08-16
  */
