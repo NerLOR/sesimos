@@ -20,20 +20,20 @@ char geoip_dir[256], dns_server[256];
 int config_init() {
     int shm_id = shmget(CONFIG_SHM_KEY, sizeof(t_config), IPC_CREAT | IPC_EXCL | 0640);
     if (shm_id < 0) {
-        fprintf(stderr, ERR_STR "Unable to create shared memory: %s" CLR_STR "\n", strerror(errno));
+        fprintf(stderr, ERR_STR "Unable to create config shared memory: %s" CLR_STR "\n", strerror(errno));
         return -1;
     }
 
     void *shm = shmat(shm_id, NULL, SHM_RDONLY);
     if (shm == (void *) -1) {
-        fprintf(stderr, ERR_STR "Unable to attach shared memory (ro): %s" CLR_STR "\n", strerror(errno));
+        fprintf(stderr, ERR_STR "Unable to attach config shared memory (ro): %s" CLR_STR "\n", strerror(errno));
         return -2;
     }
     config = shm;
 
     void *shm_rw = shmat(shm_id, NULL, 0);
     if (shm_rw == (void *) -1) {
-        fprintf(stderr, ERR_STR "Unable to attach shared memory (rw): %s" CLR_STR "\n", strerror(errno));
+        fprintf(stderr, ERR_STR "Unable to attach config shared memory (rw): %s" CLR_STR "\n", strerror(errno));
         return -3;
     }
     config = shm_rw;
@@ -46,11 +46,11 @@ int config_init() {
 int config_unload() {
     int shm_id = shmget(CONFIG_SHM_KEY, 0, 0);
     if (shm_id < 0) {
-        fprintf(stderr, ERR_STR "Unable to get shared memory id: %s" CLR_STR "\n", strerror(errno));
+        fprintf(stderr, ERR_STR "Unable to get config shared memory id: %s" CLR_STR "\n", strerror(errno));
         shmdt(config);
         return -1;
     } else if (shmctl(shm_id, IPC_RMID, NULL) < 0) {
-        fprintf(stderr, ERR_STR "Unable to configure shared memory: %s" CLR_STR "\n", strerror(errno));
+        fprintf(stderr, ERR_STR "Unable to configure config shared memory: %s" CLR_STR "\n", strerror(errno));
         shmdt(config);
         return -1;
     }
@@ -256,7 +256,7 @@ int config_load(const char *filename) {
 
     int shm_id = shmget(CONFIG_SHM_KEY, 0, 0);
     if (shm_id < 0) {
-        fprintf(stderr, ERR_STR "Unable to get shared memory id: %s" CLR_STR "\n", strerror(errno));
+        fprintf(stderr, ERR_STR "Unable to get config shared memory id: %s" CLR_STR "\n", strerror(errno));
         shmdt(config);
         return -3;
     }
@@ -264,7 +264,7 @@ int config_load(const char *filename) {
     void *shm_rw = shmat(shm_id, NULL, 0);
     if (shm_rw == (void *) -1) {
         free(tmp_config);
-        fprintf(stderr, ERR_STR "Unable to attach shared memory (rw): %s" CLR_STR "\n", strerror(errno));
+        fprintf(stderr, ERR_STR "Unable to attach config shared memory (rw): %s" CLR_STR "\n", strerror(errno));
         return -4;
     }
     memcpy(shm_rw, tmp_config, sizeof(t_config));

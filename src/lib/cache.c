@@ -45,14 +45,14 @@ int cache_process() {
 
     int shm_id = shmget(CACHE_SHM_KEY, CACHE_ENTRIES * sizeof(cache_entry), 0);
     if (shm_id < 0) {
-        fprintf(stderr, ERR_STR "Unable to create shared memory: %s" CLR_STR "\n", strerror(errno));
+        fprintf(stderr, ERR_STR "Unable to create cache shared memory: %s" CLR_STR "\n", strerror(errno));
         return -1;
     }
 
     shmdt(cache);
     void *shm_rw = shmat(shm_id, NULL, 0);
     if (shm_rw == (void *) -1) {
-        fprintf(stderr, ERR_STR "Unable to attach shared memory (rw): %s" CLR_STR "\n", strerror(errno));
+        fprintf(stderr, ERR_STR "Unable to attach cache shared memory (rw): %s" CLR_STR "\n", strerror(errno));
         return -2;
     }
     cache = shm_rw;
@@ -226,20 +226,20 @@ int cache_init() {
 
     int shm_id = shmget(CACHE_SHM_KEY, CACHE_ENTRIES * sizeof(cache_entry), IPC_CREAT | IPC_EXCL | 0600);
     if (shm_id < 0) {
-        fprintf(stderr, ERR_STR "Unable to create shared memory: %s" CLR_STR "\n", strerror(errno));
+        fprintf(stderr, ERR_STR "Unable to create cache shared memory: %s" CLR_STR "\n", strerror(errno));
         return -2;
     }
 
     void *shm = shmat(shm_id, NULL, SHM_RDONLY);
     if (shm == (void *) -1) {
-        fprintf(stderr, ERR_STR "Unable to attach shared memory (ro): %s" CLR_STR "\n", strerror(errno));
+        fprintf(stderr, ERR_STR "Unable to attach cache shared memory (ro): %s" CLR_STR "\n", strerror(errno));
         return -3;
     }
     cache = shm;
 
     void *shm_rw = shmat(shm_id, NULL, 0);
     if (shm_rw == (void *) -1) {
-        fprintf(stderr, ERR_STR "Unable to attach shared memory (rw): %s" CLR_STR "\n", strerror(errno));
+        fprintf(stderr, ERR_STR "Unable to attach cache shared memory (rw): %s" CLR_STR "\n", strerror(errno));
         return -4;
     }
     cache = shm_rw;
@@ -268,11 +268,11 @@ int cache_init() {
 int cache_unload() {
     int shm_id = shmget(CACHE_SHM_KEY, 0, 0);
     if (shm_id < 0) {
-        fprintf(stderr, ERR_STR "Unable to get shared memory id: %s" CLR_STR "\n", strerror(errno));
+        fprintf(stderr, ERR_STR "Unable to get cache shared memory id: %s" CLR_STR "\n", strerror(errno));
         shmdt(cache);
         return -1;
     } else if (shmctl(shm_id, IPC_RMID, NULL) < 0) {
-        fprintf(stderr, ERR_STR "Unable to configure shared memory: %s" CLR_STR "\n", strerror(errno));
+        fprintf(stderr, ERR_STR "Unable to configure cache shared memory: %s" CLR_STR "\n", strerror(errno));
         shmdt(cache);
         return -1;
     }
@@ -285,7 +285,7 @@ int cache_update_entry(int entry_num, const char *filename, const char *webroot)
     int shm_id = shmget(CACHE_SHM_KEY, 0, 0);
     void *shm_rw = shmat(shm_id, NULL, 0);
     if (shm_rw == (void *) -1) {
-        print(ERR_STR "Unable to attach shared memory (rw): %s" CLR_STR, strerror(errno));
+        print(ERR_STR "Unable to attach cache shared memory (rw): %s" CLR_STR, strerror(errno));
         return -1;
     }
     cache = shm_rw;
@@ -328,7 +328,7 @@ int cache_filename_comp_invalid(const char *filename) {
     int shm_id = shmget(CACHE_SHM_KEY, 0, 0);
     void *shm_rw = shmat(shm_id, NULL, 0);
     if (shm_rw == (void *) -1) {
-        print(ERR_STR "Unable to attach shared memory (rw): %s" CLR_STR, strerror(errno));
+        print(ERR_STR "Unable to attach cache shared memory (rw): %s" CLR_STR, strerror(errno));
         return -1;
     }
     cache = shm_rw;

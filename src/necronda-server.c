@@ -313,11 +313,13 @@ int main(int argc, const char *argv[]) {
         if (SSL_CTX_use_certificate_chain_file(ctx, conf->full_chain) != 1) {
             fprintf(stderr, ERR_STR "Unable to load certificate chain file: %s: %s" CLR_STR "\n", ERR_reason_error_string(ERR_get_error()), conf->full_chain);
             config_unload();
+            cache_unload();
             return 1;
         }
         if (SSL_CTX_use_PrivateKey_file(ctx, conf->priv_key, SSL_FILETYPE_PEM) != 1) {
             fprintf(stderr, ERR_STR "Unable to load private key file: %s: %s" CLR_STR "\n", ERR_reason_error_string(ERR_get_error()), conf->priv_key);
             config_unload();
+            cache_unload();
             return 1;
         }
     }
@@ -331,6 +333,7 @@ int main(int argc, const char *argv[]) {
         if (listen(sockets[i], LISTEN_BACKLOG) < 0) {
             fprintf(stderr, ERR_STR "Unable to listen on socket %i: %s" CLR_STR "\n", i, strerror(errno));
             config_unload();
+            cache_unload();
             return 1;
         }
     }
@@ -406,5 +409,7 @@ int main(int argc, const char *argv[]) {
         }
     }
 
+    config_unload();
+    cache_unload();
     return 0;
 }
