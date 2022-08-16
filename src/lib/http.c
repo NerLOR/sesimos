@@ -8,6 +8,7 @@
 #include "http.h"
 #include "utils.h"
 #include "compress.h"
+
 #include <string.h>
 
 void http_to_camel_case(char *str, int mode) {

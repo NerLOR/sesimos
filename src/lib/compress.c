@@ -6,6 +6,7 @@
  */
 
 #include "compress.h"
+
 #include <malloc.h>
 #include <errno.h>
 
