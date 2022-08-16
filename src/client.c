@@ -156,7 +156,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
     conf = get_host_config(host);
     if (conf == NULL) {
-        print("Host unknown, redirecting to default");
+        print("Unknown host, redirecting to default");
         res.status = http_get_status(307);
         sprintf(buf0, "https://%s%s", DEFAULT_HOST, req.uri);
         http_add_header_field(&res.hdr, "Location", buf0);

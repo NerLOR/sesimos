@@ -104,7 +104,7 @@ int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr)
         print(ERR_STR "Unable to parse header" CLR_STR);
         return 3;
     }
-    long len1 = pos1 - buf - 1;
+    long len1 = pos1 - buf;
 
     pos1++;
     str_trim_lws(&pos1, &pos2);
@@ -235,14 +235,17 @@ int http_get_header_field_num(const http_hdr *hdr, const char *field_name) {
 int http_get_header_field_num_len(const http_hdr *hdr, const char *field_name, unsigned long len) {
     char field_name_1[256], field_name_2[256];
     memcpy(field_name_1, field_name, len);
+    field_name_1[len] = 0;
     http_to_camel_case(field_name_1, HTTP_LOWER);
+
     for (int i = 0; i < hdr->field_num; i++) {
         strcpy(field_name_2, http_field_get_name(&hdr->fields[i]));
         http_to_camel_case(field_name_2, HTTP_LOWER);
-        if (strcmp(field_name_1, field_name_2) == 0) {
+
+        if (strcmp(field_name_1, field_name_2) == 0)
             return i;
-        }
     }
+
     return -1;
 }
 
