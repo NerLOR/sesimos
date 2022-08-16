@@ -225,7 +225,8 @@ const char *http_get_header_field(const http_hdr *hdr, const char *field_name) {
 }
 
 const char *http_get_header_field_len(const http_hdr *hdr, const char *field_name, unsigned long len) {
-    return http_field_get_value(&hdr->fields[http_get_header_field_num_len(hdr, field_name, len)]);
+    int num = http_get_header_field_num_len(hdr, field_name, len);
+    return (num >= 0 && num < HTTP_MAX_HEADER_FIELD_NUM) ? http_field_get_value(&hdr->fields[num]) : NULL;
 }
 
 int http_get_header_field_num(const http_hdr *hdr, const char *field_name) {
