@@ -9,7 +9,9 @@ Necronda web server
 * Serving local files via HTTP and HTTPS
   * File compression ([gzip](https://www.gzip.org/), [Brotli](https://www.brotli.org/)) and disk cache for compressed files
 * Reverse proxy for other HTTP and HTTPS servers
+  * Transparent WebSocket reverse proxy **[WIP]**
 * FastCGI support (e.g. [PHP-FPM](https://php-fpm.org/))
+  * Automatic path info detection (e.g. `/my/file/extra/path` -> script: `/my/file.php`, path info: `extra/path`)
 * Support for [MaxMind's GeoIP Database](https://www.maxmind.com/en/geoip2-services-and-databases)
 * Optional DNS reverse lookup for connecting hosts
 * Automatic URL rewrite (e.g. `/index.html` -> `/`, `/test.php` -> `/test`)
@@ -29,7 +31,7 @@ See [docs/example.conf](docs/example.conf) for more details.
 
 ### Configuration
 
-* `[cert <cert-name]` - begins section for a certificate
+* `[cert <cert-name>]` - begins section for a certificate
   * `certificate` - path to SSL certificate (or certificate chain)
   * `private_key` - path to SSL private key
 * `[host <host>]` - begins section for the virtual host `<host>`
