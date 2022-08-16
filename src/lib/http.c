@@ -11,8 +11,10 @@
 #include <string.h>
 
 void http_to_camel_case(char *str, int mode) {
-    char last = '-';
-    char ch;
+    if (mode == HTTP_PRESERVE)
+        return;
+
+    char ch, last = '-';
     for (int i = 0; i < strlen(str); i++) {
         ch = str[i];
         if (mode == HTTP_CAMEL && last == '-' && ch >= 'a' && ch <= 'z') {
@@ -24,12 +26,47 @@ void http_to_camel_case(char *str, int mode) {
     }
 }
 
+const char *http_field_get_name(const http_field *field) {
+    if (field->type == HTTP_FIELD_NORMAL) {
+        return field->normal.name;
+    } else if (field->type == HTTP_FIELD_EX_VALUE) {
+        return field->ex_value.name;
+    } else if (field->type == HTTP_FIELD_EX_NAME) {
+        return field->ex_name.name;
+    }
+    return NULL;
+}
+
+const char *http_field_get_value(const http_field *field) {
+    if (field->type == HTTP_FIELD_NORMAL) {
+        return field->normal.value;
+    } else if (field->type == HTTP_FIELD_EX_VALUE) {
+        return field->ex_value.value;
+    } else if (field->type == HTTP_FIELD_EX_NAME) {
+        return field->ex_name.value;
+    }
+    return NULL;
+}
+
 void http_free_hdr(http_hdr *hdr) {
     for (int i = 0; i < hdr->field_num; i++) {
-        free(hdr->fields[i][0]);
-        free(hdr->fields[i][1]);
+        http_field *f = &hdr->fields[i];
+        if (f->type == HTTP_FIELD_NORMAL) {
+            f->normal.name[0] = 0;
+            f->normal.value[0] = 0;
+        } else if (f->type == HTTP_FIELD_EX_VALUE) {
+            f->ex_value.name[0] = 0;
+            free(f->ex_value.value);
+            f->ex_value.value = NULL;
+        } else if (f->type == HTTP_FIELD_EX_NAME) {
+            free(f->ex_name.name);
+            free(f->ex_name.value);
+            f->ex_name.name = NULL;
+            f->ex_name.value = NULL;
+        }
     }
     hdr->field_num = 0;
+    hdr->last_field_num = -1;
 }
 
 void http_free_req(http_req *req) {
@@ -43,44 +80,63 @@ void http_free_res(http_res *res) {
 }
 
 int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr) {
-    char *pos1 = memchr(buf, ':', end_ptr - buf);
-    char *pos2;
+    if (hdr->last_field_num > hdr->field_num) {
+        print(ERR_STR "Unable to parse header: Invalid state" CLR_STR);
+        return 3;
+    }
+
+    char *pos1 = (char *) buf, *pos2 = (char *) end_ptr;
+    if (buf[0] == ' ' || buf[0] == '\t') {
+        if (hdr->last_field_num == -1) {
+            print(ERR_STR "Unable to parse header" CLR_STR);
+            return 3;
+        }
+        http_field *f = &hdr->fields[(int) hdr->last_field_num];
+
+        str_trim_lws(&pos1, &pos2);
+        http_append_to_header_field(f, pos1, pos2 - pos1);
+
+        return 0;
+    }
+
+    pos1 = memchr(buf, ':', end_ptr - buf);
     if (pos1 == NULL) {
         print(ERR_STR "Unable to parse header" CLR_STR);
         return 3;
     }
-
-    long len = pos1 - buf;
-    hdr->fields[(int) hdr->field_num][0] = malloc(len + 1);
-    sprintf(hdr->fields[(int) hdr->field_num][0], "%.*s", (int) len, buf);
-    http_to_camel_case(hdr->fields[(int) hdr->field_num][0], HTTP_CAMEL);
+    long len1 = pos1 - buf - 1;
 
     pos1++;
-    pos2 = (char *) end_ptr - 1;
-    while (pos1[0] == ' ') pos1++;
-    while (pos2[0] == ' ') pos2--;
-    len = pos2 - pos1 + 1;
+    str_trim_lws(&pos1, &pos2);
+    long len2 = pos2 - pos1;
 
-    if (len <= 0) {
-        hdr->fields[(int) hdr->field_num][1] = malloc(1);
-        hdr->fields[(int) hdr->field_num][1][0] = 0;
+    char field_num = hdr->field_num;
+    int found = http_get_header_field_num_len(hdr, buf, len1);
+    if (found == -1) {
+        if (http_add_header_field_len(hdr, buf, len1, pos1, len2 < 0 ? 0 : len2) != 0) {
+            print(ERR_STR "Unable to parse header: Too many header fields" CLR_STR);
+            return 3;
+        }
     } else {
-        hdr->fields[(int) hdr->field_num][1] = malloc(len + 1);
-        sprintf(hdr->fields[(int) hdr->field_num][1], "%.*s", (int) len, pos1);
+        field_num = (char) found;
+        http_append_to_header_field(&hdr->fields[found], ", ", 2);
+        http_append_to_header_field(&hdr->fields[found], pos1, len2);
     }
-    hdr->field_num++;
+
+    hdr->last_field_num = (char) field_num;
     return 0;
 }
 
 int http_receive_request(sock *client, http_req *req) {
     long rcv_len, len;
-    char *ptr, *pos0, *pos1, *pos2;
     char buf[CLIENT_MAX_HEADER_SIZE];
+    char *ptr, *pos0 = buf, *pos1, *pos2;
     memset(buf, 0, sizeof(buf));
     memset(req->method, 0, sizeof(req->method));
     memset(req->version, 0, sizeof(req->version));
     req->uri = NULL;
     req->hdr.field_num = 0;
+    req->hdr.last_field_num = -1;
 
     while (1) {
         rcv_len  = sock_recv(client, buf, CLIENT_MAX_HEADER_SIZE, 0);
@@ -164,31 +220,85 @@ int http_receive_request(sock *client, http_req *req) {
     return 0;
 }
 
-char *http_get_header_field(const http_hdr *hdr, const char *field_name) {
-    char field_name_1[256], field_name_2[256];
-    strcpy(field_name_1, field_name);
-    http_to_camel_case(field_name_1, HTTP_LOWER);
-    for (int i = 0; i < hdr->field_num; i++) {
-        strcpy(field_name_2, hdr->fields[i][0]);
-        http_to_camel_case(field_name_2, HTTP_LOWER);
-        if (strcmp(field_name_1, field_name_2) == 0) {
-            return hdr->fields[i][1];
-        }
-    }
-    return NULL;
+const char *http_get_header_field(const http_hdr *hdr, const char *field_name) {
+    return http_get_header_field_len(hdr, field_name, strlen(field_name));
 }
 
-void http_add_header_field(http_hdr *hdr, const char *field_name, const char *field_value) {
-    size_t len_name = strlen(field_name);
-    size_t len_value = strlen(field_value);
-    char *_field_name = malloc(len_name + 1);
-    char *_field_value = malloc(len_value + 1);
-    strcpy(_field_name, field_name);
-    strcpy(_field_value, field_value);
-    http_to_camel_case(_field_name, HTTP_PRESERVE);
-    hdr->fields[(int) hdr->field_num][0] = _field_name;
-    hdr->fields[(int) hdr->field_num][1] = _field_value;
+const char *http_get_header_field_len(const http_hdr *hdr, const char *field_name, unsigned long len) {
+    return http_field_get_value(&hdr->fields[http_get_header_field_num_len(hdr, field_name, len)]);
+}
+
+int http_get_header_field_num(const http_hdr *hdr, const char *field_name) {
+    return http_get_header_field_num_len(hdr, field_name, strlen(field_name));
+}
+
+int http_get_header_field_num_len(const http_hdr *hdr, const char *field_name, unsigned long len) {
+    char field_name_1[256], field_name_2[256];
+    memcpy(field_name_1, field_name, len);
+    http_to_camel_case(field_name_1, HTTP_LOWER);
+    for (int i = 0; i < hdr->field_num; i++) {
+        strcpy(field_name_2, http_field_get_name(&hdr->fields[i]));
+        http_to_camel_case(field_name_2, HTTP_LOWER);
+        if (strcmp(field_name_1, field_name_2) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int http_add_header_field(http_hdr *hdr, const char *field_name, const char *field_value) {
+    return http_add_header_field_len(hdr, field_name, strlen(field_name), field_value, strlen(field_value));
+}
+
+int http_add_header_field_len(http_hdr *hdr, const char *name, unsigned long name_len, const char *value, unsigned long value_len) {
+    if (hdr->field_num >= HTTP_MAX_HEADER_FIELD_NUM)
+        return -1;
+
+    http_field *f = &hdr->fields[(int) hdr->field_num];
+
+    if (name_len < sizeof(f->normal.name) && value_len < sizeof(f->normal.value)) {
+        f->type = HTTP_FIELD_NORMAL;
+        strncpy(f->normal.name, name, name_len);
+        strncpy(f->normal.value, value, value_len);
+        http_to_camel_case(f->normal.name, HTTP_PRESERVE);
+    } else if (name_len < sizeof(f->ex_value.name)) {
+        f->type = HTTP_FIELD_EX_VALUE;
+        f->ex_value.value = malloc(value_len + 1);
+        strncpy(f->ex_value.name, name, name_len);
+        strncpy(f->ex_value.value, value, value_len);
+        http_to_camel_case(f->ex_value.name, HTTP_PRESERVE);
+    } else {
+        f->type = HTTP_FIELD_EX_NAME;
+        f->ex_name.name = malloc(name_len + 1);
+        f->ex_name.value = malloc(value_len + 1);
+        strncpy(f->ex_name.name, name, name_len);
+        strncpy(f->ex_name.value, value, value_len);
+        http_to_camel_case(f->ex_name.name, HTTP_PRESERVE);
+    }
+
     hdr->field_num++;
+    return 0;
+}
+
+void http_append_to_header_field(http_field *field, const char *value, unsigned long len) {
+    if (field->type == HTTP_FIELD_NORMAL) {
+        unsigned long total_len = strlen(field->normal.value) + len + 1;
+        if (total_len < sizeof(field->normal.value)) {
+            strncat(field->normal.value, value, len);
+        } else {
+            field->type = HTTP_FIELD_EX_VALUE;
+            char *new = malloc(total_len);
+            strcpy(new, field->normal.value);
+            strncat(new, value, len);
+            field->ex_value.value = new;
+        }
+    } else if (field->type == HTTP_FIELD_EX_VALUE) {
+        field->ex_value.value = realloc(field->ex_value.value, strlen(field->ex_value.value) + len + 1);
+        strncat(field->ex_value.value, value, len);
+    } else if (field->type == HTTP_FIELD_EX_NAME) {
+        field->ex_name.value = realloc(field->ex_name.value, strlen(field->ex_name.value) + len + 1);
+        strncat(field->ex_name.value, value, len);
+    }
 }
 
 void http_remove_header_field(http_hdr *hdr, const char *field_name, int mode) {
@@ -203,12 +313,10 @@ void http_remove_header_field(http_hdr *hdr, const char *field_name, int mode) {
         diff = -1;
     }
     for (; i < hdr->field_num && i >= 0; i += diff) {
-        strcpy(field_name_2, hdr->fields[i][0]);
+        strcpy(field_name_2, http_field_get_name(&hdr->fields[i]));
         http_to_camel_case(field_name_2, HTTP_LOWER);
         if (strcmp(field_name_1, field_name_2) == 0) {
-            for (int j = i; j < hdr->field_num - 1; j++) {
-                memcpy(hdr->fields[j], hdr->fields[j + 1], sizeof(hdr->fields[0]));
-            }
+            memmove(&hdr->fields[i], &hdr->fields[i + 1], sizeof(hdr->fields[0]) * (hdr->field_num - i));
             hdr->field_num--;
             if (mode == HTTP_REMOVE_ALL) {
                 i -= diff;
@@ -223,7 +331,8 @@ int http_send_response(sock *client, http_res *res) {
     char buf[CLIENT_MAX_HEADER_SIZE];
     long off = sprintf(buf, "HTTP/%s %03i %s\r\n", res->version, res->status->code, res->status->msg);
     for (int i = 0; i < res->hdr.field_num; i++) {
-        off += sprintf(buf + off, "%s: %s\r\n", res->hdr.fields[i][0], res->hdr.fields[i][1]);
+        const http_field *f = &res->hdr.fields[i];
+        off += sprintf(buf + off, "%s: %s\r\n", http_field_get_name(f), http_field_get_value(f));
     }
     off += sprintf(buf + off, "\r\n");
     if (sock_send(client, buf, off, 0) < 0) {
@@ -236,7 +345,8 @@ int http_send_request(sock *server, http_req *req) {
     char buf[CLIENT_MAX_HEADER_SIZE];
     long off = sprintf(buf, "%s %s HTTP/%s\r\n", req->method, req->uri, req->version);
     for (int i = 0; i < req->hdr.field_num; i++) {
-        off += sprintf(buf + off, "%s: %s\r\n", req->hdr.fields[i][0], req->hdr.fields[i][1]);
+        const http_field *f = &req->hdr.fields[i];
+        off += sprintf(buf + off, "%s: %s\r\n", http_field_get_name(f), http_field_get_value(f));
     }
     off += sprintf(buf + off, "\r\n");
     long ret = sock_send(server, buf, off, 0);
@@ -314,9 +424,9 @@ const http_doc_info *http_get_status_info(const http_status *status) {
 }
 
 int http_get_compression(const http_req *req, const http_res *res) {
-    char *accept_encoding = http_get_header_field(&req->hdr, "Accept-Encoding");
-    char *content_type = http_get_header_field(&res->hdr, "Content-Type");
-    char *content_encoding = http_get_header_field(&res->hdr, "Content-Encoding");
+    const char *accept_encoding = http_get_header_field(&req->hdr, "Accept-Encoding");
+    const char *content_type = http_get_header_field(&res->hdr, "Content-Type");
+    const char *content_encoding = http_get_header_field(&res->hdr, "Content-Encoding");
     if (mime_is_compressible(content_type) && content_encoding == NULL && accept_encoding != NULL) {
         if (strstr(accept_encoding, "br") != NULL) {
             return COMPRESS_BR;

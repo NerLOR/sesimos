@@ -136,10 +136,39 @@ int mime_is_compressible(const char *type) {
 
 int strcpy_rem_webroot(char *dst, const char *src, long len, const char *webroot) {
     strncpy(dst, src, len);
-    if (webroot == NULL) return 0;
+    if (webroot == NULL)
+        return 0;
+
     char *pos;
+    const unsigned long webroot_len = strlen(webroot);
+    if (webroot_len == 0)
+        return 0;
+
     while ((pos = strstr(dst, webroot)) != NULL) {
-        strcpy(pos, pos + strlen(webroot));
+        strcpy(pos, pos + webroot_len);
     }
+
+    return 0;
+}
+
+int str_trim(char **start, char **end) {
+    if (start == NULL || end == NULL || *start == NULL || *end == NULL)
+        return -1;
+
+    (*end)--;
+    while (*start[0] == ' ' || *start[0] == '\t' || *start[0] == '\r' || *start[0] == '\n') (*start)++;
+    while (*end[0] == ' ' || *end[0] == '\t' || *end[0] == '\r' || *end[0] == '\n') (*end)--;
+    (*end)++;
+    return 0;
+}
+
+int str_trim_lws(char **start, char **end) {
+    if (start == NULL || end == NULL || *start == NULL || *end == NULL)
+        return -1;
+
+    (*end)--;
+    while (*start[0] == ' ' || *start[0] == '\t') (*start)++;
+    while (*end[0] == ' ' || *end[0] == '\t') (*end)--;
+    (*end)++;
     return 0;
 }

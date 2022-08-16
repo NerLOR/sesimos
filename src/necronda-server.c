@@ -9,13 +9,14 @@
 
 #include "necronda.h"
 #include "necronda-server.h"
-#include "client.c"
+#include "client.h"
 
 #include "lib/cache.h"
 #include "lib/config.h"
 #include "lib/sock.h"
 #include "lib/rev_proxy.h"
 #include "lib/geoip.h"
+#include "lib/utils.h"
 
 #include <stdio.h>
 #include <sys/socket.h>

@@ -18,6 +18,10 @@
 #define HTTP_REMOVE_ALL 1
 #define HTTP_REMOVE_LAST 2
 
+#define HTTP_FIELD_NORMAL 0
+#define HTTP_FIELD_EX_VALUE 1
+#define HTTP_FIELD_EX_NAME 2
+
 #define HTTP_1XX_STR "\x1B[1;32m"
 #define HTTP_2XX_STR "\x1B[1;32m"
 #define HTTP_3XX_STR "\x1B[1;33m"
@@ -30,6 +34,7 @@
 #define HTTP_COLOR_ERROR "#C00000"
 
 #define CLIENT_MAX_HEADER_SIZE 8192
+#define HTTP_MAX_HEADER_FIELD_NUM 64
 
 #ifndef SERVER_STR
 #   define SERVER_STR "Necronda"
@@ -58,8 +63,27 @@ typedef struct {
 } http_doc_info;
 
 typedef struct {
+    char type;
+    union {
+        struct {
+            char name[64];
+            char value[192];
+        } normal;
+        struct {
+            char name[192];
+            char *value;
+        } ex_value;
+        struct {
+            char *name;
+            char *value;
+        } ex_name;
+    };
+} http_field;
+
+typedef struct {
     char field_num;
-    char *fields[64][2];
+    char last_field_num;
+    http_field fields[HTTP_MAX_HEADER_FIELD_NUM];
 } http_hdr;
 
 typedef struct {
@@ -102,6 +126,10 @@ extern const char http_info_icon[];
 
 void http_to_camel_case(char *str, int mode);
 
+const char *http_field_get_name(const http_field *field);
+
+const char *http_field_get_value(const http_field *field);
+
 void http_free_hdr(http_hdr *hdr);
 
 void http_free_req(http_req *req);
@@ -112,9 +140,19 @@ int http_receive_request(sock *client, http_req *req);
 
 int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr) ;
 
-char *http_get_header_field(const http_hdr *hdr, const char *field_name);
+const char *http_get_header_field(const http_hdr *hdr, const char *field_name);
 
-void http_add_header_field(http_hdr *hdr, const char *field_name, const char *field_value);
+const char *http_get_header_field_len(const http_hdr *hdr, const char *field_name, unsigned long len);
+
+int http_get_header_field_num(const http_hdr *hdr, const char *field_name);
+
+int http_get_header_field_num_len(const http_hdr *hdr, const char *field_name, unsigned long len);
+
+int http_add_header_field(http_hdr *hdr, const char *field_name, const char *field_value);
+
+int http_add_header_field_len(http_hdr *hdr, const char *name, unsigned long name_len, const char *value, unsigned long value_len);
+
+void http_append_to_header_field(http_field *field, const char *value, unsigned long len);
 
 void http_remove_header_field(http_hdr *hdr, const char *field_name, int mode);
 

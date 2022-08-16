@@ -41,9 +41,9 @@ char *fastcgi_add_param(char *buf, const char *key, const char *value) {
         ptr += 4;
     }
 
-    memcpy(ptr, key, key_len);
+    strcpy(ptr, key);
     ptr += key_len;
-    memcpy(ptr, value, val_len);
+    strcpy(ptr, value);
     ptr += val_len;
 
     return ptr;
@@ -149,19 +149,21 @@ int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned
     param_ptr = fastcgi_add_param(param_ptr, "PATH_INFO", buf0);
 
     //param_ptr = fastcgi_add_param(param_ptr, "AUTH_TYPE", "");
-    char *content_length = http_get_header_field(&req->hdr, "Content-Length");
+    const char *content_length = http_get_header_field(&req->hdr, "Content-Length");
     param_ptr = fastcgi_add_param(param_ptr, "CONTENT_LENGTH", content_length != NULL ? content_length : "");
-    char *content_type = http_get_header_field(&req->hdr, "Content-Type");
+    const char *content_type = http_get_header_field(&req->hdr, "Content-Type");
     param_ptr = fastcgi_add_param(param_ptr, "CONTENT_TYPE", content_type != NULL ? content_type : "");
     if (client_geoip != NULL) {
         param_ptr = fastcgi_add_param(param_ptr, "REMOTE_INFO", client_geoip);
     }
 
     for (int i = 0; i < req->hdr.field_num; i++) {
+        const http_field *f = &req->hdr.fields[i];
+        const char *name = http_field_get_name(f);
         char *ptr = buf0;
         ptr += sprintf(ptr, "HTTP_");
-        for (int j = 0; j < strlen(req->hdr.fields[i][0]); j++, ptr++) {
-            char ch = req->hdr.fields[i][0][j];
+        for (int j = 0; j < strlen(name); j++, ptr++) {
+            char ch = name[j];
             if ((ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')) {
                 ch = ch;
             } else if (ch >= 'a' && ch <= 'z') {
@@ -172,7 +174,7 @@ int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned
             ptr[0] = ch;
             ptr[1] = 0;
         }
-        param_ptr = fastcgi_add_param(param_ptr, buf0, req->hdr.fields[i][1]);
+        param_ptr = fastcgi_add_param(param_ptr, buf0, http_field_get_value(f));
     }
 
     unsigned short param_len = param_ptr - param_buf - sizeof(header);

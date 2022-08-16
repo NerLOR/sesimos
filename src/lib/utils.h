@@ -42,4 +42,8 @@ int mime_is_compressible(const char *type);
 
 int strcpy_rem_webroot(char *dst, const char *str, long len, const char *webroot);
 
+int str_trim(char **start, char **end);
+
+int str_trim_lws(char **start, char **end);
+
 #endif //NECRONDA_SERVER_UTILS_H

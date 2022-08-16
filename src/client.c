@@ -5,6 +5,10 @@
  * Lorenz Stechauner, 2020-12-03
  */
 
+#include "client.h"
+#include "necronda.h"
+#include "necronda-server.h"
+
 #include "lib/utils.h"
 #include "lib/config.h"
 #include "lib/sock.h"
@@ -63,7 +67,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     char msg_buf[8192], msg_pre_buf_1[4096], msg_pre_buf_2[4096], err_msg[256];
     char msg_content[1024];
     char buffer[CHUNK_SIZE];
-    char host[256], *host_ptr, *hdr_connection;
+    char host[256];
+    const char *host_ptr, *hdr_connection;
 
     msg_buf[0] = 0;
     err_msg[0] = 0;
@@ -81,7 +86,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     fastcgi_conn fcgi_conn = {.socket = 0, .req_id = 0};
     http_status custom_status;
 
-    http_res res = {.version = "1.1", .status = http_get_status(501), .hdr.field_num = 0};
+    http_res res = {.version = "1.1", .status = http_get_status(501), .hdr.field_num = 0, .hdr.last_field_num = -1};
     http_status_ctx ctx = {.status = 0, .origin = NONE};
 
     clock_gettime(CLOCK_MONOTONIC, &begin);
@@ -218,7 +223,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
             content_length = snprintf(msg_buf, sizeof(msg_buf) - content_length, "%s %s HTTP/%s\r\n", req.method, req.uri, req.version);
             for (int i = 0; i < req.hdr.field_num; i++) {
-                content_length += snprintf(msg_buf + content_length, sizeof(msg_buf) - content_length, "%s: %s\r\n", req.hdr.fields[i][0], req.hdr.fields[i][1]);
+                const http_field *f = &req.hdr.fields[i];
+                content_length += snprintf(msg_buf + content_length, sizeof(msg_buf) - content_length, "%s: %s\r\n", http_field_get_name(f), http_field_get_value(f));
             }
 
             goto respond;
@@ -269,13 +275,13 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 sprintf(err_msg, "Unable to communicate with internal file cache.");
                 goto respond;
             }
-            char *last_modified = http_format_date(uri.meta->stat.st_mtime, buf0, sizeof(buf0));
+            const char *last_modified = http_format_date(uri.meta->stat.st_mtime, buf0, sizeof(buf0));
             http_add_header_field(&res.hdr, "Last-Modified", last_modified);
             sprintf(buf1, "%s; charset=%s", uri.meta->type, uri.meta->charset);
             http_add_header_field(&res.hdr, "Content-Type", buf1);
 
 
-            char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
+            const char *accept_encoding = http_get_header_field(&req.hdr, "Accept-Encoding");
             int enc = 0;
             if (accept_encoding != NULL) {
                 if (uri.meta->filename_comp_br[0] != 0 && strstr(accept_encoding, "br") != NULL) {
@@ -315,8 +321,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 http_add_header_field(&res.hdr, "Cache-Control", "public, max-age=86400");
             }
 
-            char *if_modified_since = http_get_header_field(&req.hdr, "If-Modified-Since");
-            char *if_none_match = http_get_header_field(&req.hdr, "If-None-Match");
+            const char *if_modified_since = http_get_header_field(&req.hdr, "If-Modified-Since");
+            const char *if_none_match = http_get_header_field(&req.hdr, "If-None-Match");
             if ((if_none_match != NULL && strstr(if_none_match, uri.meta->etag) == NULL) ||
                 (accept_if_modified_since && if_modified_since != NULL && strcmp(if_modified_since, last_modified) == 0))
             {
@@ -324,7 +330,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 goto respond;
             }
 
-            char *range = http_get_header_field(&req.hdr, "Range");
+            const char *range = http_get_header_field(&req.hdr, "Range");
             if (range != NULL) {
                 if (strlen(range) <= 6 || strncmp(range, "bytes=", 6) != 0) {
                     res.status = http_get_status(416);
@@ -399,7 +405,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 goto respond;
             }
 
-            char *client_content_length = http_get_header_field(&req.hdr, "Content-Length");
+            const char *client_content_length = http_get_header_field(&req.hdr, "Content-Length");
             if (client_content_length != NULL) {
                 unsigned long client_content_len = strtoul(client_content_length, NULL, 10);
                 ret = fastcgi_receive(&fcgi_conn, client, client_content_len);
@@ -421,7 +427,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 goto respond;
             }
 
-            char *status = http_get_header_field(&res.hdr, "Status");
+            const char *status = http_get_header_field(&res.hdr, "Status");
             if (status != NULL) {
                 int status_code = (int) strtoul(status, NULL, 10);
                 res.status = http_get_status(status_code);
@@ -605,7 +611,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         }
     }
 
-    char *conn = http_get_header_field(&res.hdr, "Connection");
+    const char *conn = http_get_header_field(&res.hdr, "Connection");
     int close_proxy = (conn == NULL || (strcmp(conn, "keep-alive") != 0 && strcmp(conn, "Keep-Alive") != 0));
     http_remove_header_field(&res.hdr, "Connection", HTTP_REMOVE_ALL);
     http_remove_header_field(&res.hdr, "Keep-Alive", HTTP_REMOVE_ALL);
@@ -619,7 +625,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
     http_send_response(client, &res);
     clock_gettime(CLOCK_MONOTONIC, &end);
-    char *location = http_get_header_field(&res.hdr, "Location");
+    const char *location = http_get_header_field(&res.hdr, "Location");
     unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
     print("%s%s%03i %s%s%s (%s)%s", http_get_status_color(res.status), use_rev_proxy ? "-> " : "", res.status->code,
           res.status->msg, location != NULL ? " -> " : "", location != NULL ? location : "",
@@ -650,16 +656,16 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 snd_len += ret;
             }
         } else if (use_fastcgi) {
-            char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
+            const char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
             int chunked = (transfer_encoding != NULL && strcmp(transfer_encoding, "chunked") == 0);
 
             int flags = (chunked ? FASTCGI_CHUNKED : 0) | (use_fastcgi & (FASTCGI_COMPRESS | FASTCGI_COMPRESS_HOLD));
             ret = fastcgi_send(&fcgi_conn, client, flags);
         } else if (use_rev_proxy) {
-            char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
+            const char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
             int chunked = transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL;
 
-            char *content_len = http_get_header_field(&res.hdr, "Content-Length");
+            const char *content_len = http_get_header_field(&res.hdr, "Content-Length");
             unsigned long len_to_send = 0;
             if (content_len != NULL) {
                 len_to_send = strtol(content_len, NULL, 10);

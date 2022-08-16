@@ -35,7 +35,7 @@ int rev_proxy_request_header(http_req *req, int enc) {
     http_remove_header_field(&req->hdr, "Connection", HTTP_REMOVE_ALL);
     http_add_header_field(&req->hdr, "Connection", "keep-alive");
 
-    char *via = http_get_header_field(&req->hdr, "Via");
+    const char *via = http_get_header_field(&req->hdr, "Via");
     sprintf(buf1, "HTTP/%s %s", req->version, SERVER_NAME);
     if (via == NULL) {
         http_add_header_field(&req->hdr, "Via", buf1);
@@ -49,8 +49,8 @@ int rev_proxy_request_header(http_req *req, int enc) {
         http_add_header_field(&req->hdr, "Via", buf2);
     }
 
-    char *host = http_get_header_field(&req->hdr, "Host");
-    char *forwarded = http_get_header_field(&req->hdr, "Forwarded");
+    const char *host = http_get_header_field(&req->hdr, "Host");
+    const char *forwarded = http_get_header_field(&req->hdr, "Forwarded");
     int client_ipv6 = strchr(client_addr_str, ':') != NULL;
     int server_ipv6 =  strchr(server_addr_str, ':') != NULL;
 
@@ -74,7 +74,7 @@ int rev_proxy_request_header(http_req *req, int enc) {
         http_add_header_field(&req->hdr, "Forwarded", buf2);
     }
 
-    char *xff = http_get_header_field(&req->hdr, "X-Forwarded-For");
+    const char *xff = http_get_header_field(&req->hdr, "X-Forwarded-For");
     if (xff == NULL) {
         http_add_header_field(&req->hdr, "X-Forwarded-For", client_addr_str);
     } else {
@@ -83,7 +83,7 @@ int rev_proxy_request_header(http_req *req, int enc) {
         http_add_header_field(&req->hdr, "X-Forwarded-For", buf1);
     }
 
-    char *xfh = http_get_header_field(&req->hdr, "X-Forwarded-Host");
+    const char *xfh = http_get_header_field(&req->hdr, "X-Forwarded-Host");
     if (xfh == NULL) {
         if (forwarded == NULL) {
             http_add_header_field(&req->hdr, "X-Forwarded-Host", host);
@@ -104,7 +104,7 @@ int rev_proxy_request_header(http_req *req, int enc) {
         }
     }
 
-    char *xfp = http_get_header_field(&req->hdr, "X-Forwarded-Proto");
+    const char *xfp = http_get_header_field(&req->hdr, "X-Forwarded-Proto");
     if (xfp == NULL) {
         if (forwarded == NULL) {
             http_add_header_field(&req->hdr, "X-Forwarded-Proto", enc ? "https" : "http");
@@ -133,7 +133,7 @@ int rev_proxy_response_header(http_req *req, http_res *res, host_config *conf) {
     char buf2[256];
     int p_len;
 
-    char *via = http_get_header_field(&res->hdr, "Via");
+    const char *via = http_get_header_field(&res->hdr, "Via");
     p_len = snprintf(buf1, sizeof(buf1), "HTTP/%s %s", req->version, SERVER_NAME);
     if (p_len < 0 || p_len >= sizeof(buf1)) {
         print(ERR_STR "Appended part of header field 'Via' too long" CLR_STR);
@@ -151,7 +151,7 @@ int rev_proxy_response_header(http_req *req, http_res *res, host_config *conf) {
         http_add_header_field(&res->hdr, "Via", buf2);
     }
 
-    char *location = http_get_header_field(&res->hdr, "Location");
+    const char *location = http_get_header_field(&res->hdr, "Location");
     if (location != NULL) {
         char *hostnames[] = {conf->name, conf->rev_proxy.hostname};
         for (int i = 0; i < sizeof(hostnames) / sizeof(hostnames[0]); i++) {
@@ -307,7 +307,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
         goto proxy_err;
     }
 
-    char *content_length = http_get_header_field(&req->hdr, "Content-Length");
+    const char *content_length = http_get_header_field(&req->hdr, "Content-Length");
     if (content_length != NULL) {
         unsigned long content_len = strtoul(content_length, NULL, 10);
         if (client->buf_len - client->buf_off > 0) {
@@ -455,7 +455,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
 
 int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
     // TODO handle websockets
-    long ret;
+    long ret = 0;
     char buffer[CHUNK_SIZE];
     char comp_out[CHUNK_SIZE];
     char buf[256];
@@ -498,6 +498,7 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
             if (len_to_send == 0 && (flags & REV_PROXY_COMPRESS)) {
                 finish_comp = 1;
                 len = 0;
+                ptr = NULL;
                 goto out;
                 finish:
                 compress_free(&comp_ctx);
@@ -519,8 +520,7 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
                 long buf_len = len;
                 if (flags & REV_PROXY_COMPRESS) {
                     avail_out = sizeof(comp_out);
-                    compress_compress(&comp_ctx, next_in + len - avail_in, &avail_in, comp_out, &avail_out,
-                                      finish_comp);
+                    compress_compress(&comp_ctx, next_in + len - avail_in, &avail_in, comp_out, &avail_out, finish_comp);
                     ptr = comp_out;
                     buf_len = (int) (sizeof(comp_out) - avail_out);
                     snd_len += (long) (len - avail_in);
