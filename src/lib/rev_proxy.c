@@ -8,7 +8,7 @@
 #include "rev_proxy.h"
 #include "utils.h"
 #include "compress.h"
-#include "../necronda-server.h"
+#include "../server.h"
 #include <openssl/ssl.h>
 #include <string.h>
 #include <errno.h>

@@ -8,7 +8,7 @@
 #define _POSIX_C_SOURCE 199309L
 
 #include "necronda.h"
-#include "necronda-server.h"
+#include "server.h"
 #include "client.h"
 
 #include "lib/cache.h"

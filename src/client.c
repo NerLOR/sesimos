@@ -7,7 +7,7 @@
 
 #include "client.h"
 #include "necronda.h"
-#include "necronda-server.h"
+#include "server.h"
 
 #include "lib/utils.h"
 #include "lib/config.h"
