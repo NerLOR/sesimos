@@ -124,7 +124,6 @@ int mime_is_compressible(const char *type) {
         strcmp(type_parsed, "application/vnd.ms-fontobject") == 0 ||
         strcmp(type_parsed, "application/x-font-ttf") == 0 ||
         strcmp(type_parsed, "application/x-javascript") == 0 ||
-        strcmp(type_parsed, "application/x-web-app-manifest+json") == 0 ||
         strcmp(type_parsed, "font/eot") == 0 ||
         strcmp(type_parsed, "font/opentype") == 0 ||
         strcmp(type_parsed, "image/bmp") == 0 ||
