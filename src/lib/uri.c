@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 int path_is_directory(const char *path) {
     struct stat statbuf;
     return stat(path, &statbuf) == 0 && S_ISDIR(statbuf.st_mode) != 0;

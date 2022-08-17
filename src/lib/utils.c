@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+
 char *log_prefix;
 
 char *format_duration(unsigned long micros, char *buf) {

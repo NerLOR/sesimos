@@ -7,6 +7,7 @@
 
 #include "geoip.h"
 
+
 MMDB_entry_data_list_s *mmdb_json(MMDB_entry_data_list_s *list, char *str, long *str_off, long str_len) {
     switch (list->entry_data.type) {
         case MMDB_DATA_TYPE_MAP:

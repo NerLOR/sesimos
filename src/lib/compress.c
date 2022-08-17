@@ -10,6 +10,7 @@
 #include <malloc.h>
 #include <errno.h>
 
+
 int compress_init(compress_ctx *ctx, int mode) {
     ctx->gzip = NULL;
     ctx->brotli = NULL;

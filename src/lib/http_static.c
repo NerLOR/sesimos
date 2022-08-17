@@ -8,6 +8,7 @@
 #include "../necronda.h"
 #include "http.h"
 
+
 const http_status http_statuses[] = {
         {100, "Informational", "Continue"},
         {101, "Informational", "Switching Protocols"},

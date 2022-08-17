@@ -20,7 +20,6 @@
 #include "lib/compress.h"
 
 #include <string.h>
-#include <poll.h>
 #include <errno.h>
 #include <unistd.h>
 #include <openssl/ssl.h>

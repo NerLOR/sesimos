@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <poll.h>
 
+
 int sock_enc_error(sock *s) {
     return (int) s->enc ? SSL_get_error(s->ssl, (int) s->_last_ret) : 0;
 }

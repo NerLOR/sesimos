@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <stdlib.h>
 
+
 t_config *config;
 char geoip_dir[256], dns_server[256];
 

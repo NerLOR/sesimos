@@ -11,6 +11,7 @@
 
 #include <string.h>
 
+
 void http_to_camel_case(char *str, int mode) {
     if (mode == HTTP_PRESERVE)
         return;

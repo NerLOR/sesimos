@@ -19,6 +19,7 @@
 #include <openssl/sha.h>
 #include <malloc.h>
 
+
 int cache_continue = 1;
 magic_t magic;
 cache_entry *cache;
