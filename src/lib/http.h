@@ -22,6 +22,8 @@
 #define HTTP_FIELD_EX_VALUE 1
 #define HTTP_FIELD_EX_NAME 2
 
+#define HTTP_MERGE_FIELDS 1
+
 #define HTTP_1XX_STR "\x1B[1;32m"
 #define HTTP_2XX_STR "\x1B[1;32m"
 #define HTTP_3XX_STR "\x1B[1;33m"
@@ -140,7 +142,7 @@ void http_free_res(http_res *res);
 
 int http_receive_request(sock *client, http_req *req);
 
-int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr) ;
+int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr, int flags);
 
 const char *http_get_header_field(const http_hdr *hdr, const char *field_name);
 

@@ -83,7 +83,7 @@ void http_free_res(http_res *res) {
     http_free_hdr(&res->hdr);
 }
 
-int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr) {
+int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr, int flags) {
     if (hdr->last_field_num > hdr->field_num) {
         print(ERR_STR "Unable to parse header: Invalid state" CLR_STR);
         return 3;
@@ -116,7 +116,7 @@ int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr)
 
     char field_num = hdr->field_num;
     int found = http_get_header_field_num_len(hdr, buf, len1);
-    if (found == -1) {
+    if (!(flags & HTTP_MERGE_FIELDS) || found == -1) {
         if (http_add_header_field_len(hdr, buf, len1, pos1, len2 < 0 ? 0 : len2) != 0) {
             print(ERR_STR "Unable to parse header: Too many header fields" CLR_STR);
             return 3;
@@ -204,7 +204,7 @@ int http_receive_request(sock *client, http_req *req) {
                 sprintf(req->uri, "%.*s", (int) len, pos1);
                 sprintf(req->version, "%.3s", pos2 + 5);
             } else {
-                int ret = http_parse_header_field(&req->hdr, ptr, pos0);
+                int ret = http_parse_header_field(&req->hdr, ptr, pos0, HTTP_MERGE_FIELDS);
                 if (ret != 0) return ret;
             }
             ptr = pos0 + 2;

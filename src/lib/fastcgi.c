@@ -386,7 +386,7 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
             return 1;
         }
 
-        ret = http_parse_header_field(&res->hdr, ptr, pos0);
+        ret = http_parse_header_field(&res->hdr, ptr, pos0, 0);
         if (ret != 0) return (int) ret;
         if (pos0[2] == '\r' && pos0[3] == '\n') {
             return 0;

@@ -422,7 +422,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
                 goto proxy_err;
             }
         } else {
-            ret = http_parse_header_field(&res->hdr, ptr, pos0);
+            ret = http_parse_header_field(&res->hdr, ptr, pos0, 0);
             if (ret != 0) {
                 res->status = http_get_status(502);
                 ctx->origin = SERVER_RES;
