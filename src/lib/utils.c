@@ -173,3 +173,24 @@ int str_trim_lws(char **start, char **end) {
     (*end)++;
     return 0;
 }
+
+int base64_encode(void *data, unsigned long data_len, char *output, unsigned long *output_len) {
+    unsigned long out_len = 4 * ((data_len + 2) / 3);
+    if (output_len != NULL) *output_len = out_len;
+
+    for (int i = 0, j = 0; i < data_len;) {
+        unsigned int octet_a = (i < data_len) ? ((unsigned char *) data)[i++] : 0;
+        unsigned int octet_b = (i < data_len) ? ((unsigned char *) data)[i++] : 0;
+        unsigned int octet_c = (i < data_len) ? ((unsigned char *) data)[i++] : 0;
+        unsigned int triple = (octet_a << 0x10) + (octet_b << 0x08) + octet_c;
+        output[j++] = base64_encode_table[(triple >> 3 * 6) & 0x3F];
+        output[j++] = base64_encode_table[(triple >> 2 * 6) & 0x3F];
+        output[j++] = base64_encode_table[(triple >> 1 * 6) & 0x3F];
+        output[j++] = base64_encode_table[(triple >> 0 * 6) & 0x3F];
+    }
+
+    for (int i = 0; i < base64_mod_table[data_len % 3]; i++)
+        output[out_len - 1 - i] = '=';
+
+    return 0;
+}

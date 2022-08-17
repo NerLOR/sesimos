@@ -20,6 +20,10 @@
 
 extern char *log_prefix;
 
+static const char base64_encode_table[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+static const int base64_mod_table[3] = {0, 2, 1};
+
+
 #define out_1(fmt) fprintf(stdout, "%s" fmt "\n", log_prefix)
 #define out_2(fmt, args...) fprintf(stdout, "%s" fmt "\n", log_prefix, args)
 
@@ -45,5 +49,7 @@ int strcpy_rem_webroot(char *dst, const char *str, long len, const char *webroot
 int str_trim(char **start, char **end);
 
 int str_trim_lws(char **start, char **end);
+
+int base64_encode(void *data, unsigned long data_len, char *output, unsigned long *output_len);
 
 #endif //NECRONDA_SERVER_UTILS_H
