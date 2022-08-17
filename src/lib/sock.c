@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <poll.h>
 
 int sock_enc_error(sock *s) {
     return (int) s->enc ? SSL_get_error(s->ssl, (int) s->_last_ret) : 0;
@@ -116,4 +117,29 @@ int sock_close(sock *s) {
 int sock_check(sock *s) {
     char buf;
     return recv(s->socket, &buf, 1, MSG_PEEK | MSG_DONTWAIT) == 1;
+}
+
+int sock_poll(sock *sockets[], sock *ready[], short events, int n_sock, int timeout_ms) {
+    struct pollfd fds[n_sock];
+    for (int i = 0; i < n_sock; i++) {
+        fds[i].fd = sockets[i]->socket;
+        fds[i].events = events;
+    }
+
+    int ret = poll(fds, n_sock, timeout_ms);
+    if (ret < 0 || ready == NULL) return ret;
+
+    for (int i = 0, j = 0; i < ret; j++) {
+        if (fds[i].revents & events)
+            ready[i++] = sockets[j];
+    }
+    return ret;
+}
+
+int sock_poll_read(sock *sockets[], sock *readable[], int n_sock, int timeout_ms) {
+    return sock_poll(sockets, readable, POLLIN, n_sock, timeout_ms);
+}
+
+int sock_poll_write(sock *sockets[], sock *writable[], int n_sock, int timeout_ms) {
+    return sock_poll(sockets, writable, POLLOUT, n_sock, timeout_ms);
 }

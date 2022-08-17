@@ -20,7 +20,7 @@
 #include "lib/compress.h"
 
 #include <string.h>
-#include <sys/select.h>
+#include <poll.h>
 #include <errno.h>
 #include <unistd.h>
 #include <openssl/ssl.h>
@@ -28,13 +28,13 @@
 #include <signal.h>
 #include <arpa/inet.h>
 
+
 int server_keep_alive = 1;
 struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
 
 int server_keep_alive;
 char *log_client_prefix, *log_conn_prefix, *log_req_prefix, *client_geoip;
 char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr, *client_host_str;
-struct timeval client_timeout;
 
 host_config *get_host_config(const char *host) {
     for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
@@ -91,12 +91,8 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
     clock_gettime(CLOCK_MONOTONIC, &begin);
 
-    fd_set socket_fds;
-    FD_ZERO(&socket_fds);
-    FD_SET(client->socket, &socket_fds);
-    client_timeout.tv_sec = CLIENT_TIMEOUT;
-    client_timeout.tv_usec = 0;
-    ret = select(client->socket + 1, &socket_fds, NULL, NULL, &client_timeout);
+    ret = sock_poll_read(&client, NULL, 1, CLIENT_TIMEOUT * 1000);
+
     http_add_header_field(&res.hdr, "Date", http_get_date(buf0, sizeof(buf0)));
     http_add_header_field(&res.hdr, "Server", SERVER_STR);
     if (ret <= 0) {

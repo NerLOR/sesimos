@@ -37,4 +37,10 @@ int sock_close(sock *s);
 
 int sock_check(sock *s);
 
+int sock_poll(sock *sockets[], sock *readable[], short events, int n_sock, int timeout_ms);
+
+int sock_poll_read(sock *sockets[], sock *readable[], int n_sock, int timeout_ms);
+
+int sock_poll_write(sock *sockets[], sock *writable[], int n_sock, int timeout_ms);
+
 #endif //NECRONDA_SERVER_SOCK_H

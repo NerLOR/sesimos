@@ -22,7 +22,7 @@
 #include <sys/socket.h>
 #include <signal.h>
 #include <unistd.h>
-#include <sys/select.h>
+#include <poll.h>
 #include <string.h>
 #include <errno.h>
 #include <arpa/inet.h>
@@ -33,6 +33,7 @@
 #include <openssl/ssl.h>
 #include <openssl/conf.h>
 #include <dirent.h>
+
 
 int active = 1;
 const char *config_file;
@@ -153,8 +154,7 @@ void terminate() {
 
 int main(int argc, const char *argv[]) {
     const int YES = 1;
-    fd_set socket_fds, read_socket_fds;
-    int max_socket_fd = 0;
+    struct pollfd poll_fds[NUM_SOCKETS];
     int ready_sockets_num;
     long client_num = 0;
     char buf[1024];
@@ -168,8 +168,6 @@ int main(int argc, const char *argv[]) {
     memset(sockets, 0, sizeof(sockets));
     memset(children, 0, sizeof(children));
     memset(mmdbs, 0, sizeof(mmdbs));
-
-    struct timeval timeout;
 
     const struct sockaddr_in6 addresses[2] = {
             {.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_ANY_INIT, .sin6_port = htons(80)},
@@ -338,29 +336,23 @@ int main(int argc, const char *argv[]) {
         }
     }
 
-    FD_ZERO(&socket_fds);
     for (int i = 0; i < NUM_SOCKETS; i++) {
-        FD_SET(sockets[i], &socket_fds);
-        if (sockets[i] > max_socket_fd) {
-            max_socket_fd = sockets[i];
-        }
+        poll_fds[i].fd = sockets[i];
+        poll_fds[i].events = POLLIN;
     }
 
     fprintf(stderr, "Ready to accept connections\n");
 
     while (active) {
-        timeout.tv_sec = 1;
-        timeout.tv_usec = 0;
-        read_socket_fds = socket_fds;
-        ready_sockets_num = select(max_socket_fd + 1, &read_socket_fds, NULL, NULL, &timeout);
+        ready_sockets_num = poll(poll_fds, NUM_SOCKETS, 1000);
         if (ready_sockets_num < 0) {
-            fprintf(stderr, ERR_STR "Unable to select sockets: %s" CLR_STR "\n", strerror(errno));
+            fprintf(stderr, ERR_STR "Unable to poll sockets: %s" CLR_STR "\n", strerror(errno));
             terminate();
             return 1;
         }
 
         for (int i = 0; i < NUM_SOCKETS; i++) {
-            if (FD_ISSET(sockets[i], &read_socket_fds)) {
+            if (poll_fds[i].revents & POLLIN) {
                 client_fd = accept(sockets[i], (struct sockaddr *) &client_addr, &client_addr_len);
                 if (client_fd < 0) {
                     fprintf(stderr, ERR_STR "Unable to accept connection: %s" CLR_STR "\n", strerror(errno));
