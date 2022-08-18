@@ -19,7 +19,7 @@
 #define CONFIG_TYPE_REVERSE_PROXY 2
 
 #ifndef DEFAULT_CONFIG_FILE
-#   define DEFAULT_CONFIG_FILE "/etc/sesimos/sesimos.conf"
+#   define DEFAULT_CONFIG_FILE "/etc/sesimos/server.conf"
 #endif
 
 
