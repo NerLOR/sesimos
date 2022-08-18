@@ -1,12 +1,12 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * Configuration file loader (header file)
  * src/lib/config.h
  * Lorenz Stechauner, 2021-01-05
  */
 
-#ifndef NECRONDA_SERVER_CONFIG_H
-#define NECRONDA_SERVER_CONFIG_H
+#ifndef SESIMOS_CONFIG_H
+#define SESIMOS_CONFIG_H
 
 #include "uri.h"
 
@@ -19,7 +19,7 @@
 #define CONFIG_TYPE_REVERSE_PROXY 2
 
 #ifndef DEFAULT_CONFIG_FILE
-#   define DEFAULT_CONFIG_FILE "/etc/necronda/server.conf"
+#   define DEFAULT_CONFIG_FILE "/etc/sesimos/sesimos.conf"
 #endif
 
 
@@ -61,4 +61,4 @@ int config_load(const char *filename);
 
 int config_unload();
 
-#endif //NECRONDA_SERVER_CONFIG_H
+#endif //SESIMOS_CONFIG_H

@@ -1,12 +1,12 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * Basic TCP and TLS socket (header file)
  * src/lib/sock.h
  * Lorenz Stechauner, 2021-01-07
  */
 
-#ifndef NECRONDA_SERVER_SOCK_H
-#define NECRONDA_SERVER_SOCK_H
+#ifndef SESIMOS_SOCK_H
+#define SESIMOS_SOCK_H
 
 #include <openssl/crypto.h>
 #include <sys/socket.h>
@@ -44,4 +44,4 @@ int sock_poll_read(sock *sockets[], sock *readable[], int n_sock, int timeout_ms
 
 int sock_poll_write(sock *sockets[], sock *writable[], int n_sock, int timeout_ms);
 
-#endif //NECRONDA_SERVER_SOCK_H
+#endif //SESIMOS_SOCK_H

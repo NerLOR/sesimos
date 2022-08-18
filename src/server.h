@@ -1,12 +1,12 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * Main executable (header file)
- * src/necronda-server.h
+ * src/server.h
  * Lorenz Stechauner, 2020-12-03
  */
 
-#ifndef NECRONDA_SERVER_SERVER_H
-#define NECRONDA_SERVER_SERVER_H
+#ifndef SESIMOS_SERVER_H
+#define SESIMOS_SERVER_H
 
 #include <sys/time.h>
 #include <maxminddb.h>
@@ -30,4 +30,4 @@ extern char *log_client_prefix, *log_conn_prefix, *log_req_prefix, *client_geoip
 extern char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr, *client_host_str;
 extern struct timeval client_timeout;
 
-#endif //NECRONDA_SERVER_SERVER_H
+#endif //SESIMOS_SERVER_H

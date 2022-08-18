@@ -1,5 +1,5 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * URI and path handlers
  * src/lib/uri.c
  * Lorenz Stechauner, 2020-12-13

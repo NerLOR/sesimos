@@ -1,11 +1,11 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * HTTP static implementation
  * src/lib/http_static.c
  * Lorenz Stechauner, 2021-05-03
  */
 
-#include "../necronda.h"
+#include "../defs.h"
 #include "http.h"
 
 

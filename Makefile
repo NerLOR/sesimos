@@ -11,16 +11,16 @@ packages:
 	@echo "Finished downloading!"
 
 permit:
-	sudo setcap 'cap_net_bind_service=+ep' "$(shell pwd)/bin/necronda-server"
+	sudo setcap 'cap_net_bind_service=+ep' "$(shell pwd)/bin/sesimos"
 
 compile:
 	@mkdir -p bin
-	$(CC) src/lib/*.c -o bin/libnecrondaserver.so --shared -fPIC $(CFLAGS) $(LIBS)
-	$(CC) src/server.c src/client.c -o bin/necronda-server $(CFLAGS) $(LIBS) \
-		-Lbin -lnecrondaserver -Wl,-rpath=$(shell pwd)/bin
+	$(CC) src/lib/*.c -o bin/libsesimos.so --shared -fPIC $(CFLAGS) $(LIBS)
+	$(CC) src/server.c src/client.c -o bin/sesimos $(CFLAGS) $(LIBS) \
+		-Lbin -lsesimos -Wl,-rpath=$(shell pwd)/bin
 
 compile-prod:
 	@mkdir -p bin
-	$(CC) src/lib/*.c -o bin/libnecrondaserver.so --shared -fPIC $(CFLAGS) $(LIBS) $(DEBIAN_OPTS) -O3
-	$(CC) src/server.c src/client.c -o bin/necronda-server $(CFLAGS) $(LIBS) $(DEBIAN_OPTS) -O3 \
-		-Lbin -lnecrondaserver -Wl,-rpath=$(shell pwd)/bin
+	$(CC) src/lib/*.c -o bin/libsesimos.so --shared -fPIC $(CFLAGS) $(LIBS) $(DEBIAN_OPTS) -O3
+	$(CC) src/server.c src/client.c -o bin/sesimos $(CFLAGS) $(LIBS) $(DEBIAN_OPTS) -O3 \
+		-Lbin -lsesimos -Wl,-rpath=$(shell pwd)/bin

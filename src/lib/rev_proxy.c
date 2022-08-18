@@ -1,11 +1,11 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * Reverse proxy
  * src/lib/rev_proxy.c
  * Lorenz Stechauner, 2021-01-07
  */
 
-#include "../necronda.h"
+#include "../defs.h"
 #include "../server.h"
 #include "rev_proxy.h"
 #include "utils.h"

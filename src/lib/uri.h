@@ -1,12 +1,12 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * URI and path handlers (header file)
  * src/lib/uri.h
  * Lorenz Stechauner, 2020-12-13
  */
 
-#ifndef NECRONDA_SERVER_URI_H
-#define NECRONDA_SERVER_URI_H
+#ifndef SESIMOS_URI_H
+#define SESIMOS_URI_H
 
 #include <sys/stat.h>
 
@@ -44,4 +44,4 @@ int uri_init_cache(http_uri *uri);
 
 void uri_free(http_uri *uri);
 
-#endif //NECRONDA_SERVER_URI_H
+#endif //SESIMOS_URI_H

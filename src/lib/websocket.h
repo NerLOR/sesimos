@@ -1,12 +1,12 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * WebSocket reverse proxy (header file)
  * src/lib/websocket.h
  * Lorenz Stechauner, 2022-08-16
  */
 
-#ifndef NECRONDA_SERVER_WEBSOCKET_H
-#define NECRONDA_SERVER_WEBSOCKET_H
+#ifndef SESIMOS_WEBSOCKET_H
+#define SESIMOS_WEBSOCKET_H
 
 #include "sock.h"
 
@@ -33,4 +33,4 @@ int ws_send_frame_header(sock *s, ws_frame *frame);
 
 int ws_handle_connection(sock *s1, sock *s2);
 
-#endif // NECRONDA_SERVER_WEBSOCKET_H
+#endif //SESIMOS_WEBSOCKET_H

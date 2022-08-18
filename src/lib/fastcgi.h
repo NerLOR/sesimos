@@ -1,12 +1,12 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * FastCGI interface implementation (header file)
  * src/lib/fastcgi.h
  * Lorenz Stechauner, 2020-12-26
  */
 
-#ifndef NECRONDA_SERVER_FASTCGI_H
-#define NECRONDA_SERVER_FASTCGI_H
+#ifndef SESIMOS_FASTCGI_H
+#define SESIMOS_FASTCGI_H
 
 #include "include/fastcgi.h"
 #include "http.h"
@@ -19,13 +19,13 @@
 #define FASTCGI_COMPRESS_HOLD 8
 
 #define FASTCGI_PHP 1
-#define FASTCGI_NECRONDA 2
+#define FASTCGI_SESIMOS 2
 
 #ifndef PHP_FPM_SOCKET
 #   define PHP_FPM_SOCKET "/var/run/php-fpm/php-fpm.sock"
 #endif
 
-#define NECRONDA_BACKEND_SOCKET "/var/run/necronda/necronda-backend.sock"
+#define SESIMOS_BACKEND_SOCKET "/var/run/sesimos/backend.sock"
 
 typedef struct {
     int mode;
@@ -54,4 +54,4 @@ int fastcgi_dump(fastcgi_conn *conn, char *buf, long len);
 
 int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len);
 
-#endif //NECRONDA_SERVER_FASTCGI_H
+#endif //SESIMOS_FASTCGI_H

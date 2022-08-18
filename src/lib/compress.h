@@ -1,12 +1,12 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * Compression interface (header file)
  * src/lib/compress.h
  * Lorenz Stechauner, 2021-05-05
  */
 
-#ifndef NECRONDA_SERVER_COMPRESS_H
-#define NECRONDA_SERVER_COMPRESS_H
+#ifndef SESIMOS_COMPRESS_H
+#define SESIMOS_COMPRESS_H
 
 #include <zlib.h>
 #include <brotli/encode.h>
@@ -34,4 +34,4 @@ int compress_compress_mode(compress_ctx *ctx, int mode, const char *in, unsigned
 
 int compress_free(compress_ctx *ctx);
 
-#endif //NECRONDA_SERVER_COMPRESS_H
+#endif //SESIMOS_COMPRESS_H

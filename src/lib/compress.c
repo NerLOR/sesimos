@@ -1,5 +1,5 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * Compression interface
  * src/lib/compress.c
  * Lorenz Stechauner, 2021-05-05

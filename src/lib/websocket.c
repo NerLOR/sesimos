@@ -1,11 +1,11 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * WebSocket reverse proxy
  * src/lib/websocket.c
  * Lorenz Stechauner, 2022-08-16
  */
 
-#include "../necronda.h"
+#include "../defs.h"
 #include "websocket.h"
 #include "utils.h"
 

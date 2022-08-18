@@ -1,5 +1,5 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * File cache implementation
  * src/lib/cache.c
  * Lorenz Stechauner, 2020-12-19
@@ -59,17 +59,17 @@ int cache_process() {
     }
     cache = shm_rw;
 
-    if (mkdir("/var/necronda/", 0755) < 0 && errno != EEXIST) {
-        fprintf(stderr, ERR_STR "Unable to create directory '/var/necronda/': %s" CLR_STR "\n", strerror(errno));
+    if (mkdir("/var/sesimos/", 0755) < 0 && errno != EEXIST) {
+        fprintf(stderr, ERR_STR "Unable to create directory '/var/sesimos/': %s" CLR_STR "\n", strerror(errno));
         return -3;
     }
 
-    if (mkdir("/var/necronda/server/", 0755) < 0 && errno != EEXIST) {
-        fprintf(stderr, ERR_STR "Unable to create directory '/var/necronda/server/': %s" CLR_STR "\n", strerror(errno));
+    if (mkdir("/var/sesimos/server/", 0755) < 0 && errno != EEXIST) {
+        fprintf(stderr, ERR_STR "Unable to create directory '/var/sesimos/server/': %s" CLR_STR "\n", strerror(errno));
         return -3;
     }
 
-    FILE *cache_file = fopen("/var/necronda/server/cache", "rb");
+    FILE *cache_file = fopen("/var/sesimos/server/cache", "rb");
     if (cache_file != NULL) {
         fread(cache, sizeof(cache_entry), CACHE_ENTRIES, cache_file);
         fclose(cache_file);
@@ -104,13 +104,13 @@ int cache_process() {
                 FILE *comp_file_gz = NULL;
                 FILE *comp_file_br = NULL;
                 if (compress) {
-                    sprintf(buf, "%.*s/.necronda-server", cache[i].webroot_len, cache[i].filename);
+                    sprintf(buf, "%.*s/.sesimos", cache[i].webroot_len, cache[i].filename);
                     if (mkdir(buf, 0755) != 0 && errno != EEXIST) {
                         fprintf(stderr, ERR_STR "Unable to create directory %s: %s" CLR_STR "\n", buf, strerror(errno));
                         goto comp_err;
                     }
 
-                    sprintf(buf, "%.*s/.necronda-server/cache", cache[i].webroot_len, cache[i].filename);
+                    sprintf(buf, "%.*s/.sesimos/cache", cache[i].webroot_len, cache[i].filename);
                     if (mkdir(buf, 0700) != 0 && errno != EEXIST) {
                         fprintf(stderr, ERR_STR "Unable to create directory %s: %s" CLR_STR "\n", buf, strerror(errno));
                         goto comp_err;
@@ -125,10 +125,10 @@ int cache_process() {
                     buf[strlen(rel_path)] = 0;
 
                     p_len_gz = snprintf(filename_comp_gz, sizeof(filename_comp_gz),
-                                        "%.*s/.necronda-server/cache/%s.gz",
+                                        "%.*s/.sesimos/cache/%s.gz",
                                         cache[i].webroot_len, cache[i].filename, buf);
                     p_len_br = snprintf(filename_comp_br, sizeof(filename_comp_br),
-                                        "%.*s/.necronda-server/cache/%s.br",
+                                        "%.*s/.sesimos/cache/%s.br",
                                         cache[i].webroot_len, cache[i].filename, buf);
                     if (p_len_gz < 0 || p_len_gz >= sizeof(filename_comp_gz) ||
                         p_len_br < 0 || p_len_br >= sizeof(filename_comp_br))
@@ -203,7 +203,7 @@ int cache_process() {
 
         if (cache_changed) {
             cache_changed = 0;
-            cache_file = fopen("/var/necronda/server/cache", "wb");
+            cache_file = fopen("/var/sesimos/server/cache", "wb");
             if (cache_file == NULL) {
                 fprintf(stderr, ERR_STR "Unable to open cache file: %s" CLR_STR "\n", strerror(errno));
                 free(buf);

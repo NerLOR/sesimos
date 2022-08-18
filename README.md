@@ -1,6 +1,6 @@
 
-Necronda web server
-===================
+Sesimos – Secure, simple, modern web server
+===========================================
 
 ## Features
 

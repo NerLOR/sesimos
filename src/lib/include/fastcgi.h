@@ -1,12 +1,12 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * FastCGI header file
  * src/lib/include/fastcgi.h
  * Lorenz Stechauner, 2021-05-03
  */
 
-#ifndef NECRONDA_SERVER_EXTERN_FASTCGI_H
-#define NECRONDA_SERVER_EXTERN_FASTCGI_H
+#ifndef SESIMOS_EXTERN_FASTCGI_H
+#define SESIMOS_EXTERN_FASTCGI_H
 
 /*
  * Listening socket file number
@@ -119,4 +119,4 @@ typedef struct {
     FCGI_UnknownTypeBody body;
 } FCGI_UnknownTypeRecord;
 
-#endif //NECRONDA_SERVER_EXTERN_FASTCGI_H
+#endif //SESIMOS_EXTERN_FASTCGI_H

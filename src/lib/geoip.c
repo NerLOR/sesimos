@@ -1,5 +1,5 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * MaxMind GeoIP Database interface
  * src/lib/geoip.c
  * Lorenz Stechauner, 2021-05-04

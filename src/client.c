@@ -1,11 +1,11 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * Client connection and request handlers
  * src/client.c
  * Lorenz Stechauner, 2020-12-03
  */
 
-#include "necronda.h"
+#include "defs.h"
 #include "client.h"
 #include "server.h"
 
@@ -374,7 +374,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         } else {
             int mode;
             if (strcmp(uri.filename + strlen(uri.filename) - 4, ".ncr") == 0) {
-                mode = FASTCGI_NECRONDA;
+                mode = FASTCGI_SESIMOS;
             } else if (strcmp(uri.filename + strlen(uri.filename) - 4, ".php") == 0) {
                 mode = FASTCGI_PHP;
             } else {

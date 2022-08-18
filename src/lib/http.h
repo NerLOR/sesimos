@@ -1,12 +1,12 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * HTTP implementation (header file)
  * src/lib/http.h
  * Lorenz Stechauner, 2020-12-09
  */
 
-#ifndef NECRONDA_SERVER_HTTP_H
-#define NECRONDA_SERVER_HTTP_H
+#ifndef SESIMOS_HTTP_H
+#define SESIMOS_HTTP_H
 
 #include "sock.h"
 
@@ -39,11 +39,11 @@
 #define HTTP_MAX_HEADER_FIELD_NUM 64
 
 #ifndef SERVER_STR
-#   define SERVER_STR "Necronda"
+#   define SERVER_STR "Sesimos"
 #endif
 
 #ifndef SERVER_STR_HTML
-#   define SERVER_STR_HTML "Necronda&nbsp;web&nbsp;server"
+#   define SERVER_STR_HTML "Sesimos&nbsp;web&nbsp;server"
 #endif
 
 typedef struct {
@@ -179,4 +179,4 @@ const http_doc_info *http_get_status_info(const http_status *status);
 
 int http_get_compression(const http_req *req, const http_res *res);
 
-#endif //NECRONDA_SERVER_HTTP_H
+#endif //SESIMOS_HTTP_H

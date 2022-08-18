@@ -1,12 +1,12 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * Reverse proxy (header file)
  * src/lib/rev_proxy.h
  * Lorenz Stechauner, 2021-01-07
  */
 
-#ifndef NECRONDA_SERVER_REV_PROXY_H
-#define NECRONDA_SERVER_REV_PROXY_H
+#ifndef SESIMOS_REV_PROXY_H
+#define SESIMOS_REV_PROXY_H
 
 #define REV_PROXY_CHUNKED 1
 #define REV_PROXY_COMPRESS_GZ 2
@@ -35,4 +35,4 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags);
 
 int rev_proxy_dump(char *buf, long len);
 
-#endif //NECRONDA_SERVER_REV_PROXY_H
+#endif //SESIMOS_REV_PROXY_H

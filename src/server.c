@@ -1,13 +1,13 @@
 /**
- * Necronda Web Server
+ * Sesimos - secure, simple, modern web server
  * Main executable
- * src/necronda-server.c
+ * src/server.c
  * Lorenz Stechauner, 2020-12-03
  */
 
 #define _POSIX_C_SOURCE 199309L
 
-#include "necronda.h"
+#include "defs.h"
 #include "server.h"
 #include "client.h"
 
@@ -178,7 +178,7 @@ int main(int argc, const char *argv[]) {
         fprintf(stderr, ERR_STR "Unable to set stdout to line-buffered mode: %s" CLR_STR, strerror(errno));
         return 1;
     }
-    printf("Necronda Web Server " NECRONDA_VERSION "\n");
+    printf("Sesimos web server " SERVER_VERSION "\n");
 
     ret = config_init();
     if (ret != 0) {
@@ -189,7 +189,7 @@ int main(int argc, const char *argv[]) {
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
         if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
-            printf("Usage: necronda-server [-h] [-c <CONFIG-FILE>]\n"
+            printf("Usage: sesimos [-h] [-c <CONFIG-FILE>]\n"
                    "\n"
                    "Options:\n"
                    "  -c, --config <CONFIG-FILE>  path to the config file. If not provided, default will be used\n"

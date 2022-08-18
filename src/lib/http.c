@@ -1,5 +1,5 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * HTTP implementation
  * src/lib/http.c
  * Lorenz Stechauner, 2020-12-09

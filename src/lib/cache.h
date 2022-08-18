@@ -1,12 +1,12 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * File cache implementation (header file)
  * src/lib/cache.h
  * Lorenz Stechauner, 2020-12-19
  */
 
-#ifndef NECRONDA_SERVER_CACHE_H
-#define NECRONDA_SERVER_CACHE_H
+#ifndef SESIMOS_CACHE_H
+#define SESIMOS_CACHE_H
 
 #include "uri.h"
 
@@ -46,4 +46,4 @@ int cache_filename_comp_invalid(const char *filename);
 
 int uri_cache_init(http_uri *uri);
 
-#endif //NECRONDA_SERVER_CACHE_H
+#endif //SESIMOS_CACHE_H

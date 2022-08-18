@@ -1,5 +1,5 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * Basic TCP and TLS socket
  * src/lib/sock.c
  * Lorenz Stechauner, 2021-01-07

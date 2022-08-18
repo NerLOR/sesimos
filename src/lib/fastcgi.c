@@ -1,5 +1,5 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * FastCGI interface implementation
  * src/lib/fastcgi.c
  * Lorenz Stechauner, 2020-12-26
@@ -73,8 +73,8 @@ int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned
     conn->socket = fcgi_sock;
 
     struct sockaddr_un sock_addr = {AF_UNIX};
-    if (conn->mode == FASTCGI_NECRONDA) {
-        snprintf(sock_addr.sun_path, sizeof(sock_addr.sun_path) - 1, "%s", NECRONDA_BACKEND_SOCKET);
+    if (conn->mode == FASTCGI_SESIMOS) {
+        snprintf(sock_addr.sun_path, sizeof(sock_addr.sun_path) - 1, "%s", SESIMOS_BACKEND_SOCKET);
     } else if (conn->mode == FASTCGI_PHP) {
         snprintf(sock_addr.sun_path, sizeof(sock_addr.sun_path) - 1, "%s", PHP_FPM_SOCKET);
     }
@@ -344,7 +344,7 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
             free(content);
             return 1;
         } else if (header.type == FCGI_STDERR) {
-            // TODO implement Necronda backend error handling
+            // TODO implement Sesimos backend error handling
             if (conn->mode == FASTCGI_PHP) {
                 err = err || fastcgi_php_error(conn, content, content_len, err_msg);
             }
@@ -485,7 +485,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
 
             return 0;
         } else if (header.type == FCGI_STDERR) {
-            // TODO implement Necronda backend error handling
+            // TODO implement Sesimos backend error handling
             if (conn->mode == FASTCGI_PHP) {
                 fastcgi_php_error(conn, content, content_len, buf0);
             }
@@ -571,7 +571,7 @@ int fastcgi_dump(fastcgi_conn *conn, char *buf, long len) {
 
             return 0;
         } else if (header.type == FCGI_STDERR) {
-            // TODO implement Necronda backend error handling
+            // TODO implement Sesimos backend error handling
             if (conn->mode == FASTCGI_PHP) {
                 fastcgi_php_error(conn, content, content_len, buf0);
             }

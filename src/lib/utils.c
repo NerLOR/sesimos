@@ -1,5 +1,5 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * Utilities
  * src/lib/utils.c
  * Lorenz Stechauner, 2020-12-03

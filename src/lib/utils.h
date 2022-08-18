@@ -1,12 +1,12 @@
 /**
- * Necronda Web Server
+ * sesimos - secure, simple, modern web server
  * Utilities (header file)
  * src/lib/utils.h
  * Lorenz Stechauner, 2020-12-03
  */
 
-#ifndef NECRONDA_SERVER_UTILS_H
-#define NECRONDA_SERVER_UTILS_H
+#ifndef SESIMOS_UTILS_H
+#define SESIMOS_UTILS_H
 
 #include <stdio.h>
 
@@ -52,4 +52,4 @@ int str_trim_lws(char **start, char **end);
 
 int base64_encode(void *data, unsigned long data_len, char *output, unsigned long *output_len);
 
-#endif //NECRONDA_SERVER_UTILS_H
+#endif //SESIMOS_UTILS_H
