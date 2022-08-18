@@ -130,11 +130,12 @@ int sock_poll(sock *sockets[], sock *ready[], short events, int n_sock, int time
     int ret = poll(fds, n_sock, timeout_ms);
     if (ret < 0 || ready == NULL) return ret;
 
-    for (int i = 0, j = 0; i < ret; j++) {
+    int j = 0;
+    for (int i = 0; i < n_sock; i++) {
         if (fds[i].revents & events)
-            ready[i++] = sockets[j];
+            ready[j++] = sockets[i];
     }
-    return ret;
+    return j;
 }
 
 int sock_poll_read(sock *sockets[], sock *readable[], int n_sock, int timeout_ms) {

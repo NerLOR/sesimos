@@ -192,6 +192,7 @@ int base64_encode(void *data, unsigned long data_len, char *output, unsigned lon
 
     for (int i = 0; i < base64_mod_table[data_len % 3]; i++)
         output[out_len - 1 - i] = '=';
+    output[out_len] = 0;
 
     return 0;
 }

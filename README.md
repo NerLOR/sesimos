@@ -10,7 +10,7 @@ Necronda web server
   * File compression ([gzip](https://www.gzip.org/), [Brotli](https://www.brotli.org/))
   * Disk cache for compressed files
 * Reverse proxy for other HTTP and HTTPS servers
-  * Transparent WebSocket reverse proxy **[WIP]**
+  * Transparent WebSocket reverse proxy
 * FastCGI support (e.g. [PHP-FPM](https://php-fpm.org/))
   * Automatic path info detection (e.g. `/my/file/extra/path` -> script: `/my/file.php`, path info: `extra/path`)
 * Support for [MaxMind's GeoIP Database](https://www.maxmind.com/en/geoip2-services-and-databases)

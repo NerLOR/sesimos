@@ -5,8 +5,8 @@
  * Lorenz Stechauner, 2020-12-03
  */
 
-#include "client.h"
 #include "necronda.h"
+#include "client.h"
 #include "server.h"
 
 #include "lib/utils.h"
@@ -18,6 +18,7 @@
 #include "lib/cache.h"
 #include "lib/geoip.h"
 #include "lib/compress.h"
+#include "lib/websocket.h"
 
 #include <string.h>
 #include <errno.h>
@@ -31,7 +32,6 @@
 int server_keep_alive = 1;
 struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
 
-int server_keep_alive;
 char *log_client_prefix, *log_conn_prefix, *log_req_prefix, *client_geoip;
 char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr, *client_host_str;
 
@@ -50,11 +50,6 @@ host_config *get_host_config(const char *host) {
 
 void client_terminate() {
     server_keep_alive = 0;
-}
-
-int client_websocket_handler() {
-    // TODO implement client_websocket_handler
-    return 0;
 }
 
 int client_request_handler(sock *client, unsigned long client_num, unsigned int req_num) {
@@ -86,7 +81,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     http_status custom_status;
 
     http_res res = {.version = "1.1", .status = http_get_status(501), .hdr.field_num = 0, .hdr.last_field_num = -1};
-    http_status_ctx ctx = {.status = 0, .origin = NONE};
+    http_status_ctx ctx = {.status = 0, .origin = NONE, .ws_key = NULL};
 
     clock_gettime(CLOCK_MONOTONIC, &begin);
 
@@ -125,7 +120,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     }
 
     hdr_connection = http_get_header_field(&req.hdr, "Connection");
-    client_keep_alive = (hdr_connection != NULL && (strcmp(hdr_connection, "keep-alive") == 0 || strcmp(hdr_connection, "Keep-Alive") == 0));
+    client_keep_alive = (hdr_connection != NULL && (strstr(hdr_connection, "keep-alive") != NULL || strstr(hdr_connection, "Keep-Alive") != NULL));
     host_ptr = http_get_header_field(&req.hdr, "Host");
     if (host_ptr != NULL && strlen(host_ptr) > 255) {
         host[0] = 0;
@@ -488,6 +483,25 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         ret = rev_proxy_init(&req, &res, &ctx, conf, client, &custom_status, err_msg);
         use_rev_proxy = (ret == 0);
 
+        if (res.status->code == 101) {
+            const char *connection = http_get_header_field(&res.hdr, "Connection");
+            const char *upgrade = http_get_header_field(&res.hdr, "Upgrade");
+            if (connection != NULL && upgrade != NULL &&
+                (strstr(connection, "upgrade") != NULL || strstr(connection, "Upgrade") != NULL) &&
+                strcmp(upgrade, "websocket") == 0)
+            {
+                const char *ws_accept = http_get_header_field(&res.hdr, "Sec-WebSocket-Accept");
+                if (ws_calc_accept_key(ctx.ws_key, buf0) == 0) {
+                    use_rev_proxy = (strcmp(buf0, ws_accept) == 0) ? 2 : 1;
+                }
+            } else {
+                print("Fail Test1");
+                ctx.status = 101;
+                ctx.origin = INTERNAL;
+                res.status = http_get_status(501);
+            }
+        }
+
         // Let 300 be formatted by origin server
         if (use_rev_proxy && res.status->code >= 301 && res.status->code < 600) {
             const char *content_type = http_get_header_field(&res.hdr, "Content-Type");
@@ -496,8 +510,10 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             if (content_encoding == NULL && content_type != NULL && content_length_f != NULL && strncmp(content_type, "text/html", 9) == 0) {
                 long content_len = strtol(content_length_f, NULL, 10);
                 if (content_len <= sizeof(msg_content) - 1) {
-                    ctx.status = res.status->code;
-                    ctx.origin = res.status->code >= 400 ? SERVER : NONE;
+                    if (ctx.status != 101) {
+                        ctx.status = res.status->code;
+                        ctx.origin = res.status->code >= 400 ? SERVER : NONE;
+                    }
                     use_rev_proxy = 0;
                     rev_proxy_dump(msg_content, content_len);
                 }
@@ -604,16 +620,19 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         }
     }
 
-    const char *conn = http_get_header_field(&res.hdr, "Connection");
-    int close_proxy = (conn == NULL || (strcmp(conn, "keep-alive") != 0 && strcmp(conn, "Keep-Alive") != 0));
-    http_remove_header_field(&res.hdr, "Connection", HTTP_REMOVE_ALL);
-    http_remove_header_field(&res.hdr, "Keep-Alive", HTTP_REMOVE_ALL);
-    if (server_keep_alive && client_keep_alive) {
-        http_add_header_field(&res.hdr, "Connection", "keep-alive");
-        sprintf(buf0, "timeout=%i, max=%i", CLIENT_TIMEOUT, REQ_PER_CONNECTION);
-        http_add_header_field(&res.hdr, "Keep-Alive", buf0);
-    } else {
-        http_add_header_field(&res.hdr, "Connection", "close");
+    int close_proxy = 0;
+    if (use_rev_proxy != 2) {
+        const char *conn = http_get_header_field(&res.hdr, "Connection");
+        close_proxy = (conn == NULL || (strstr(conn, "keep-alive") == NULL && strstr(conn, "Keep-Alive") == NULL));
+        http_remove_header_field(&res.hdr, "Connection", HTTP_REMOVE_ALL);
+        http_remove_header_field(&res.hdr, "Keep-Alive", HTTP_REMOVE_ALL);
+        if (server_keep_alive && client_keep_alive) {
+            http_add_header_field(&res.hdr, "Connection", "keep-alive");
+            sprintf(buf0, "timeout=%i, max=%i", CLIENT_TIMEOUT, REQ_PER_CONNECTION);
+            http_add_header_field(&res.hdr, "Keep-Alive", buf0);
+        } else {
+            http_add_header_field(&res.hdr, "Connection", "close");
+        }
     }
 
     http_send_response(client, &res);
@@ -626,7 +645,17 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
     // TODO access/error log file
 
-    if (strcmp(req.method, "HEAD") != 0) {
+    if (use_rev_proxy == 2) {
+        // WebSocket
+        print("Upgrading connection to WebSocket connection");
+        ret = ws_handle_connection(client, &rev_proxy);
+        if (ret != 0) {
+            client_keep_alive = 0;
+            close_proxy = 1;
+        }
+        print("WebSocket connection closed");
+    } else if (strcmp(req.method, "HEAD") != 0) {
+        // default response
         unsigned long snd_len = 0;
         unsigned long len;
         if (msg_buf[0] != 0) {

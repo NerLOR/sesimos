@@ -12,6 +12,8 @@
 #define SERVER_STR "Necronda/" NECRONDA_VERSION
 #define SERVER_STR_HTML "Necronda&nbsp;web&nbsp;server&nbsp;" NECRONDA_VERSION
 
+#define CHUNK_SIZE 8192
+
 #ifndef DEFAULT_HOST
 #   define DEFAULT_HOST "www.necronda.net"
 #endif

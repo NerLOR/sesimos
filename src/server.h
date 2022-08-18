@@ -20,7 +20,6 @@
 #define SERVER_TIMEOUT_INIT 4
 #define SERVER_TIMEOUT 3600
 
-#define CHUNK_SIZE 8192
 
 extern int sockets[NUM_SOCKETS];
 extern pid_t children[MAX_CHILDREN];

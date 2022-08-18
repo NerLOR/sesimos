@@ -108,6 +108,7 @@ typedef enum {
 typedef struct {
     unsigned short status;
     http_error_origin origin;
+    const char* ws_key;
 } http_status_ctx;
 
 extern const http_status http_statuses[];

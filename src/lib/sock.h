@@ -9,6 +9,7 @@
 #define NECRONDA_SERVER_SOCK_H
 
 #include <openssl/crypto.h>
+#include <sys/socket.h>
 
 typedef struct {
     unsigned int enc:1;

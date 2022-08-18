@@ -5,10 +5,11 @@
  * Lorenz Stechauner, 2021-01-07
  */
 
+#include "../necronda.h"
+#include "../server.h"
 #include "rev_proxy.h"
 #include "utils.h"
 #include "compress.h"
-#include "../server.h"
 
 #include <openssl/ssl.h>
 #include <string.h>
@@ -33,8 +34,6 @@ int rev_proxy_preload() {
 int rev_proxy_request_header(http_req *req, int enc) {
     char buf1[256], buf2[256];
     int p_len;
-    http_remove_header_field(&req->hdr, "Connection", HTTP_REMOVE_ALL);
-    http_add_header_field(&req->hdr, "Connection", "keep-alive");
 
     const char *via = http_get_header_field(&req->hdr, "Via");
     sprintf(buf1, "HTTP/%s %s", req->version, SERVER_NAME);
@@ -184,12 +183,12 @@ int rev_proxy_response_header(http_req *req, http_res *res, host_config *conf) {
 
 int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config *conf, sock *client, http_status *custom_status, char *err_msg) {
     char buffer[CHUNK_SIZE];
+    const char *connection, *upgrade, *ws_version;
     long ret;
     int tries = 0, retry = 0;
 
-    if (rev_proxy.socket != 0 && strcmp(rev_proxy_host, conf->name) == 0 && sock_check(&rev_proxy) == 0) {
+    if (rev_proxy.socket != 0 && strcmp(rev_proxy_host, conf->name) == 0 && sock_check(&rev_proxy) == 0)
         goto rev_proxy;
-    }
 
     retry:
     if (rev_proxy.socket != 0) {
@@ -290,6 +289,22 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
     print(BLUE_STR "Established new connection with " BLD_STR "[%s]:%i" CLR_STR, buffer, conf->rev_proxy.port);
 
     rev_proxy:
+    connection = http_get_header_field(&req->hdr, "Connection");
+    if (connection != NULL && (strstr(connection, "upgrade") != NULL || strstr(connection, "Upgrade") != NULL)) {
+        upgrade = http_get_header_field(&req->hdr, "Upgrade");
+        ws_version = http_get_header_field(&req->hdr, "Sec-WebSocket-Version");
+        if (upgrade != NULL && ws_version != NULL && strcmp(upgrade, "websocket") == 0 && strcmp(ws_version, "13") == 0) {
+            ctx->ws_key = http_get_header_field(&req->hdr, "Sec-WebSocket-Key");
+        } else {
+            res->status = http_get_status(501);
+            ctx->origin = INTERNAL;
+            return -1;
+        }
+    } else {
+        http_remove_header_field(&req->hdr, "Connection", HTTP_REMOVE_ALL);
+        http_add_header_field(&req->hdr, "Connection", "keep-alive");
+    }
+
     ret = rev_proxy_request_header(req, (int) client->enc);
     if (ret != 0) {
         res->status = http_get_status(500);
@@ -454,7 +469,6 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
 }
 
 int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
-    // TODO handle websockets
     char buffer[CHUNK_SIZE], comp_out[CHUNK_SIZE], buf[256], *ptr;
     long ret = 0, len, snd_len;
     int finish_comp = 0;
