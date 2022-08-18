@@ -199,4 +199,3 @@ int ws_handle_connection(sock *s1, sock *s2) {
 
     return 0;
 }
-
