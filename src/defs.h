@@ -8,7 +8,7 @@
 #ifndef SESIMOS_DEF_H
 #define SESIMOS_DEF_H
 
-#define SERVER_VERSION "4.5"
+#define SERVER_VERSION "4.6"
 #define SERVER_STR "Sesimos/" SERVER_VERSION
 #define SERVER_STR_HTML "Sesimos&nbsp;web&nbsp;server&nbsp;" SERVER_VERSION
 
