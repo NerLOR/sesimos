@@ -120,7 +120,7 @@ int sock_check(sock *s) {
     return recv(s->socket, &buf, 1, MSG_PEEK | MSG_DONTWAIT) == 1;
 }
 
-int sock_poll(sock *sockets[], sock *ready[], short events, int n_sock, int timeout_ms) {
+int sock_poll(sock *sockets[], sock *ready[], sock *error[], int n_sock, int *n_ready, int *n_error, short events, int timeout_ms) {
     struct pollfd fds[n_sock];
     for (int i = 0; i < n_sock; i++) {
         fds[i].fd = sockets[i]->socket;
@@ -128,20 +128,23 @@ int sock_poll(sock *sockets[], sock *ready[], short events, int n_sock, int time
     }
 
     int ret = poll(fds, n_sock, timeout_ms);
-    if (ret < 0 || ready == NULL) return ret;
+    if (ret < 0 || ready == NULL || error == NULL) return ret;
 
-    int j = 0;
+    *n_ready = 0, *n_error = 0;
     for (int i = 0; i < n_sock; i++) {
         if (fds[i].revents & events)
-            ready[j++] = sockets[i];
+            ready[(*n_ready)++] = sockets[i];
+        if (fds[i].revents & (POLLERR | POLLHUP | POLLNVAL))
+            error[(*n_error)++] = sockets[i];
     }
-    return j;
+
+    return ret;
 }
 
-int sock_poll_read(sock *sockets[], sock *readable[], int n_sock, int timeout_ms) {
-    return sock_poll(sockets, readable, POLLIN, n_sock, timeout_ms);
+int sock_poll_read(sock *sockets[], sock *readable[], sock *error[], int n_sock, int *n_readable, int *n_error, int timeout_ms) {
+    return sock_poll(sockets, readable, error, n_sock, n_readable, n_error, POLLIN, timeout_ms);
 }
 
-int sock_poll_write(sock *sockets[], sock *writable[], int n_sock, int timeout_ms) {
-    return sock_poll(sockets, writable, POLLOUT, n_sock, timeout_ms);
+int sock_poll_write(sock *sockets[], sock *writable[], sock *error[], int n_sock, int *n_writable, int *n_error, int timeout_ms) {
+    return sock_poll(sockets, writable, error, n_sock, n_writable, n_error, POLLOUT, timeout_ms);
 }

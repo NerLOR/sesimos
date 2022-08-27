@@ -85,7 +85,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
 
     clock_gettime(CLOCK_MONOTONIC, &begin);
 
-    ret = sock_poll_read(&client, NULL, 1, CLIENT_TIMEOUT * 1000);
+    ret = sock_poll_read(&client, NULL, NULL, 1, NULL, NULL, CLIENT_TIMEOUT * 1000);
 
     http_add_header_field(&res.hdr, "Date", http_get_date(buf0, sizeof(buf0)));
     http_add_header_field(&res.hdr, "Server", SERVER_STR);

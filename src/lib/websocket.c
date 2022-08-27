@@ -145,29 +145,32 @@ int ws_send_frame_header(sock *s, ws_frame *frame) {
 
 int ws_handle_connection(sock *s1, sock *s2) {
     sock *poll_socks[2] = {s1, s2};
-    sock *readable[2];
-    int n_sock = 2;
+    sock *readable[2], *error[2];
+    int n_sock = 2, n_readable = 0, n_error = 0;
     ws_frame frame;
     char buf[CHUNK_SIZE];
-    int poll, closes = 0;
+    int closes = 0;
     long ret;
 
     signal(SIGINT, ws_terminate);
     signal(SIGTERM, ws_terminate);
 
     while (!terminate && closes != 3) {
-        poll = sock_poll_read(poll_socks, readable, n_sock, WS_TIMEOUT * 1000);
+        ret = sock_poll_read(poll_socks, readable, error, n_sock, &n_readable, &n_error, WS_TIMEOUT * 1000);
         if (terminate) {
             break;
-        } else if (poll < 0) {
+        } else if (ret < 0) {
             print(ERR_STR "Unable to poll sockets: %s" CLR_STR, strerror(errno));
             return -1;
-        } else if (poll == 0) {
+        } else if (n_readable == 0) {
             print(ERR_STR "Connection timed out" CLR_STR);
             return -2;
+        } else if (n_error > 0) {
+            print(ERR_STR "Peer closed connection" CLR_STR);
+            return -3;
         }
 
-        for (int i = 0; i < poll; i++) {
+        for (int i = 0; i < n_readable; i++) {
             sock *s = readable[i];
             sock *o = (s == s1) ? s2 : s1;
             if (ws_recv_frame_header(s, &frame) != 0) return -3;
@@ -188,10 +191,10 @@ int ws_handle_connection(sock *s1, sock *s2) {
                 ret = sock_splice(o, s, buf, sizeof(buf), frame.len);
                 if (ret < 0) {
                     print(ERR_STR "Unable to forward data in WebSocket: %s" CLR_STR, strerror(errno));
-                    return -3;
+                    return -4;
                 } else if (ret != frame.len) {
                     print(ERR_STR "Unable to forward correct number of bytes in WebSocket" CLR_STR);
-                    return -3;
+                    return -4;
                 }
             }
         }
