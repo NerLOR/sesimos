@@ -175,6 +175,8 @@ int ws_handle_connection(sock *s1, sock *s2) {
             sock *o = (s == s1) ? s2 : s1;
             if (ws_recv_frame_header(s, &frame) != 0) return -3;
 
+            // print("WebSocket: Peer %s, Opcode=0x%X, Len=%li", (s == s1) ? "1" : "2", frame.opcode, frame.len);
+
             if (frame.opcode == 0x8) {
                 n_sock--;
                 if (s == s1) {
