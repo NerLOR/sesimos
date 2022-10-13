@@ -10,6 +10,7 @@
 
 #include <sys/time.h>
 #include <maxminddb.h>
+#include <signal.h>
 
 #define NUM_SOCKETS 2
 #define MAX_CHILDREN 1024
@@ -25,7 +26,7 @@ extern int sockets[NUM_SOCKETS];
 extern pid_t children[MAX_CHILDREN];
 extern MMDB_s mmdbs[MAX_MMDB];
 
-extern int server_keep_alive;
+extern volatile sig_atomic_t server_keep_alive;
 extern char *log_client_prefix, *log_conn_prefix, *log_req_prefix, *client_geoip;
 extern char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr, *client_host_str;
 extern struct timeval client_timeout;

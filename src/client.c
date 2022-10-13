@@ -29,7 +29,7 @@
 #include <arpa/inet.h>
 
 
-int server_keep_alive = 1;
+volatile sig_atomic_t server_keep_alive = 1;
 struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
 
 char *log_client_prefix, *log_conn_prefix, *log_req_prefix, *client_geoip;

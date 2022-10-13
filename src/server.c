@@ -35,7 +35,7 @@
 #include <dirent.h>
 
 
-int active = 1;
+volatile sig_atomic_t active = 1;
 const char *config_file;
 int sockets[NUM_SOCKETS];
 pid_t children[MAX_CHILDREN];
