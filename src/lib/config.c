@@ -19,7 +19,7 @@
 t_config *config;
 char geoip_dir[256], dns_server[256];
 
-int config_init() {
+int config_init(void) {
     int shm_id = shmget(CONFIG_SHM_KEY, sizeof(t_config), IPC_CREAT | IPC_EXCL | 0640);
     if (shm_id < 0) {
         fprintf(stderr, ERR_STR "Unable to create config shared memory: %s" CLR_STR "\n", strerror(errno));
@@ -45,7 +45,7 @@ int config_init() {
     return 0;
 }
 
-int config_unload() {
+int config_unload(void) {
     int shm_id = shmget(CONFIG_SHM_KEY, 0, 0);
     if (shm_id < 0) {
         fprintf(stderr, ERR_STR "Unable to get config shared memory id: %s" CLR_STR "\n", strerror(errno));

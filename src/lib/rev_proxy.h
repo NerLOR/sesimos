@@ -22,7 +22,7 @@
 
 extern sock rev_proxy;
 
-int rev_proxy_preload();
+int rev_proxy_preload(void);
 
 int rev_proxy_request_header(http_req *req, int enc);
 

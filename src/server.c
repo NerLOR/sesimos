@@ -42,7 +42,7 @@ pid_t children[MAX_CHILDREN];
 MMDB_s mmdbs[MAX_MMDB];
 SSL_CTX *contexts[CONFIG_MAX_CERT_CONFIG];
 
-void openssl_init() {
+void openssl_init(void) {
     SSL_library_init();
     SSL_load_error_strings();
     ERR_load_BIO_strings();
@@ -58,7 +58,7 @@ static int ssl_servername_cb(SSL *ssl, int *ad, void *arg) {
     return SSL_TLSEXT_ERR_OK;
 }
 
-void destroy() {
+void destroy(int _) {
     fprintf(stderr, "\n" ERR_STR "Terminating forcefully!" CLR_STR "\n");
     int status = 0;
     int ret;
@@ -87,7 +87,7 @@ void destroy() {
     exit(2);
 }
 
-void terminate() {
+void terminate(int _) {
     fprintf(stderr, "\nTerminating gracefully...\n");
     active = 0;
 
@@ -347,7 +347,7 @@ int main(int argc, const char *argv[]) {
         ready_sockets_num = poll(poll_fds, NUM_SOCKETS, 1000);
         if (ready_sockets_num < 0) {
             fprintf(stderr, ERR_STR "Unable to poll sockets: %s" CLR_STR "\n", strerror(errno));
-            terminate();
+            terminate(0);
             return 1;
         }
 

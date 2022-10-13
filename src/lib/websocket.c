@@ -15,9 +15,9 @@
 #include <signal.h>
 
 
-int terminate = 0;
+volatile sig_atomic_t terminate = 0;
 
-void ws_terminate() {
+void ws_terminate(int _) {
     terminate = 1;
 }
 

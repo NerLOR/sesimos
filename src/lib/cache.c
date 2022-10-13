@@ -24,7 +24,7 @@ int cache_continue = 1;
 magic_t magic;
 cache_entry *cache;
 
-int magic_init() {
+int magic_init(void) {
     magic = magic_open(MAGIC_MIME);
     if (magic == NULL) {
         fprintf(stderr, ERR_STR "Unable to open magic cookie: %s" CLR_STR "\n", strerror(errno));
@@ -37,11 +37,11 @@ int magic_init() {
     return 0;
 }
 
-void cache_process_term() {
+void cache_process_term(int _) {
     cache_continue = 0;
 }
 
-int cache_process() {
+int cache_process(void) {
     signal(SIGINT, cache_process_term);
     signal(SIGTERM, cache_process_term);
 
@@ -221,7 +221,7 @@ int cache_process() {
     return 0;
 }
 
-int cache_init() {
+int cache_init(void) {
     if (magic_init() != 0) {
         return -1;
     }
@@ -267,7 +267,7 @@ int cache_init() {
     }
 }
 
-int cache_unload() {
+int cache_unload(void) {
     int shm_id = shmget(CACHE_SHM_KEY, 0, 0);
     if (shm_id < 0) {
         fprintf(stderr, ERR_STR "Unable to get cache shared memory id: %s" CLR_STR "\n", strerror(errno));

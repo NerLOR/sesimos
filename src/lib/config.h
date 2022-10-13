@@ -55,10 +55,10 @@ typedef struct {
 extern t_config *config;
 extern char geoip_dir[256], dns_server[256];
 
-int config_init();
+int config_init(void);
 
 int config_load(const char *filename);
 
-int config_unload();
+int config_unload(void);
 
 #endif //SESIMOS_CONFIG_H

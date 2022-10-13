@@ -48,7 +48,7 @@ host_config *get_host_config(const char *host) {
     return NULL;
 }
 
-void client_terminate() {
+void client_terminate(int _) {
     server_keep_alive = 0;
 }
 

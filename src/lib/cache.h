@@ -30,15 +30,15 @@ extern cache_entry *cache;
 
 extern int cache_continue;
 
-int magic_init();
+int magic_init(void);
 
-void cache_process_term();
+void cache_process_term(int _);
 
-int cache_process();
+int cache_process(void);
 
-int cache_init();
+int cache_init(void);
 
-int cache_unload();
+int cache_unload(void);
 
 int cache_update_entry(int entry_num, const char *filename, const char *webroot);
 

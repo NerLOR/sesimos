@@ -23,7 +23,7 @@ sock rev_proxy;
 char *rev_proxy_host = NULL;
 struct timeval server_timeout = {.tv_sec = SERVER_TIMEOUT, .tv_usec = 0};
 
-int rev_proxy_preload() {
+int rev_proxy_preload(void) {
     rev_proxy.buf = NULL;
     rev_proxy.buf_len = 0;
     rev_proxy.buf_off = 0;
