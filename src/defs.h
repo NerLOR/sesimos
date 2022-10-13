@@ -1,8 +1,9 @@
 /**
  * sesimos - secure, simple, modern web server
- * Definitions
- * src/defs.h
- * Lorenz Stechauner, 2021-05-04
+ * @brief Definitions
+ * @file src/defs.h
+ * @author Lorenz Stechauner
+ * @date 2021-05-04
  */
 
 #ifndef SESIMOS_DEF_H

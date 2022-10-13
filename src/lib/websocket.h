@@ -1,8 +1,9 @@
 /**
  * sesimos - secure, simple, modern web server
- * WebSocket reverse proxy (header file)
- * src/lib/websocket.h
- * Lorenz Stechauner, 2022-08-16
+ * @brief WebSocket reverse proxy (header file)
+ * @file src/lib/websocket.h
+ * @author Lorenz Stechauner
+ * @date 2022-08-16
  */
 
 #ifndef SESIMOS_WEBSOCKET_H

@@ -1,8 +1,7 @@
 /**
  * sesimos - secure, simple, modern web server
- * FastCGI header file
- * src/lib/include/fastcgi.h
- * Lorenz Stechauner, 2021-05-03
+ * @brief FastCGI header file
+ * @file src/lib/include/fastcgi.h
  */
 
 #ifndef SESIMOS_EXTERN_FASTCGI_H

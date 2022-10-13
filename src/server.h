@@ -1,8 +1,9 @@
 /**
  * sesimos - secure, simple, modern web server
- * Main executable (header file)
- * src/server.h
- * Lorenz Stechauner, 2020-12-03
+ * @brief Main executable (header file)
+ * @file src/server.h
+ * @author Lorenz Stechauner
+ * @date 2020-12-03
  */
 
 #ifndef SESIMOS_SERVER_H

@@ -1,8 +1,9 @@
 /**
  * Sesimos - secure, simple, modern web server
- * Main executable
- * src/server.c
- * Lorenz Stechauner, 2020-12-03
+ * @brief Main executable
+ * @file src/server.c
+ * @author Lorenz Stechauner
+ * @date 2020-12-03
  */
 
 #define _POSIX_C_SOURCE 199309L

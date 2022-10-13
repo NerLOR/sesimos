@@ -1,8 +1,9 @@
 /**
  * sesimos - secure, simple, modern web server
- * Compression interface (header file)
- * src/lib/compress.h
- * Lorenz Stechauner, 2021-05-05
+ * @brief Compression interface (header file)
+ * @file src/lib/compress.h
+ * @author Lorenz Stechauner
+ * @date 2021-05-05
  */
 
 #ifndef SESIMOS_COMPRESS_H

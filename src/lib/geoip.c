@@ -1,8 +1,9 @@
 /**
  * sesimos - secure, simple, modern web server
- * MaxMind GeoIP Database interface
- * src/lib/geoip.c
- * Lorenz Stechauner, 2021-05-04
+ * @brief MaxMind GeoIP Database interface
+ * @file src/lib/geoip.c
+ * @author Lorenz Stechauner
+ * @date 2021-05-04
  */
 
 #include "geoip.h"

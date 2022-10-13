@@ -1,8 +1,9 @@
 /**
  * sesimos - secure, simple, modern web server
- * Basic TCP and TLS socket
- * src/lib/sock.c
- * Lorenz Stechauner, 2021-01-07
+ * @brief Basic TCP and TLS socket
+ * @file src/lib/sock.c
+ * @author Lorenz Stechauner
+ * @date 2021-01-07
  */
 
 #include "sock.h"

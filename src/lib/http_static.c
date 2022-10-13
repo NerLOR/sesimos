@@ -1,8 +1,9 @@
 /**
  * sesimos - secure, simple, modern web server
- * HTTP static implementation
- * src/lib/http_static.c
- * Lorenz Stechauner, 2021-05-03
+ * @brief HTTP static implementation
+ * @file src/lib/http_static.c
+ * @author Lorenz Stechauner
+ * @date 2021-05-03
  */
 
 #include "../defs.h"

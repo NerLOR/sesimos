@@ -1,8 +1,9 @@
 /**
  * sesimos - secure, simple, modern web server
- * File cache implementation (header file)
- * src/lib/cache.h
- * Lorenz Stechauner, 2020-12-19
+ * @brief File cache implementation (header file)
+ * @file src/lib/cache.h
+ * @author Lorenz Stechauner
+ * @date 2020-12-19
  */
 
 #ifndef SESIMOS_CACHE_H

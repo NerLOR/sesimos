@@ -1,8 +1,9 @@
 /**
  * sesimos - secure, simple, modern web server
- * Reverse proxy
- * src/lib/rev_proxy.c
- * Lorenz Stechauner, 2021-01-07
+ * @brief Reverse proxy
+ * @file src/lib/rev_proxy.c
+ * @author Lorenz Stechauner
+ * @date 2021-01-07
  */
 
 #include "../defs.h"

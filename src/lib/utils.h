@@ -1,8 +1,9 @@
 /**
  * sesimos - secure, simple, modern web server
- * Utilities (header file)
- * src/lib/utils.h
- * Lorenz Stechauner, 2020-12-03
+ * @brief Utilities (header file)
+ * @file src/lib/utils.h
+ * @author Lorenz Stechauner
+ * @date 2020-12-03
  */
 
 #ifndef SESIMOS_UTILS_H

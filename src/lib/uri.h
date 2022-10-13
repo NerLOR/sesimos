@@ -1,8 +1,9 @@
 /**
  * sesimos - secure, simple, modern web server
- * URI and path handlers (header file)
- * src/lib/uri.h
- * Lorenz Stechauner, 2020-12-13
+ * @brief URI and path handlers (header file)
+ * @file src/lib/uri.h
+ * @author Lorenz Stechauner
+ * @date 2020-12-13
  */
 
 #ifndef SESIMOS_URI_H

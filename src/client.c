@@ -1,8 +1,9 @@
 /**
  * sesimos - secure, simple, modern web server
- * Client connection and request handlers
- * src/client.c
- * Lorenz Stechauner, 2020-12-03
+ * @brief Client connection and request handlers
+ * @file src/client.c
+ * @author Lorenz Stechauner
+ * @date 2020-12-03
  */
 
 #include "defs.h"

@@ -1,8 +1,9 @@
 /**
  * sesimos - secure, simple, modern web server
- * Configuration file loader
- * src/lib/config.c
- * Lorenz Stechauner, 2021-01-05
+ * @brief Configuration file loader
+ * @file src/lib/config.c
+ * @author Lorenz Stechauner
+ * @date 2021-01-05
  */
 
 #include "config.h"

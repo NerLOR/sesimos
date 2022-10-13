@@ -1,8 +1,9 @@
 /**
  * sesimos - secure, simple, modern web server
- * FastCGI interface implementation (header file)
- * src/lib/fastcgi.h
- * Lorenz Stechauner, 2020-12-26
+ * @brief FastCGI interface implementation (header file)
+ * @file src/lib/fastcgi.h
+ * @author Lorenz Stechauner
+ * @date 2020-12-26
  */
 
 #ifndef SESIMOS_FASTCGI_H

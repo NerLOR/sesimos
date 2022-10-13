@@ -1,8 +1,9 @@
 /**
  * sesimos - secure, simple, modern web server
- * Client connection and request handlers (header file)
- * src/client.h
- * Lorenz Stechauner, 2022-08-16
+ * @brief Client connection and request handlers (header file)
+ * @file src/client.h
+ * @author Lorenz Stechauner
+ * @date 2022-08-16
  */
 
 #ifndef SESIMOS_CLIENT_H

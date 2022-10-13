@@ -1,8 +1,9 @@
 /**
  * sesimos - secure, simple, modern web server
- * HTTP implementation (header file)
- * src/lib/http.h
- * Lorenz Stechauner, 2020-12-09
+ * @brief HTTP implementation (header file)
+ * @file src/lib/http.h
+ * @author Lorenz Stechauner
+ * @date 2020-12-09
  */
 
 #ifndef SESIMOS_HTTP_H
