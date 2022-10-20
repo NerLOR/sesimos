@@ -145,7 +145,7 @@ int http_receive_request(sock *client, http_req *req) {
     req->hdr.last_field_num = -1;
 
     while (1) {
-        rcv_len = sock_recv(client, buf, CLIENT_MAX_HEADER_SIZE, 0);
+        rcv_len = sock_recv(client, buf, CLIENT_MAX_HEADER_SIZE, MSG_PEEK);
         if (rcv_len <= 0) {
             print("Unable to receive http header: %s", sock_strerror(client));
             return -1;
@@ -155,6 +155,8 @@ int http_receive_request(sock *client, http_req *req) {
         if (header_len <= 0) {
             print(ERR_STR "Unable to parse http header: End of header not found" CLR_STR);
             return 5;
+        } else {
+            rcv_len = sock_recv(client, buf, header_len, 0);
         }
 
         for (int i = 0; i < header_len; i++) {
@@ -214,13 +216,6 @@ int http_receive_request(sock *client, http_req *req) {
         if (pos0[2] == '\r' && pos0[3] == '\n') {
             break;
         }
-    }
-
-    client->buf_len = rcv_len - (pos0 - buf + 4);
-    if (client->buf_len > 0) {
-        client->buf = malloc(client->buf_len);
-        client->buf_off = 0;
-        memcpy(client->buf, pos0 + 4, client->buf_len);
     }
 
     return 0;

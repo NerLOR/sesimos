@@ -291,10 +291,6 @@ int main(int argc, const char *argv[]) {
 
     openssl_init();
 
-    client.buf = NULL;
-    client.buf_len = 0;
-    client.buf_off = 0;
-
     for (int i = 0; i < CONFIG_MAX_CERT_CONFIG; i++) {
         const cert_config *conf = &config->certs[i];
         if (conf->name[0] == 0) break;

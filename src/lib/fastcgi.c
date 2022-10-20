@@ -600,12 +600,6 @@ int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len) {
             .reserved = 0
     };
 
-    if (client->buf != NULL && client->buf_len - client->buf_off > 0) {
-        ret = (int) (client->buf_len - client->buf_off);
-        memcpy(buf, client->buf + client->buf_off, ret);
-        goto send;
-    }
-
     while (rcv_len < len) {
         ret = sock_recv(client, buf, sizeof(buf), 0);
         if (ret <= 0) {
@@ -613,7 +607,6 @@ int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len) {
             return -1;
         }
 
-        send:
         rcv_len += ret;
         header.contentLengthB1 = (ret >> 8) & 0xFF;
         header.contentLengthB0 = ret & 0xFF;

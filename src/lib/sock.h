@@ -17,9 +17,6 @@ typedef struct {
     int socket;
     SSL_CTX *ctx;
     SSL *ssl;
-    char *buf;
-    unsigned long buf_len;
-    unsigned long buf_off;
     long _last_ret;
     int _errno;
     unsigned long _ssl_error;
