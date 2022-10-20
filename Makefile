@@ -11,6 +11,8 @@ default: bin bin/lib bin/libsesimos.so bin/sesimos
 prod: CFLAGS += -O3
 prod: default
 debug: default
+debian: CFLAGS += $(DEBIAN_OPTS)
+debian: prod
 
 
 bin:
