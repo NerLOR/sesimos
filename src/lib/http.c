@@ -144,7 +144,7 @@ int http_receive_request(sock *client, http_req *req) {
     req->hdr.last_field_num = -1;
 
     while (1) {
-        rcv_len  = sock_recv(client, buf, CLIENT_MAX_HEADER_SIZE, 0);
+        rcv_len = sock_recv(client, buf, CLIENT_MAX_HEADER_SIZE, 0);
         if (rcv_len <= 0) {
             print("Unable to receive http header: %s", sock_strerror(client));
             return -1;
