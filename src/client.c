@@ -495,7 +495,6 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                     use_rev_proxy = (strcmp(buf0, ws_accept) == 0) ? 2 : 1;
                 }
             } else {
-                print("Fail Test1");
                 ctx.status = 101;
                 ctx.origin = INTERNAL;
                 res.status = http_get_status(501);
