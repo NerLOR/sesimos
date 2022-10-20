@@ -201,12 +201,6 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         goto respond;
     }
 
-    if (http_get_header_field(&req.hdr, "Transfer-Encoding") != NULL) {
-        sprintf(err_msg, "This server is unable to process requests with the Transfer-Encoding header field.");
-        res.status = http_get_status(501);
-        goto respond;
-    }
-
     if (conf->type == CONFIG_TYPE_LOCAL) {
         if (strcmp(req.method, "TRACE") == 0) {
             res.status = http_get_status(200);
@@ -254,7 +248,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 goto respond;
             }
 
-            if (http_get_header_field(&req.hdr, "Content-Length") != NULL) {
+            if (http_get_header_field(&req.hdr, "Content-Length") != NULL || http_get_header_field(&req.hdr, "Transfer-Encoding") != NULL) {
                 res.status = http_get_status(400);
                 sprintf(err_msg, "A GET request must not contain a payload");
                 goto respond;
@@ -397,18 +391,23 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             }
 
             const char *client_content_length = http_get_header_field(&req.hdr, "Content-Length");
+            const char *client_transfer_encoding = http_get_header_field(&req.hdr, "Transfer-Encoding");
             if (client_content_length != NULL) {
                 unsigned long client_content_len = strtoul(client_content_length, NULL, 10);
                 ret = fastcgi_receive(&fcgi_conn, client, client_content_len);
-                if (ret != 0) {
-                    if (ret < 0) {
-                        goto abort;
-                    } else {
-                        sprintf(err_msg, "Unable to communicate with FastCGI socket.");
-                    }
-                    res.status = http_get_status(502);
-                    goto respond;
+            } else if (client_transfer_encoding != NULL && strstr(client_transfer_encoding, "chunked") != NULL) {
+                ret = fastcgi_receive_chunked(&fcgi_conn, client);
+            } else {
+                ret = 0;
+            }
+            if (ret != 0) {
+                if (ret < 0) {
+                    goto abort;
+                } else {
+                    sprintf(err_msg, "Unable to communicate with FastCGI socket.");
                 }
+                res.status = http_get_status(502);
+                goto respond;
             }
             fastcgi_close_stdin(&fcgi_conn);
 
@@ -679,7 +678,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             }
         } else if (use_fastcgi) {
             const char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
-            int chunked = (transfer_encoding != NULL && strcmp(transfer_encoding, "chunked") == 0);
+            int chunked = (transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL);
 
             int flags = (chunked ? FASTCGI_CHUNKED : 0) | (use_fastcgi & (FASTCGI_COMPRESS | FASTCGI_COMPRESS_HOLD));
             ret = fastcgi_send(&fcgi_conn, client, flags);

@@ -55,4 +55,6 @@ int fastcgi_dump(fastcgi_conn *conn, char *buf, long len);
 
 int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len);
 
+int fastcgi_receive_chunked(fastcgi_conn *conn, sock *client);
+
 #endif //SESIMOS_FASTCGI_H

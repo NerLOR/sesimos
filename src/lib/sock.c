@@ -103,6 +103,27 @@ long sock_splice(sock *dst, sock *src, void *buf, unsigned long buf_len, unsigne
     return (long) send_len;
 }
 
+long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len) {
+    long ret;
+    unsigned long send_len = 0;
+    unsigned long next_len;
+    char tmp[16];
+
+    do {
+        ret = sock_recv(src, tmp, sizeof(tmp), MSG_PEEK);
+        if (ret < 0) return -2;
+        next_len = strtol(tmp, NULL, 16);
+        char *ptr = strstr(tmp, "\r\n");
+        ret = sock_recv(src, tmp, ptr - tmp + 2, 0);
+        if (ret < 0) return -2;
+
+        ret = sock_splice(dst, src, buf, buf_len, next_len);
+        if (ret < 0) return ret;
+    } while (next_len > 0);
+
+    return (long) send_len;
+}
+
 int sock_close(sock *s) {
     if ((int) s->enc && s->ssl != NULL) {
         if (s->_last_ret >= 0) SSL_shutdown(s->ssl);

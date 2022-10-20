@@ -321,31 +321,35 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
     }
 
     const char *content_length = http_get_header_field(&req->hdr, "Content-Length");
-    if (content_length != NULL) {
-        unsigned long content_len = strtoul(content_length, NULL, 10);
-        if (content_len > 0) {
-            ret = sock_splice(&rev_proxy, client, buffer, sizeof(buffer), content_len);
-            if (ret <= 0) {
-                if (ret == -1) {
-                    res->status = http_get_status(502);
-                    ctx->origin = SERVER_REQ;
-                    print(ERR_STR "Unable to send request to server (2): %s" CLR_STR, sock_strerror(&rev_proxy));
-                    sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&rev_proxy));
-                    retry = tries < 4;
-                    goto proxy_err;
-                } else if (ret == -2) {
-                    res->status = http_get_status(400);
-                    ctx->origin = CLIENT_REQ;
-                    print(ERR_STR "Unable to receive request from client: %s" CLR_STR, sock_strerror(client));
-                    sprintf(err_msg, "Unable to receive request from client: %s.", sock_strerror(client));
-                    return -1;
-                }
-                res->status = http_get_status(500);
-                ctx->origin = INTERNAL;
-                print(ERR_STR "Unknown Error" CLR_STR);
-                return -1;
-            }
+    unsigned long content_len = content_length != NULL ? strtoul(content_length, NULL, 10) : 0;
+    const char *transfer_encoding = http_get_header_field(&req->hdr, "Transfer-Encoding");
+
+    ret = 0;
+    if (content_len > 0) {
+        ret = sock_splice(&rev_proxy, client, buffer, sizeof(buffer), content_len);
+    } else if (transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL) {
+        ret = sock_splice_chunked(&rev_proxy, client, buffer, sizeof(buffer));
+    }
+
+    if (ret < 0 || (content_len != 0 && ret != content_len)) {
+        if (ret == -1) {
+            res->status = http_get_status(502);
+            ctx->origin = SERVER_REQ;
+            print(ERR_STR "Unable to send request to server (2): %s" CLR_STR, sock_strerror(&rev_proxy));
+            sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&rev_proxy));
+            retry = tries < 4;
+            goto proxy_err;
+        } else if (ret == -2) {
+            res->status = http_get_status(400);
+            ctx->origin = CLIENT_REQ;
+            print(ERR_STR "Unable to receive request from client: %s" CLR_STR, sock_strerror(client));
+            sprintf(err_msg, "Unable to receive request from client: %s.", sock_strerror(client));
+            return -1;
         }
+        res->status = http_get_status(500);
+        ctx->origin = INTERNAL;
+        print(ERR_STR "Unknown Error" CLR_STR);
+        return -1;
     }
 
     ret = sock_recv(&rev_proxy, buffer, sizeof(buffer), MSG_PEEK);
