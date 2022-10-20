@@ -109,7 +109,7 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len)
     unsigned long next_len;
     char tmp[16];
 
-    do {
+    while (1) {
         ret = sock_recv(src, tmp, sizeof(tmp), MSG_PEEK);
         if (ret < 0) return -2;
         next_len = strtol(tmp, NULL, 16);
@@ -117,9 +117,11 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len)
         ret = sock_recv(src, tmp, ptr - tmp + 2, 0);
         if (ret < 0) return -2;
 
+        if (next_len <= 0) break;
+
         ret = sock_splice(dst, src, buf, buf_len, next_len);
         if (ret < 0) return ret;
-    } while (next_len > 0);
+    }
 
     return (long) send_len;
 }
