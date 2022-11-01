@@ -1,8 +1,8 @@
 *
 !src
 !src/**
-!docs
-!docs/**
+!doc
+!doc/**
 !Makefile
 !.gitignore
 !README.md

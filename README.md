@@ -21,7 +21,7 @@ Sesimos – Secure, simple, modern web server
 
 ## Configuration
 
-See [docs/example.conf](docs/example.conf) for more details.
+See [doc/example.conf](doc/example.conf) for more details.
 
 
 ### Global directives
