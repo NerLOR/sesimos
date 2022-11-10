@@ -112,9 +112,24 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len)
     while (1) {
         ret = sock_recv(src, tmp, sizeof(tmp), MSG_PEEK);
         if (ret < 0) return -2;
+        else if (ret < 2) continue;
+
+        int len = 0;
+        for (int i = 0; i < ret; i++) {
+            char ch = tmp[i];
+            if (ch == '\r') {
+                continue;
+            } else if (ch == '\n') {
+                len = i + 1;
+                break;
+            } else if (!((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F'))) {
+                return -2;
+            }
+        }
+        if (len == 0) continue;
+
         next_len = strtol(tmp, NULL, 16);
-        char *ptr = strstr(tmp, "\r\n");
-        ret = sock_recv(src, tmp, ptr - tmp + 2, 0);
+        ret = sock_recv(src, tmp, len, 0);
         if (ret < 0) return -2;
 
         if (next_len <= 0) break;
