@@ -37,35 +37,35 @@ bin/sesimos: bin/server.o bin/client.o
 	$(CC) -o $@ $^ $(CFLAGS) -Lbin -lsesimos -Wl,-rpath=$(shell pwd)/bin $(LIBS)
 
 
-bin/server.o: src/server.c src/server.h src/defs.h src/client.h src/lib/cache.h src/lib/config.h src/lib/sock.h \
+bin/server.o: src/server.h src/defs.h src/client.h src/lib/cache.h src/lib/config.h src/lib/sock.h \
               src/lib/rev_proxy.h src/lib/geoip.h src/lib/utils.h
 
-bin/client.o: src/client.c src/client.h src/defs.h src/server.h src/lib/utils.h src/lib/config.h src/lib/sock.h \
+bin/client.o: src/client.h src/defs.h src/server.h src/lib/utils.h src/lib/config.h src/lib/sock.h \
               src/lib/http.h src/lib/rev_proxy.h src/lib/fastcgi.h src/lib/cache.h src/lib/geoip.h src/lib/compress.h \
               src/lib/websocket.h
 
-bin/lib/cache.o: src/lib/cache.c src/lib/cache.h src/lib/utils.h src/lib/uri.h src/lib/compress.h
+bin/lib/cache.o: src/lib/cache.h src/lib/utils.h src/lib/uri.h src/lib/compress.h
 
-bin/lib/compress.o: src/lib/compress.c src/lib/compress.h
+bin/lib/compress.o: src/lib/compress.h
 
-bin/lib/config.o: src/lib/config.c src/lib/config.h src/lib/utils.h src/lib/uri.h
+bin/lib/config.o: src/lib/config.h src/lib/utils.h src/lib/uri.h
 
-bin/lib/fastcgi.o: src/lib/fastcgi.c src/lib/fastcgi.h src/server.h src/lib/utils.h src/lib/compress.h src/lib/http.h \
+bin/lib/fastcgi.o: src/lib/fastcgi.h src/server.h src/lib/utils.h src/lib/compress.h src/lib/http.h \
                    src/lib/uri.h src/lib/include/fastcgi.h
 
-bin/lib/geoip.o: src/lib/geoip.c src/lib/geoip.h
+bin/lib/geoip.o: src/lib/geoip.h
 
-bin/lib/http.o: src/lib/http.c src/lib/http.h src/lib/utils.h src/lib/compress.h src/lib/sock.h
+bin/lib/http.o: src/lib/http.h src/lib/utils.h src/lib/compress.h src/lib/sock.h
 
-bin/lib/rev_proxy.o: src/lib/rev_proxy.c src/lib/rev_proxy.h src/defs.h src/server.h src/lib/compress.h
+bin/lib/rev_proxy.o: src/lib/rev_proxy.h src/defs.h src/server.h src/lib/compress.h
 
-bin/lib/sock.o: src/lib/sock.c src/lib/sock.h
+bin/lib/sock.o: src/lib/sock.h
 
-bin/lib/uri.o: src/lib/uri.c src/lib/uri.h src/lib/utils.h
+bin/lib/uri.o: src/lib/uri.h src/lib/utils.h
 
-bin/lib/utils.o: src/lib/utils.c src/lib/utils.h
+bin/lib/utils.o: src/lib/utils.h
 
-bin/lib/websocket.o: src/lib/websocket.c src/lib/websocket.h src/defs.h src/lib/utils.h src/lib/sock.h
+bin/lib/websocket.o: src/lib/websocket.h src/defs.h src/lib/utils.h src/lib/sock.h
 
 
 permit:
