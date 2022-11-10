@@ -72,11 +72,8 @@ long sock_send(sock *s, void *buf, unsigned long len, int flags) {
 long sock_recv(sock *s, void *buf, unsigned long len, int flags) {
     long ret;
     if (s->enc) {
-        if (flags & MSG_PEEK) {
-            ret = SSL_peek(s->ssl, buf, (int) len);
-        } else {
-            ret = SSL_read(s->ssl, buf, (int) len);
-        }
+        int (*func)(SSL*, void*, int) = (flags & MSG_PEEK) ? SSL_peek : SSL_read;
+        ret = func(s->ssl, buf, (int) len);
         s->_ssl_error = ERR_get_error();
     } else {
         ret = recv(s->socket, buf, len, flags);
@@ -93,7 +90,7 @@ long sock_splice(sock *dst, sock *src, void *buf, unsigned long buf_len, unsigne
     while (send_len < len) {
         next_len = (buf_len < (len - send_len)) ? buf_len : (len - send_len);
         ret = sock_recv(src, buf, next_len, 0);
-        if (ret < 0) return -2;
+        if (ret <= 0) return -2;
         next_len = ret;
         ret = sock_send(dst, buf, next_len, send_len + next_len < len ? MSG_MORE : 0);
         if (ret < 0) return -1;
@@ -111,7 +108,7 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len)
 
     while (1) {
         ret = sock_recv(src, tmp, sizeof(tmp), MSG_PEEK);
-        if (ret < 0) return -2;
+        if (ret <= 0) return -2;
         else if (ret < 2) continue;
 
         int len = 0;
@@ -130,7 +127,7 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len)
 
         next_len = strtol(tmp, NULL, 16);
         ret = sock_recv(src, tmp, len, 0);
-        if (ret < 0) return -2;
+        if (ret <= 0) return -2;
 
         if (next_len <= 0) break;
 

@@ -627,7 +627,7 @@ int fastcgi_receive_chunked(fastcgi_conn *conn, sock *client) {
 
     while (1) {
         ret = sock_recv(client, tmp, sizeof(tmp), MSG_PEEK);
-        if (ret < 0) return -2;
+        if (ret <= 0) return -2;
         else if (ret < 2) continue;
 
         int len = 0;
@@ -646,12 +646,12 @@ int fastcgi_receive_chunked(fastcgi_conn *conn, sock *client) {
 
         next_len = strtol(tmp, NULL, 16);
         ret = sock_recv(client, tmp, len, 0);
-        if (ret < 0) return -2;
+        if (ret <= 0) return -2;
 
         if (next_len <= 0) break;
 
         ret = fastcgi_receive(conn, client, next_len);
-        if (ret < 0) return ret;
+        if (ret < 0) return (int) ret;
     }
 
     return 0;
