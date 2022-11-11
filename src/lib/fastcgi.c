@@ -623,31 +623,9 @@ int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len) {
 int fastcgi_receive_chunked(fastcgi_conn *conn, sock *client) {
     long ret;
     unsigned long next_len;
-    char tmp[16];
 
     while (1) {
-        ret = sock_recv(client, tmp, sizeof(tmp), MSG_PEEK);
-        if (ret <= 0) return -2;
-        else if (ret < 2) continue;
-
-        int len = 0;
-        for (int i = 0; i < ret; i++) {
-            char ch = tmp[i];
-            if (ch == '\r') {
-                continue;
-            } else if (ch == '\n') {
-                len = i + 1;
-                break;
-            } else if (!((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F'))) {
-                return -2;
-            }
-        }
-        if (len == 0) continue;
-
-        next_len = strtol(tmp, NULL, 16);
-        ret = sock_recv(client, tmp, len, 0);
-        if (ret <= 0) return -2;
-
+        next_len = sock_get_chunk_header(client);
         if (next_len <= 0) break;
 
         ret = fastcgi_receive(conn, client, next_len);

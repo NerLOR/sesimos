@@ -7,6 +7,7 @@
  */
 
 #include "sock.h"
+#include "utils.h"
 
 #include <openssl/err.h>
 #include <openssl/ssl.h>
@@ -104,31 +105,12 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len)
     long ret;
     unsigned long send_len = 0;
     unsigned long next_len;
-    char tmp[16];
 
     while (1) {
-        ret = sock_recv(src, tmp, sizeof(tmp), MSG_PEEK);
-        if (ret <= 0) return -2;
-        else if (ret < 2) continue;
+        ret = sock_get_chunk_header(src);
+        if (ret < 0) return -2;
 
-        int len = 0;
-        for (int i = 0; i < ret; i++) {
-            char ch = tmp[i];
-            if (ch == '\r') {
-                continue;
-            } else if (ch == '\n') {
-                len = i + 1;
-                break;
-            } else if (!((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F'))) {
-                return -2;
-            }
-        }
-        if (len == 0) continue;
-
-        next_len = strtol(tmp, NULL, 16);
-        ret = sock_recv(src, tmp, len, 0);
-        if (ret <= 0) return -2;
-
+        next_len = ret;
         if (next_len <= 0) break;
 
         ret = sock_splice(dst, src, buf, buf_len, next_len);
@@ -183,4 +165,40 @@ int sock_poll_read(sock *sockets[], sock *readable[], sock *error[], int n_sock,
 
 int sock_poll_write(sock *sockets[], sock *writable[], sock *error[], int n_sock, int *n_writable, int *n_error, int timeout_ms) {
     return sock_poll(sockets, writable, error, n_sock, n_writable, n_error, POLLOUT, timeout_ms);
+}
+
+long sock_parse_chunk_header(const char *buf, long len, long *ret_len) {
+    for (int i = 0; i < len; i++) {
+        char ch = buf[i];
+        if (ch == '\r') {
+            continue;
+        } else if (ch == '\n') {
+            if (ret_len != NULL) *ret_len = i + 1;
+            return strtol(buf, NULL, 16);
+        } else if (!((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F'))) {
+            return -2;
+        }
+    }
+
+    return -1;
+}
+
+long sock_get_chunk_header(sock *s) {
+    long ret, len;
+    char buf[16];
+
+    do {
+        print("debug1");  // TODO remove
+        ret = sock_recv(s, buf, sizeof(buf), MSG_PEEK);
+        if (ret <= 0) return -2;
+        else if (ret < 2) continue;
+
+        ret = sock_parse_chunk_header(buf, ret, &len);
+        if (ret == -2) return -1;
+    } while (ret < 0);
+
+    if (sock_recv(s, buf, len, 0) != len)
+        return -2;
+
+    return ret;
 }

@@ -44,4 +44,8 @@ int sock_poll_read(sock *sockets[], sock *readable[], sock *error[], int n_sock,
 
 int sock_poll_write(sock *sockets[], sock *writable[], sock *error[], int n_sock, int *n_writable, int *n_error, int timeout_ms);
 
+long sock_parse_chunk_header(const char *buf, long len, long *ret_len);
+
+long sock_get_chunk_header(sock *s);
+
 #endif //SESIMOS_SOCK_H

@@ -478,20 +478,17 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
     do {
         snd_len = 0;
         if (flags & REV_PROXY_CHUNKED) {
-            char *pos;
-            ret = sock_recv(&rev_proxy, buffer, 16, MSG_PEEK);
-            if (ret <= 0) goto err0;
-
-            len_to_send = strtol(buffer, NULL, 16);
-            pos = strstr(buffer, "\r\n");
-            len = pos - buffer + 2;
-            sock_recv(&rev_proxy, buffer, len, 0);
-            if (ret <= 0) {
-                err0:
-                print("Unable to receive from server: %s", sock_strerror(&rev_proxy));
+            ret = sock_get_chunk_header(&rev_proxy);
+            if (ret < 0) {
+                if (ret == -1) {
+                    print("Unable to receive from server: Malformed chunk header");
+                } else {
+                    print("Unable to receive from server: %s", sock_strerror(&rev_proxy));
+                }
                 break;
             }
 
+            len_to_send = ret;
             if (len_to_send == 0 && (flags & REV_PROXY_COMPRESS)) {
                 finish_comp = 1;
                 len = 0;
@@ -545,7 +542,7 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
         if (flags & REV_PROXY_CHUNKED) sock_recv(&rev_proxy, buffer, 2, 0);
     } while ((flags & REV_PROXY_CHUNKED) && len_to_send > 0);
 
-    if (ret <= 0) return (int) -1;
+    if (ret <= 0) return -1;
 
     if (flags & REV_PROXY_CHUNKED) {
         ret = sock_send(client, "0\r\n\r\n", 5, 0);
