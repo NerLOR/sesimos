@@ -489,6 +489,7 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
             }
 
             len_to_send = ret;
+            ret = 1;
             if (len_to_send == 0 && (flags & REV_PROXY_COMPRESS)) {
                 finish_comp = 1;
                 len = 0;
@@ -522,11 +523,14 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
                 if (buf_len != 0) {
                     len = sprintf(buf, "%lX\r\n", buf_len);
                     ret = 1;
+
                     if (flags & REV_PROXY_CHUNKED) ret = sock_send(client, buf, len, 0);
                     if (ret <= 0) goto err;
+
                     ret = sock_send(client, ptr, buf_len, 0);
                     if (ret <= 0) goto err;
                     if (!(flags & REV_PROXY_COMPRESS)) snd_len += ret;
+
                     if (flags & REV_PROXY_CHUNKED) ret = sock_send(client, "\r\n", 2, 0);
                     if (ret <= 0) {
                         err:
