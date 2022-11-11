@@ -625,7 +625,10 @@ int fastcgi_receive_chunked(fastcgi_conn *conn, sock *client) {
     unsigned long next_len;
 
     while (1) {
-        next_len = sock_get_chunk_header(client);
+        ret = sock_get_chunk_header(client);
+        if (ret < 0) return (int) ret;
+
+        next_len = ret;
         if (next_len <= 0) break;
 
         ret = fastcgi_receive(conn, client, next_len);
