@@ -17,8 +17,7 @@
 #include <string.h>
 #include <errno.h>
 #include <signal.h>
-#include <openssl/sha.h>
-#include <malloc.h>
+#include <openssl/evp.h>
 
 
 int cache_continue = 1;
@@ -81,14 +80,12 @@ int cache_process(void) {
     }
 
     FILE *file;
-    char *buf = malloc(CACHE_BUF_SIZE);
-    char *comp_buf = malloc(CACHE_BUF_SIZE);
-    char filename_comp_gz[256];
-    char filename_comp_br[256];
+    char buf[CACHE_BUF_SIZE], comp_buf[CACHE_BUF_SIZE], filename_comp_gz[256], filename_comp_br[256];
     unsigned long read;
     int compress;
-    SHA_CTX ctx;
-    unsigned char hash[SHA_DIGEST_LENGTH];
+    EVP_MD_CTX *ctx;
+    unsigned char hash[EVP_MAX_MD_SIZE];
+    unsigned int md_len;
     int cache_changed = 0;
     int p_len_gz, p_len_br;
     int ret;
@@ -97,7 +94,9 @@ int cache_process(void) {
             if (cache[i].filename[0] != 0 && cache[i].meta.etag[0] == 0 && !cache[i].is_updating) {
                 cache[i].is_updating = 1;
                 fprintf(stdout, "[cache] Hashing file %s\n", cache[i].filename);
-                SHA1_Init(&ctx);
+
+                ctx = EVP_MD_CTX_new();
+                EVP_DigestInit(ctx, EVP_sha1());
                 file = fopen(cache[i].filename, "rb");
                 compress = mime_is_compressible(cache[i].meta.type);
 
@@ -131,11 +130,8 @@ int cache_process(void) {
                     p_len_br = snprintf(filename_comp_br, sizeof(filename_comp_br),
                                         "%.*s/.sesimos/cache/%s.br",
                                         cache[i].webroot_len, cache[i].filename, buf);
-                    if (p_len_gz < 0 || p_len_gz >= sizeof(filename_comp_gz) ||
-                        p_len_br < 0 || p_len_br >= sizeof(filename_comp_br))
-                    {
-                        fprintf(stderr, ERR_STR "Unable to open cached file: "
-                                                "File name for compressed file too long" CLR_STR "\n");
+                    if (p_len_gz < 0 || p_len_gz >= sizeof(filename_comp_gz) || p_len_br < 0 || p_len_br >= sizeof(filename_comp_br)) {
+                        fprintf(stderr, ERR_STR "Unable to open cached file: File name for compressed file too long" CLR_STR "\n");
                         goto comp_err;
                     }
 
@@ -159,21 +155,19 @@ int cache_process(void) {
                 }
 
                 while ((read = fread(buf, 1, CACHE_BUF_SIZE, file)) > 0) {
-                    SHA1_Update(&ctx, buf, read);
+                    EVP_DigestUpdate(ctx, buf, read);
                     if (compress) {
                         unsigned long avail_in, avail_out;
                         avail_in = read;
                         do {
                             avail_out = CACHE_BUF_SIZE;
-                            compress_compress_mode(&comp_ctx, COMPRESS_GZ,buf + read - avail_in, &avail_in,
-                                                   comp_buf, &avail_out, feof(file));
+                            compress_compress_mode(&comp_ctx, COMPRESS_GZ,buf + read - avail_in, &avail_in, comp_buf, &avail_out, feof(file));
                             fwrite(comp_buf, 1, CACHE_BUF_SIZE - avail_out, comp_file_gz);
                         } while (avail_in != 0 || avail_out != CACHE_BUF_SIZE);
                         avail_in = read;
                         do {
                             avail_out = CACHE_BUF_SIZE;
-                            compress_compress_mode(&comp_ctx, COMPRESS_BR, buf + read - avail_in, &avail_in,
-                                                   comp_buf, &avail_out, feof(file));
+                            compress_compress_mode(&comp_ctx, COMPRESS_BR, buf + read - avail_in, &avail_in, comp_buf, &avail_out, feof(file));
                             fwrite(comp_buf, 1, CACHE_BUF_SIZE - avail_out, comp_file_br);
                         } while (avail_in != 0 || avail_out != CACHE_BUF_SIZE);
                     }
@@ -190,9 +184,12 @@ int cache_process(void) {
                     memset(cache[i].meta.filename_comp_gz, 0, sizeof(cache[i].meta.filename_comp_gz));
                     memset(cache[i].meta.filename_comp_br, 0, sizeof(cache[i].meta.filename_comp_br));
                 }
-                SHA1_Final(hash, &ctx);
+
+                EVP_DigestFinal(ctx, hash, &md_len);
+                EVP_MD_CTX_free(ctx);
+
                 memset(cache[i].meta.etag, 0, sizeof(cache[i].meta.etag));
-                for (int j = 0; j < SHA_DIGEST_LENGTH; j++) {
+                for (int j = 0; j < md_len; j++) {
                     sprintf(cache[i].meta.etag + j * 2, "%02x", hash[j]);
                 }
                 fclose(file);
@@ -207,8 +204,6 @@ int cache_process(void) {
             cache_file = fopen("/var/sesimos/server/cache", "wb");
             if (cache_file == NULL) {
                 fprintf(stderr, ERR_STR "Unable to open cache file: %s" CLR_STR "\n", strerror(errno));
-                free(buf);
-                free(comp_buf);
                 return -1;
             }
             fwrite(cache, sizeof(cache_entry), CACHE_ENTRIES, cache_file);
@@ -217,8 +212,7 @@ int cache_process(void) {
             sleep(1);
         }
     }
-    free(buf);
-    free(comp_buf);
+
     return 0;
 }
 
