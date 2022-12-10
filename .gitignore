@@ -7,4 +7,4 @@
 !test/**
 !Makefile
 !.gitignore
-!README.md
+!*.md
