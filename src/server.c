@@ -6,8 +6,6 @@
  * @date 2020-12-03
  */
 
-#define _POSIX_C_SOURCE 199309L
-
 #include "defs.h"
 #include "server.h"
 #include "client.h"

@@ -15,8 +15,8 @@
 #include <errno.h>
 #include <signal.h>
 
-
-volatile sig_atomic_t terminate = 0;
+static const char *ws_key_uuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+static volatile sig_atomic_t terminate = 0;
 
 void ws_terminate(int _) {
     terminate = 1;

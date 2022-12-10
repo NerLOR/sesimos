@@ -1,16 +1,20 @@
 
 CC=gcc
-CFLAGS=-std=gnu11 -Wall -Wno-unused-but-set-variable
-LIBS=-lssl -lcrypto -lmagic -lz -lmaxminddb -lbrotlienc
+CFLAGS=-std=gnu11 -Wno-unused-but-set-variable -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_SVID_SOURCE -D_POSIX_C_SOURCE=200809L
+LDFLAGS=-lssl -lcrypto -lmagic -lz -lmaxminddb -lbrotlienc
 
 DEBIAN_OPTS=-D CACHE_MAGIC_FILE="\"/usr/share/file/magic.mgc\"" -D PHP_FPM_SOCKET="\"/var/run/php/php7.4-fpm.sock\""
 
-.PHONY: all prod debug default permit clean test
+.PHONY: all prod debug default debian permit clean test
 all: prod
-default: bin bin/lib bin/libsesimos.so bin/sesimos
+default: bin bin/lib bin/sesimos
+
 prod: CFLAGS += -O3
 prod: default
+
+debug: CFLAGS += -Wall -pedantic
 debug: default
+
 debian: CFLAGS += $(DEBIAN_OPTS)
 debian: prod
 
@@ -34,15 +38,13 @@ bin/%.o: src/%.c
 	$(CC) -c -o $@ $(CFLAGS) $<
 
 bin/lib/%.o: src/lib/%.c
-	$(CC) -c -o $@ $(CFLAGS) -fPIC $<
+	$(CC) -c -o $@ $(CFLAGS) $<
 
-bin/libsesimos.so: bin/lib/cache.o bin/lib/compress.o bin/lib/config.o bin/lib/fastcgi.o bin/lib/geoip.o \
-				   bin/lib/http.o bin/lib/http_static.o bin/lib/rev_proxy.o bin/lib/sock.o bin/lib/uri.o \
-				   bin/lib/utils.o bin/lib/websocket.o
-	$(CC) -o $@ --shared -fPIC $(CFLAGS) $^ $(LIBS)
-
-bin/sesimos: bin/server.o bin/client.o
-	$(CC) -o $@ $^ $(CFLAGS) -Lbin -lsesimos -Wl,-rpath=$(shell pwd)/bin $(LIBS)
+bin/sesimos: bin/server.o bin/client.o \
+			 bin/lib/cache.o bin/lib/compress.o bin/lib/config.o bin/lib/fastcgi.o bin/lib/geoip.o \
+			 bin/lib/http.o bin/lib/http_static.o bin/lib/rev_proxy.o bin/lib/sock.o bin/lib/uri.o \
+		     bin/lib/utils.o bin/lib/websocket.o
+	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
 
 
 bin/server.o: src/server.h src/defs.h src/client.h src/lib/cache.h src/lib/config.h src/lib/sock.h \

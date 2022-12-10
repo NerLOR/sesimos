@@ -13,8 +13,6 @@
 
 #define WS_TIMEOUT 3600
 
-const char *ws_key_uuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-
 typedef struct {
     unsigned char f_fin:1;
     unsigned char f_rsv1:1;
