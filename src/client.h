@@ -11,8 +11,19 @@
 
 #include "lib/config.h"
 #include "lib/sock.h"
+#include "lib/geoip.h"
 
 #include <arpa/inet.h>
+
+typedef struct {
+    char *addr;
+    char *s_addr;
+    char cc[3];
+    char host[256];
+    char geoip[GEOIP_MAX_SIZE + 1];
+    char _c_addr[INET6_ADDRSTRLEN + 1];
+    char _s_addr[INET6_ADDRSTRLEN + 1];
+} client_ctx_t;
 
 host_config *get_host_config(const char *host);
 

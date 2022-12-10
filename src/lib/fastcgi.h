@@ -12,6 +12,7 @@
 #include "include/fastcgi.h"
 #include "http.h"
 #include "uri.h"
+#include "../client.h"
 
 #define FASTCGI_CHUNKED 1
 #define FASTCGI_COMPRESS_GZ 2
@@ -36,6 +37,7 @@ typedef struct {
     const char *webroot;
     unsigned short out_len;
     unsigned short out_off;
+    client_ctx_t *ctx;
 } fastcgi_conn;
 
 char *fastcgi_add_param(char *buf, const char *key, const char *value);

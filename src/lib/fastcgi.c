@@ -53,8 +53,7 @@ char *fastcgi_add_param(char *buf, const char *key, const char *value) {
     return ptr;
 }
 
-int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned int req_num, const sock *client,
-                 const http_req *req, const http_uri *uri) {
+int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned int req_num, const sock *client, const http_req *req, const http_uri *uri) {
     unsigned short req_id = (client_num & 0xFFF) << 4;
     if (client_num == 0) {
         req_id |= (req_num + 1) & 0xF;
@@ -133,8 +132,8 @@ int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned
     addr = (struct sockaddr_in6 *) &addr_storage;
     sprintf(buf0, "%i", addr->sin6_port);
     param_ptr = fastcgi_add_param(param_ptr, "REMOTE_PORT", buf0);
-    param_ptr = fastcgi_add_param(param_ptr, "REMOTE_ADDR", client_addr_str);
-    param_ptr = fastcgi_add_param(param_ptr, "REMOTE_HOST", client_host_str != NULL ? client_host_str : client_addr_str);
+    param_ptr = fastcgi_add_param(param_ptr, "REMOTE_ADDR", conn->ctx->addr);
+    param_ptr = fastcgi_add_param(param_ptr, "REMOTE_HOST", conn->ctx->host[0] != 0 ? conn->ctx->host : conn->ctx->addr);
     //param_ptr = fastcgi_add_param(param_ptr, "REMOTE_IDENT", "");
     //param_ptr = fastcgi_add_param(param_ptr, "REMOTE_USER", "");
 
@@ -157,8 +156,8 @@ int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned
     param_ptr = fastcgi_add_param(param_ptr, "CONTENT_LENGTH", content_length != NULL ? content_length : "");
     const char *content_type = http_get_header_field(&req->hdr, "Content-Type");
     param_ptr = fastcgi_add_param(param_ptr, "CONTENT_TYPE", content_type != NULL ? content_type : "");
-    if (client_geoip != NULL) {
-        param_ptr = fastcgi_add_param(param_ptr, "REMOTE_INFO", client_geoip);
+    if (conn->ctx->geoip[0] != 0) {
+        param_ptr = fastcgi_add_param(param_ptr, "REMOTE_INFO", conn->ctx->geoip);
     }
 
     for (int i = 0; i < req->hdr.field_num; i++) {

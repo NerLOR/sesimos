@@ -20,17 +20,17 @@
 
 #include "http.h"
 #include "config.h"
+#include "../client.h"
 
 extern sock rev_proxy;
 
 int rev_proxy_preload(void);
 
-int rev_proxy_request_header(http_req *req, int enc);
+int rev_proxy_request_header(http_req *req, int enc, client_ctx_t *ctx);
 
 int rev_proxy_response_header(http_req *req, http_res *res, host_config *conf);
 
-int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config *conf, sock *client,
-                   http_status *custom_status, char *err_msg);
+int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config *conf, sock *client, client_ctx_t *cctx, http_status *custom_status, char *err_msg);
 
 int rev_proxy_send(sock *client, unsigned long len_to_send, int flags);
 

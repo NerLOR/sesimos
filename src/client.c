@@ -34,8 +34,7 @@
 volatile sig_atomic_t server_keep_alive = 1;
 struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
 
-char *log_client_prefix, *log_conn_prefix, *log_req_prefix, *client_geoip;
-char *client_addr_str, *client_addr_str_ptr, *server_addr_str, *server_addr_str_ptr, *client_host_str;
+char *log_client_prefix, *log_conn_prefix, *log_req_prefix;
 
 host_config *get_host_config(const char *host) {
     for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
@@ -54,7 +53,7 @@ void client_terminate(int _) {
     server_keep_alive = 0;
 }
 
-int client_request_handler(sock *client, unsigned long client_num, unsigned int req_num) {
+int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long client_num, unsigned int req_num) {
     struct timespec begin, end;
     long ret;
     int client_keep_alive;
@@ -79,7 +78,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     int use_rev_proxy = 0;
     int p_len;
 
-    fastcgi_conn fcgi_conn = {.socket = 0, .req_id = 0};
+    fastcgi_conn fcgi_conn = {.socket = 0, .req_id = 0, .ctx = cctx};
     http_status custom_status;
 
     http_res res = {.version = "1.1", .status = http_get_status(501), .hdr.field_num = 0, .hdr.last_field_num = -1};
@@ -130,10 +129,10 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         sprintf(err_msg, "Host header field is too long.");
         goto respond;
     } else if (host_ptr == NULL || strchr(host_ptr, '/') != NULL) {
-        if (strchr(client_addr_str, ':') == NULL) {
-            strcpy(host, client_addr_str);
+        if (strchr(cctx->addr, ':') == NULL) {
+            strcpy(host, cctx->addr);
         } else {
-            sprintf(host, "[%s]", client_addr_str);
+            sprintf(host, "[%s]", cctx->addr);
         }
         res.status = http_get_status(400);
         sprintf(err_msg, "The client provided no or an invalid Host header field.");
@@ -480,7 +479,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         http_remove_header_field(&res.hdr, "Date", HTTP_REMOVE_ALL);
         http_remove_header_field(&res.hdr, "Server", HTTP_REMOVE_ALL);
 
-        ret = rev_proxy_init(&req, &res, &ctx, conf, client, &custom_status, err_msg);
+        ret = rev_proxy_init(&req, &res, &ctx, conf, client, cctx, &custom_status, err_msg);
         use_rev_proxy = (ret == 0);
 
         if (res.status->code == 101) {
@@ -722,7 +721,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     return !client_keep_alive;
 }
 
-int client_connection_handler(sock *client, unsigned long client_num) {
+int client_connection_handler(client_ctx_t *ctx, sock *client, unsigned long client_num) {
     struct timespec begin, end;
     int ret, req_num;
     char buf[1024];
@@ -730,7 +729,7 @@ int client_connection_handler(sock *client, unsigned long client_num) {
     clock_gettime(CLOCK_MONOTONIC, &begin);
 
     if (dns_server[0] != 0) {
-        sprintf(buf, "dig @%s +short +time=1 -x %s", dns_server, client_addr_str);
+        sprintf(buf, "dig @%s +short +time=1 -x %s", dns_server, ctx->addr);
         FILE *dig = popen(buf, "r");
         if (dig == NULL) {
             error("Unable to start dig: %s", strerror(errno));
@@ -747,18 +746,16 @@ int client_connection_handler(sock *client, unsigned long client_num) {
             goto dig_err;
         }
         ptr[-1] = 0;
-        client_host_str = malloc(strlen(buf) + 1);
-        strcpy(client_host_str, buf);
+        strncpy(ctx->host, buf, sizeof(ctx->host));
     } else {
         dig_err:
-        client_host_str = NULL;
+        ctx->host[0] = 0;
     }
 
-    client_geoip = malloc(GEOIP_MAX_SIZE);
     long str_off = 0;
     for (int i = 0; i < MAX_MMDB && mmdbs[i].filename != NULL; i++) {
         int gai_error, mmdb_res;
-        MMDB_lookup_result_s result = MMDB_lookup_string(&mmdbs[i], client_addr_str, &gai_error, &mmdb_res);
+        MMDB_lookup_result_s result = MMDB_lookup_string(&mmdbs[i], ctx->addr, &gai_error, &mmdb_res);
         if (mmdb_res != MMDB_SUCCESS) {
             error("Unable to lookup geoip info: %s", MMDB_strerror(mmdb_res));
             continue;
@@ -780,32 +777,30 @@ int client_connection_handler(sock *client, unsigned long client_num) {
         if (str_off != 0) {
             str_off--;
         }
-        mmdb_json(list, client_geoip, &str_off, GEOIP_MAX_SIZE);
+        mmdb_json(list, ctx->geoip, &str_off, GEOIP_MAX_SIZE);
         if (prev != 0) {
-            client_geoip[prev - 1] = ',';
+            ctx->geoip[prev - 1] = ',';
         }
 
         MMDB_free_entry_data_list(list);
     }
 
-    char client_cc[3];
-    client_cc[0] = 0;
+    ctx->cc[0] = 0;
     if (str_off == 0) {
-        free(client_geoip);
-        client_geoip = NULL;
+        ctx->geoip[0] = 0;
     } else {
-        char *pos = client_geoip;
+        const char *pos = ctx->geoip;
         pos = strstr(pos, "\"country\":");
         if (pos != NULL) {
             pos = strstr(pos, "\"iso_code\":");
             pos += 12;
-            snprintf(client_cc, sizeof(client_cc), "%s", pos);
+            snprintf(ctx->cc, sizeof(ctx->cc), "%s", pos);
         }
     }
 
-    info("Connection accepted from %s %s%s%s[%s]", client_addr_str, client_host_str != NULL ? "(" : "",
-         client_host_str != NULL ? client_host_str : "", client_host_str != NULL ? ") " : "",
-         client_cc[0] != 0 ? client_cc : "N/A");
+    info("Connection accepted from %s %s%s%s[%s]", ctx->addr, ctx->host[0] != 0 ? "(" : "",
+         ctx->host[0] != 0 ? ctx->host : "", ctx->host[0] != 0 ? ") " : "",
+         ctx->cc[0] != 0 ? ctx->cc : "N/A");
 
     client_timeout.tv_sec = CLIENT_TIMEOUT;
     client_timeout.tv_usec = 0;
@@ -836,7 +831,7 @@ int client_connection_handler(sock *client, unsigned long client_num) {
     req_num = 0;
     ret = 0;
     while (ret == 0 && server_keep_alive && req_num < REQ_PER_CONNECTION) {
-        ret = client_request_handler(client, client_num, req_num++);
+        ret = client_request_handler(ctx, client, client_num, req_num++);
         logger_set_prefix(log_conn_prefix);
     }
 
@@ -860,52 +855,44 @@ int client_handler(sock *client, unsigned long client_num, struct sockaddr_in6 *
     struct sockaddr_in6 *server_addr;
     struct sockaddr_storage server_addr_storage;
 
+    client_ctx_t ctx;
+
     char *color_table[] = {"\x1B[31m", "\x1B[32m", "\x1B[33m", "\x1B[34m", "\x1B[35m", "\x1B[36m"};
 
     signal(SIGINT, client_terminate);
     signal(SIGTERM, client_terminate);
 
-    client_addr_str_ptr = malloc(INET6_ADDRSTRLEN);
-    inet_ntop(client_addr->sin6_family, (void *) &client_addr->sin6_addr, client_addr_str_ptr, INET6_ADDRSTRLEN);
-    if (strncmp(client_addr_str_ptr, "::ffff:", 7) == 0) {
-        client_addr_str = client_addr_str_ptr + 7;
+    inet_ntop(client_addr->sin6_family, (void *) &client_addr->sin6_addr, ctx._c_addr, sizeof(ctx._c_addr));
+    if (strncmp(ctx._c_addr, "::ffff:", 7) == 0) {
+        ctx.addr = ctx._c_addr + 7;
     } else {
-        client_addr_str = client_addr_str_ptr;
+        ctx.addr = ctx._c_addr;
     }
 
     socklen_t len = sizeof(server_addr_storage);
     getsockname(client->socket, (struct sockaddr *) &server_addr_storage, &len);
     server_addr = (struct sockaddr_in6 *) &server_addr_storage;
-    server_addr_str_ptr = malloc(INET6_ADDRSTRLEN);
-    inet_ntop(server_addr->sin6_family, (void *) &server_addr->sin6_addr, server_addr_str_ptr, INET6_ADDRSTRLEN);
-    if (strncmp(server_addr_str_ptr, "::ffff:", 7) == 0) {
-        server_addr_str = server_addr_str_ptr + 7;
+    inet_ntop(server_addr->sin6_family, (void *) &server_addr->sin6_addr, ctx._s_addr, sizeof(ctx._s_addr));
+    if (strncmp(ctx._s_addr, "::ffff:", 7) == 0) {
+        ctx.s_addr = ctx._s_addr + 7;
     } else {
-        server_addr_str = server_addr_str_ptr;
+        ctx.s_addr = ctx._s_addr;
     }
 
     log_req_prefix = malloc(256);
     log_client_prefix = malloc(256);
     sprintf(log_client_prefix, "[%s%4i%s]%s[%*s][%5i]%s", (int) client->enc ? HTTPS_STR : HTTP_STR,
-            ntohs(server_addr->sin6_port), CLR_STR, color_table[client_num % 6], INET6_ADDRSTRLEN, client_addr_str,
+            ntohs(server_addr->sin6_port), CLR_STR, color_table[client_num % 6], INET6_ADDRSTRLEN, ctx.addr,
             ntohs(client_addr->sin6_port), CLR_STR);
 
     log_conn_prefix = malloc(256);
-    sprintf(log_conn_prefix, "[%6i][%*s]%s", getpid(), INET6_ADDRSTRLEN, server_addr_str, log_client_prefix);
+    sprintf(log_conn_prefix, "[%6i][%*s]%s", getpid(), INET6_ADDRSTRLEN, ctx.s_addr, log_client_prefix);
     logger_set_prefix(log_conn_prefix);
 
     info("Started child process with PID %i", getpid());
 
-    ret = client_connection_handler(client, client_num);
+    ret = client_connection_handler(&ctx, client, client_num);
 
-    free(client_addr_str_ptr);
-    client_addr_str_ptr = NULL;
-    free(server_addr_str_ptr);
-    server_addr_str_ptr = NULL;
-    if (client_host_str != NULL) {
-        free(client_host_str);
-        client_host_str = NULL;
-    }
     free(log_conn_prefix);
     log_conn_prefix = NULL;
     free(log_req_prefix);

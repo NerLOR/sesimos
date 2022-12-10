@@ -30,7 +30,7 @@ int rev_proxy_preload(void) {
     return 0;
 }
 
-int rev_proxy_request_header(http_req *req, int enc) {
+int rev_proxy_request_header(http_req *req, int enc, client_ctx_t *ctx) {
     char buf1[256], buf2[256];
     int p_len;
 
@@ -50,12 +50,12 @@ int rev_proxy_request_header(http_req *req, int enc) {
 
     const char *host = http_get_header_field(&req->hdr, "Host");
     const char *forwarded = http_get_header_field(&req->hdr, "Forwarded");
-    int client_ipv6 = strchr(client_addr_str, ':') != NULL;
-    int server_ipv6 = strchr(server_addr_str, ':') != NULL;
+    int client_ipv6 = strchr(ctx->addr, ':') != NULL;
+    int server_ipv6 = strchr(ctx->s_addr, ':') != NULL;
 
     p_len = snprintf(buf1, sizeof(buf1), "by=%s%s%s;for=%s%s%s;host=%s;proto=%s",
-                     server_ipv6 ? "\"[" : "", server_addr_str, server_ipv6 ? "]\"" : "",
-                     client_ipv6 ? "\"[" : "", client_addr_str, client_ipv6 ? "]\"" : "",
+                     server_ipv6 ? "\"[" : "", ctx->s_addr, server_ipv6 ? "]\"" : "",
+                     client_ipv6 ? "\"[" : "", ctx->addr, client_ipv6 ? "]\"" : "",
                      host, enc ? "https" : "http");
     if (p_len < 0 || p_len >= sizeof(buf1)) {
         error("Appended part of header field 'Forwarded' too long");
@@ -76,9 +76,9 @@ int rev_proxy_request_header(http_req *req, int enc) {
 
     const char *xff = http_get_header_field(&req->hdr, "X-Forwarded-For");
     if (xff == NULL) {
-        http_add_header_field(&req->hdr, "X-Forwarded-For", client_addr_str);
+        http_add_header_field(&req->hdr, "X-Forwarded-For", ctx->addr);
     } else {
-        sprintf(buf1, "%s, %s", xff, client_addr_str);
+        sprintf(buf1, "%s, %s", xff, ctx->addr);
         http_remove_header_field(&req->hdr, "X-Forwarded-For", HTTP_REMOVE_ALL);
         http_add_header_field(&req->hdr, "X-Forwarded-For", buf1);
     }
@@ -180,7 +180,7 @@ int rev_proxy_response_header(http_req *req, http_res *res, host_config *conf) {
     return 0;
 }
 
-int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config *conf, sock *client, http_status *custom_status, char *err_msg) {
+int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config *conf, sock *client, client_ctx_t *cctx, http_status *custom_status, char *err_msg) {
     char buffer[CHUNK_SIZE];
     const char *connection, *upgrade, *ws_version;
     long ret;
@@ -304,7 +304,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
         http_add_header_field(&req->hdr, "Connection", "keep-alive");
     }
 
-    ret = rev_proxy_request_header(req, (int) client->enc);
+    ret = rev_proxy_request_header(req, (int) client->enc, cctx);
     if (ret != 0) {
         res->status = http_get_status(500);
         ctx->origin = INTERNAL;
