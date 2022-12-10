@@ -22,7 +22,6 @@
 #define SERVER_TIMEOUT_INIT 4
 #define SERVER_TIMEOUT 3600
 
-
 extern int sockets[NUM_SOCKETS];
 extern pid_t children[MAX_CHILDREN];
 extern MMDB_s mmdbs[MAX_MMDB];

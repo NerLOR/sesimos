@@ -511,7 +511,7 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
             ptr = buffer;
             out:
             avail_in = len;
-            void *next_in = ptr;
+            char *next_in = ptr;
             do {
                 long buf_len = len;
                 if (flags & REV_PROXY_COMPRESS) {

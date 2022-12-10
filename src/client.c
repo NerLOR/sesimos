@@ -574,7 +574,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 if (res.status->code >= 300 && res.status->code < 400) {
                     const char *location = http_get_header_field(&res.hdr, "Location");
                     if (location != NULL) {
-                        snprintf(msg_content, sizeof(msg_content), "<ul>\n\t<li><a href=\"%1$s\">%1$s</a></li>\n</ul>\n", location);
+                        snprintf(msg_content, sizeof(msg_content), "<ul>\n\t<li><a href=\"%s\">%s</a></li>\n</ul>\n", location, location);
                     }
                 }
             } else if (strncmp(msg_content, "<!DOCTYPE html>", 15) == 0 || strncmp(msg_content, "<html", 5) == 0) {

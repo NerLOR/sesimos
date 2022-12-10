@@ -42,13 +42,6 @@ pid_t children[MAX_CHILDREN];
 MMDB_s mmdbs[MAX_MMDB];
 SSL_CTX *contexts[CONFIG_MAX_CERT_CONFIG];
 
-void openssl_init(void) {
-    SSL_library_init();
-    SSL_load_error_strings();
-    ERR_load_BIO_strings();
-    OpenSSL_add_all_algorithms();
-}
-
 static int ssl_servername_cb(SSL *ssl, int *ad, void *arg) {
     const char *servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
     if (servername != NULL) {
@@ -88,6 +81,7 @@ void destroy(int _) {
 }
 
 void terminate(int _) {
+    fprintf(stderr, "\n");
     notice("Terminating gracefully...");
     active = 0;
 
@@ -289,8 +283,6 @@ int main(int argc, const char *argv[]) {
         return 0;
     }
 
-    openssl_init();
-
     for (int i = 0; i < CONFIG_MAX_CERT_CONFIG; i++) {
         const cert_config *conf = &config->certs[i];
         if (conf->name[0] == 0) break;
@@ -339,7 +331,7 @@ int main(int argc, const char *argv[]) {
     }
 
     errno = 0;
-    info("Ready to accept connections");
+    notice("Ready to accept connections");
 
     while (active) {
         ready_sockets_num = poll(poll_fds, NUM_SOCKETS, 1000);

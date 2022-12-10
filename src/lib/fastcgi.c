@@ -494,13 +494,12 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
             unsigned long avail_in, avail_out;
             out:
             avail_in = content_len;
-            void *next_in = ptr;
+            char *next_in = ptr;
             do {
                 int buf_len = content_len;
                 if (flags & FASTCGI_COMPRESS) {
                     avail_out = sizeof(comp_out);
-                    compress_compress(&comp_ctx, next_in + content_len - avail_in, &avail_in, comp_out, &avail_out,
-                                      finish_comp);
+                    compress_compress(&comp_ctx, next_in + content_len - avail_in, &avail_in, comp_out, &avail_out, finish_comp);
                     ptr = comp_out;
                     buf_len = (int) (sizeof(comp_out) - avail_out);
                 }

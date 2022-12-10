@@ -176,7 +176,7 @@ int http_receive_request(sock *client, http_req *req) {
             }
 
             if (req->version[0] == 0) {
-                pos1 = memchr(ptr, ' ', rcv_len - (ptr - buf)) + 1;
+                pos1 = (char *) memchr(ptr, ' ', rcv_len - (ptr - buf)) + 1;
                 if (pos1 == NULL) goto err_hdr_fmt;
 
                 if (pos1 - ptr - 1 >= sizeof(req->method)) {
@@ -192,7 +192,7 @@ int http_receive_request(sock *client, http_req *req) {
                 }
                 snprintf(req->method, sizeof(req->method), "%.*s", (int) (pos1 - ptr - 1), ptr);
 
-                pos2 = memchr(pos1, ' ', rcv_len - (pos1 - buf)) + 1;
+                pos2 = (char *) memchr(pos1, ' ', rcv_len - (pos1 - buf)) + 1;
                 if (pos2 == NULL) {
                     err_hdr_fmt:
                     error("Unable to parse http header: Invalid header format");
