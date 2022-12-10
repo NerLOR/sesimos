@@ -27,7 +27,6 @@ extern pid_t children[MAX_CHILDREN];
 extern MMDB_s mmdbs[MAX_MMDB];
 
 extern volatile sig_atomic_t server_keep_alive;
-extern char *log_client_prefix, *log_conn_prefix, *log_req_prefix;
 extern struct timeval client_timeout;
 
 #endif //SESIMOS_SERVER_H

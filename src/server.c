@@ -114,7 +114,7 @@ void terminate(int sig) {
     }
 
     if (wait_num > 0) {
-        info("Waiting for %i child process(es)...", wait_num);
+        notice("Waiting for %i child process(es)...", wait_num);
     }
 
     for (int i = 0; i < MAX_CHILDREN; i++) {

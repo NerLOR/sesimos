@@ -34,8 +34,6 @@
 volatile sig_atomic_t server_keep_alive = 1;
 struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
 
-char *log_client_prefix, *log_conn_prefix, *log_req_prefix;
-
 host_config *get_host_config(const char *host) {
     for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
         host_config *hc = &config->hosts[i];
@@ -53,7 +51,7 @@ void client_terminate(int _) {
     server_keep_alive = 0;
 }
 
-int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long client_num, unsigned int req_num) {
+int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long client_num, unsigned int req_num, const char *restrict log_client_prefix) {
     struct timespec begin, end;
     long ret;
     int client_keep_alive;
@@ -64,6 +62,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
     char buffer[CHUNK_SIZE];
     char host[256];
     const char *host_ptr, *hdr_connection;
+    char log_req_prefix[512];
 
     msg_buf[0] = 0;
     err_msg[0] = 0;
@@ -721,7 +720,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
     return !client_keep_alive;
 }
 
-int client_connection_handler(client_ctx_t *ctx, sock *client, unsigned long client_num) {
+int client_connection_handler(client_ctx_t *ctx, sock *client, unsigned long client_num, const char *restrict log_conn_prefix, const char *restrict log_client_prefix) {
     struct timespec begin, end;
     int ret, req_num;
     char buf[1024];
@@ -831,7 +830,7 @@ int client_connection_handler(client_ctx_t *ctx, sock *client, unsigned long cli
     req_num = 0;
     ret = 0;
     while (ret == 0 && server_keep_alive && req_num < REQ_PER_CONNECTION) {
-        ret = client_request_handler(ctx, client, client_num, req_num++);
+        ret = client_request_handler(ctx, client, client_num, req_num++, log_client_prefix);
         logger_set_prefix(log_conn_prefix);
     }
 
@@ -851,11 +850,11 @@ int client_connection_handler(client_ctx_t *ctx, sock *client, unsigned long cli
 }
 
 int client_handler(sock *client, unsigned long client_num, struct sockaddr_in6 *client_addr) {
-    int ret;
     struct sockaddr_in6 *server_addr;
     struct sockaddr_storage server_addr_storage;
 
     client_ctx_t ctx;
+    char log_client_prefix[256], log_conn_prefix[512];
 
     char *color_table[] = {"\x1B[31m", "\x1B[32m", "\x1B[33m", "\x1B[34m", "\x1B[35m", "\x1B[36m"};
 
@@ -879,26 +878,14 @@ int client_handler(sock *client, unsigned long client_num, struct sockaddr_in6 *
         ctx.s_addr = ctx._s_addr;
     }
 
-    log_req_prefix = malloc(256);
-    log_client_prefix = malloc(256);
     sprintf(log_client_prefix, "[%s%4i%s]%s[%*s][%5i]%s", (int) client->enc ? HTTPS_STR : HTTP_STR,
             ntohs(server_addr->sin6_port), CLR_STR, color_table[client_num % 6], INET6_ADDRSTRLEN, ctx.addr,
             ntohs(client_addr->sin6_port), CLR_STR);
 
-    log_conn_prefix = malloc(256);
     sprintf(log_conn_prefix, "[%6i][%*s]%s", getpid(), INET6_ADDRSTRLEN, ctx.s_addr, log_client_prefix);
     logger_set_prefix(log_conn_prefix);
 
     info("Started child process with PID %i", getpid());
 
-    ret = client_connection_handler(&ctx, client, client_num);
-
-    free(log_conn_prefix);
-    log_conn_prefix = NULL;
-    free(log_req_prefix);
-    log_req_prefix = NULL;
-    free(log_client_prefix);
-    log_client_prefix = NULL;
-
-    return ret;
+    return client_connection_handler(&ctx, client, client_num, log_conn_prefix, log_client_prefix);
 }
