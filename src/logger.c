@@ -54,6 +54,12 @@ static const char *level_keywords[] = {
         "DEBUG"
 };
 
+static void err(const char *restrict msg) {
+    char err_buf[64];
+    strerror_r(errno, err_buf, sizeof(err_buf));
+    fprintf(stderr, ERR_STR "[%6s][logger] %s: %s" CLR_STR "\n", level_keywords[LOG_CRITICAL], msg, err_buf);
+}
+
 void logmsgf(log_lvl_t level, const char *restrict format, ...) {
     char buf[256];
     char err_buf[64];
@@ -75,11 +81,10 @@ void logmsgf(log_lvl_t level, const char *restrict format, ...) {
 
     if (!logger_alive) {
         // no logger thread running
-        // simply write to stdout/stderr without synchronization
-        FILE *out = (level <= LOG_CRITICAL) ? stderr : stdout;
-        fprintf(out, "%s[%-6s][%-6s]%s%s ", color, level_keywords[level], (name != NULL) ? (char *) name : "", CLR_STR, (prefix != NULL) ? (char *) prefix : "");
-        vfprintf(out, buf, args);
-        fprintf(out, "\n");
+        // simply write to stdout without synchronization
+        printf("%s[%-6s][%-6s]%s%s ", color, level_keywords[level], (name != NULL) ? (char *) name : "", CLR_STR, (prefix != NULL) ? (char *) prefix : "");
+        vprintf(buf, args);
+        printf("\n");
     } else {
         // wait for free slot in buffer
         try_again_free:
@@ -87,8 +92,7 @@ void logmsgf(log_lvl_t level, const char *restrict format, ...) {
             if (errno == EINTR) {
                 goto try_again_free;
             } else {
-                strerror_r(errno, err_buf, sizeof(err_buf));
-                fprintf(stderr, "[logger] " ERR_STR "Unable to lock semaphore: %s" CLR_STR "\n", err_buf);
+                err("Unable to lock semaphore");
             }
             // cleanup
             va_end(args);
@@ -101,8 +105,7 @@ void logmsgf(log_lvl_t level, const char *restrict format, ...) {
             if (errno == EINTR) {
                 goto try_again_buf;
             } else {
-                strerror_r(errno, err_buf, sizeof(err_buf));
-                fprintf(stderr, "[logger] " ERR_STR "Unable to lock semaphore: %s" CLR_STR "\n", err_buf);
+                err("Unable to lock semaphore");
             }
             // cleanup
             sem_post(&sem_buf_free);
@@ -147,13 +150,11 @@ static void logger_destroy(void) {
 }
 
 static int logger_init(void) {
-    char err_buf[64];
     int ret;
 
     // try to initialize all three semaphores
     if (sem_init(&sem_buf, 0, 1) != 0 || sem_init(&sem_buf_free, 0, 1) != 0 || sem_init(&sem_buf_used, 0, 0) != 0) {
-        strerror_r(errno, err_buf, sizeof(err_buf));
-        fprintf(stderr, "[logger] " ERR_STR "Unable to initialize semaphore: %s" CLR_STR "\n", err_buf);
+        err("Unable to initialize semaphore");
         logger_destroy();
         return -1;
     }
@@ -164,8 +165,8 @@ static int logger_init(void) {
 
     // initialize thread specific values (keys)
     if ((ret = pthread_key_create(&key_name, free)) != 0 || (ret = pthread_key_create(&key_prefix, free)) != 0) {
-        strerror_r(ret, err_buf, sizeof(err_buf));
-        fprintf(stderr, "[logger] " ERR_STR "Unable to initialize thread specific values: %s" CLR_STR "\n", err_buf);
+        errno = ret;
+        err("Unable to initialize thread specific values");
         logger_destroy();
         return -1;
     }
@@ -184,14 +185,13 @@ void logger_set_name(const char *restrict name) {
         // not initialized
         strncpy(global_name, name, sizeof(global_name));
     } else {
-        char err_buf[64];
         int ret;
         void *ptr = pthread_getspecific(key_name);
         if (!ptr) {
             ptr = malloc(LOG_NAME_LEN);
             if ((ret = pthread_setspecific(key_name, ptr)) != 0) {
-                strerror_r(ret, err_buf, sizeof(err_buf));
-                fprintf(stderr, "[logger] " ERR_STR "Unable to set thread specific values: %s" CLR_STR "\n", err_buf);
+                errno = ret;
+                err("Unable to set thread specific values");
                 return;
             }
         }
@@ -203,15 +203,14 @@ void logger_set_prefix(const char *restrict prefix) {
     if (key_name == -1) {
         strncpy(global_prefix, prefix, sizeof(global_prefix));
     } else {
-        char err_buf[64];
         int ret;
         void *ptr = pthread_getspecific(key_name);
         if (!ptr) {
             ptr = malloc(LOG_PREFIX_LEN);
             pthread_setspecific(key_prefix, ptr);
             if ((ret = pthread_setspecific(key_prefix, ptr)) != 0) {
-                strerror_r(ret, err_buf, sizeof(err_buf));
-                fprintf(stderr, "[logger] " ERR_STR "Unable to set thread specific values: %s" CLR_STR "\n", err_buf);
+                errno = ret;
+                err("Unable to set thread specific values");
                 return;
             }
         }
@@ -224,8 +223,6 @@ void logger_stop(void) {
 }
 
 void logger(void) {
-    char err_buf[64];
-
     if (logger_init() != 0)
         return;
 
@@ -238,8 +235,7 @@ void logger(void) {
             if (errno == EINTR) {
                 continue;
             } else {
-                strerror_r(errno, err_buf, sizeof(err_buf));
-                fprintf(stderr, "[logger] " ERR_STR "Unable to lock semaphore: %s" CLR_STR "\n", err_buf);
+                err("Unable to lock semaphore");
                 break;
             }
         }
@@ -247,7 +243,7 @@ void logger(void) {
         log_msg_t *msg = &buffer.msgs[buffer.wr];
         buffer.wr = (buffer.wr + 1) % LOG_BUF_SIZE;
 
-        fprintf((msg->lvl <= LOG_CRITICAL) ? stderr : stdout, "[%s]%s %s\n", msg->name, (msg->prefix[0] != 0) ? msg->prefix : "", msg->txt);
+        printf("[%s]%s %s\n", msg->name, (msg->prefix[0] != 0) ? msg->prefix : "", msg->txt);
 
         // unlock slot in buffer
         sem_post(&sem_buf_free);

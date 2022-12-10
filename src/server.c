@@ -51,8 +51,8 @@ static int ssl_servername_cb(SSL *ssl, int *ad, void *arg) {
     return SSL_TLSEXT_ERR_OK;
 }
 
-void destroy(int _) {
-    error("Terminating forcefully!");
+void destroy(int sig) {
+    critical("Terminating forcefully!");
     int status = 0;
     int ret;
     int kills = 0;
@@ -60,11 +60,11 @@ void destroy(int _) {
         if (children[i] != 0) {
             ret = waitpid(children[i], &status, WNOHANG);
             if (ret < 0) {
-                critical("Unable to wait for child process (PID %i)", children[i]);
+                error("Unable to wait for child process (PID %i)", children[i]);
             } else if (ret == children[i]) {
                 children[i] = 0;
                 if (status != 0) {
-                    critical("Child process with PID %i terminated with exit code %i", ret, status);
+                    error("Child process with PID %i terminated with exit code %i", ret, status);
                 }
             } else {
                 kill(children[i], SIGKILL);
@@ -80,7 +80,7 @@ void destroy(int _) {
     exit(2);
 }
 
-void terminate(int _) {
+void terminate(int sig) {
     fprintf(stderr, "\n");
     notice("Terminating gracefully...");
     active = 0;
@@ -169,8 +169,8 @@ int main(int argc, const char *argv[]) {
 
     logger_set_name("server");
 
-    if (setvbuf(stdout, NULL, _IOLBF, 0) != 0) {
-        critical("Unable to set stdout to line-buffered mode");
+    if (setvbuf(stdout, NULL, _IOLBF, 0) != 0 || setvbuf(stderr, NULL, _IOLBF, 0) != 0) {
+        critical("Unable to set stdout/stderr to line-buffered mode");
         return 1;
     }
     printf("Sesimos web server " SERVER_VERSION "\n");
