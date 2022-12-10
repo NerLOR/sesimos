@@ -188,7 +188,6 @@ long sock_get_chunk_header(sock *s) {
     char buf[16];
 
     do {
-        print("debug1");  // TODO remove
         ret = sock_recv(s, buf, sizeof(buf), MSG_PEEK);
         if (ret <= 0) return -2;
         else if (ret < 2) continue;

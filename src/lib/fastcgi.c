@@ -10,6 +10,7 @@
 #include "utils.h"
 #include "compress.h"
 #include "../server.h"
+#include "../logger.h"
 
 #include <sys/un.h>
 #include <sys/socket.h>
@@ -68,7 +69,7 @@ int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned
 
     int fcgi_sock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fcgi_sock < 0) {
-        print(ERR_STR "Unable to create unix socket: %s" CLR_STR, strerror(errno));
+        error("Unable to create unix socket");
         return -1;
     }
     conn->socket = fcgi_sock;
@@ -81,7 +82,7 @@ int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned
     }
 
     if (connect(conn->socket, (struct sockaddr *) &sock_addr, sizeof(sock_addr)) < 0) {
-        print(ERR_STR "Unable to connect to unix socket of FastCGI socket: %s" CLR_STR, strerror(errno));
+        error("Unable to connect to unix socket of FastCGI socket");
         return -1;
     }
 
@@ -101,7 +102,7 @@ int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned
             {.roleB1 = (FCGI_RESPONDER >> 8) & 0xFF, .roleB0 = FCGI_RESPONDER & 0xFF, .flags = 0}
     };
     if (send(conn->socket, &begin, sizeof(begin), 0) != sizeof(begin)) {
-        print(ERR_STR "Unable to send to FastCGI socket: %s" CLR_STR, strerror(errno));
+        error("Unable to send to FastCGI socket");
         return -2;
     }
 
@@ -186,7 +187,7 @@ int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned
     header.contentLengthB0 = param_len & 0xFF;
     memcpy(param_buf, &header, sizeof(header));
     if (send(conn->socket, param_buf, param_len + sizeof(header), 0) != param_len + sizeof(header)) {
-        print(ERR_STR "Unable to send to FastCGI socket: %s" CLR_STR, strerror(errno));
+        error("Unable to send to FastCGI socket");
         return -2;
     }
 
@@ -194,7 +195,7 @@ int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned
     header.contentLengthB1 = 0;
     header.contentLengthB0 = 0;
     if (send(conn->socket, &header, sizeof(header), 0) != sizeof(header)) {
-        print(ERR_STR "Unable to send to FastCGI socket: %s" CLR_STR, strerror(errno));
+        error("Unable to send to FastCGI socket");
         return -2;
     }
 
@@ -214,7 +215,7 @@ int fastcgi_close_stdin(fastcgi_conn *conn) {
     };
 
     if (send(conn->socket, &header, sizeof(header), 0) != sizeof(header)) {
-        print(ERR_STR "Unable to send to FastCGI socket: %s" CLR_STR, strerror(errno));
+        error("Unable to send to FastCGI socket");
         return -2;
     }
 
@@ -231,7 +232,7 @@ int fastcgi_php_error(const fastcgi_conn *conn, const char *msg, int msg_len, ch
     int err = 0;
     // FIXME *msg is part of a stream, handle fragmented lines
     while (1) {
-        int msg_type = 0;
+        log_lvl_t msg_type = LOG_INFO;
         int msg_pre_len = 0;
         ptr1 = strstr(ptr0, "PHP message: ");
         if (ptr1 == NULL) {
@@ -245,16 +246,16 @@ int fastcgi_php_error(const fastcgi_conn *conn, const char *msg, int msg_len, ch
         }
 
         if (len >= 14 && strncmp(ptr0, "PHP Warning:  ", 14) == 0) {
-            msg_type = 1;
+            msg_type = LOG_WARNING;
             msg_pre_len = 14;
         } else if (len >= 18 && strncmp(ptr0, "PHP Fatal error:  ", 18) == 0) {
-            msg_type = 2;
+            msg_type = LOG_ERROR;
             msg_pre_len = 18;
         } else if (len >= 18 && strncmp(ptr0, "PHP Parse error:  ", 18) == 0) {
-            msg_type = 2;
+            msg_type = LOG_ERROR;
             msg_pre_len = 18;
         } else if (len >= 18 && strncmp(ptr0, "PHP Notice:  ", 13) == 0) {
-            msg_type = 1;
+            msg_type = LOG_NOTICE;
             msg_pre_len = 13;
         }
 
@@ -267,7 +268,7 @@ int fastcgi_php_error(const fastcgi_conn *conn, const char *msg, int msg_len, ch
             if (ptr3 != NULL && (ptr3 - ptr2) < len2) {
                 len2 = (int) (ptr3 - ptr2);
             }
-            print("%s%.*s%s", msg_type == 1 ? WRN_STR : msg_type == 2 ? ERR_STR : "", len2, ptr2, CLR_STR);
+            logmsgf(msg_type, "%.*s", len2, ptr2);
             if (msg_type == 2 && ptr2 == ptr0) {
                 strcpy_rem_webroot(err_msg, ptr2, len2, conn->webroot);
                 err = 1;
@@ -300,12 +301,12 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
         if (ret < 0) {
             res->status = http_get_status(500);
             sprintf(err_msg, "Unable to communicate with FastCGI socket.");
-            print(ERR_STR "Unable to receive from FastCGI socket: %s" CLR_STR, strerror(errno));
+            error("Unable to receive from FastCGI socket");
             return 1;
         } else if (ret != sizeof(header)) {
             res->status = http_get_status(500);
             sprintf(err_msg, "Unable to communicate with FastCGI socket.");
-            print(ERR_STR "Unable to receive from FastCGI socket" CLR_STR);
+            error("Unable to receive from FastCGI socket");
             return 1;
         }
         req_id = (header.requestIdB1 << 8) | header.requestIdB0;
@@ -315,13 +316,13 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
         if (ret < 0) {
             res->status = http_get_status(500);
             sprintf(err_msg, "Unable to communicate with FastCGI socket.");
-            print(ERR_STR "Unable to receive from FastCGI socket: %s" CLR_STR, strerror(errno));
+            error("Unable to receive from FastCGI socket");
             free(content);
             return 1;
         } else if (ret != (content_len + header.paddingLength)) {
             res->status = http_get_status(500);
             sprintf(err_msg, "Unable to communicate with FastCGI socket.");
-            print(ERR_STR "Unable to receive from FastCGI socket" CLR_STR);
+            error("Unable to receive from FastCGI socket");
             free(content);
             return 1;
         }
@@ -335,10 +336,10 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
             int app_status = (body->appStatusB3 << 24) | (body->appStatusB2 << 16) | (body->appStatusB1 << 8) |
                              body->appStatusB0;
             if (body->protocolStatus != FCGI_REQUEST_COMPLETE) {
-                print(ERR_STR "FastCGI protocol error: %i" CLR_STR, body->protocolStatus);
+                error("FastCGI protocol error: %i", body->protocolStatus);
             }
             if (app_status != 0) {
-                print(ERR_STR "FastCGI app terminated with exit code %i" CLR_STR, app_status);
+                error("FastCGI app terminated with exit code %i", app_status);
             }
             close(conn->socket);
             conn->socket = 0;
@@ -352,7 +353,7 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
         } else if (header.type == FCGI_STDOUT) {
             break;
         } else {
-            print(ERR_STR "Unknown FastCGI type: %i" CLR_STR, header.type);
+            error("Unknown FastCGI type: %i", header.type);
         }
 
         free(content);
@@ -369,13 +370,13 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
     char *buf = content;
     unsigned short header_len = conn->out_off;
     if (header_len <= 0) {
-        print(ERR_STR "Unable to parse header: End of header not found" CLR_STR);
+        error("Unable to parse header: End of header not found");
         return 1;
     }
 
     for (int i = 0; i < header_len; i++) {
         if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {
-            print(ERR_STR "Unable to parse header: Header contains illegal characters" CLR_STR);
+            error("Unable to parse header: Header contains illegal characters");
             return 2;
         }
     }
@@ -384,7 +385,7 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
     while (header_len != (ptr - buf)) {
         char *pos0 = strstr(ptr, "\r\n");
         if (pos0 == NULL) {
-            print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);
+            error("Unable to parse header: Invalid header format");
             return 1;
         }
 
@@ -413,13 +414,13 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
     if (flags & FASTCGI_COMPRESS_BR) {
         flags &= ~FASTCGI_COMPRESS_GZ;
         if (compress_init(&comp_ctx, COMPRESS_BR) != 0) {
-            print(ERR_STR "Unable to init brotli: %s" CLR_STR, strerror(errno));
+            error("Unable to init brotli");
             flags &= ~FASTCGI_COMPRESS_BR;
         }
     } else if (flags & FASTCGI_COMPRESS_GZ) {
         flags &= ~FASTCGI_COMPRESS_BR;
         if (compress_init(&comp_ctx, COMPRESS_GZ) != 0) {
-            print(ERR_STR "Unable to init gzip: %s" CLR_STR, strerror(errno));
+            error("Unable to init gzip");
             flags &= ~FASTCGI_COMPRESS_GZ;
         }
     }
@@ -434,11 +435,10 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
     while (1) {
         ret = recv(conn->socket, &header, sizeof(header), 0);
         if (ret < 0) {
-            print(ERR_STR "Unable to receive from FastCGI socket: %s" CLR_STR, strerror(errno));
+            error("Unable to receive from FastCGI socket");
             return -1;
         } else if (ret != sizeof(header)) {
-            print(ERR_STR "Unable to receive from FastCGI socket: received len (%li) != header len (%li)" CLR_STR,
-                  ret, sizeof(header));
+            error("Unable to receive from FastCGI socket: received len (%li) != header len (%li)", ret, sizeof(header));
             return -1;
         }
 
@@ -451,7 +451,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
         while (rcv_len < content_len + header.paddingLength) {
             ret = recv(conn->socket, content + rcv_len, content_len + header.paddingLength - rcv_len, 0);
             if (ret < 0) {
-                print(ERR_STR "Unable to receive from FastCGI socket: %s" CLR_STR, strerror(errno));
+                error("Unable to receive from FastCGI socket");
                 free(content);
                 return -1;
             }
@@ -463,10 +463,10 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
             int app_status = (body->appStatusB3 << 24) | (body->appStatusB2 << 16) | (body->appStatusB1 << 8) |
                              body->appStatusB0;
             if (body->protocolStatus != FCGI_REQUEST_COMPLETE) {
-                print(ERR_STR "FastCGI protocol error: %i" CLR_STR, body->protocolStatus);
+                error("FastCGI protocol error: %i", body->protocolStatus);
             }
             if (app_status != 0) {
-                print(ERR_STR "FastCGI app terminated with exit code %i" CLR_STR, app_status);
+                error("FastCGI app terminated with exit code %i", app_status);
             }
             close(conn->socket);
             conn->socket = 0;
@@ -513,7 +513,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
             } while ((flags & FASTCGI_COMPRESS) && (avail_in != 0 || avail_out != sizeof(comp_out)));
             if (finish_comp) goto finish;
         } else {
-            print(ERR_STR "Unknown FastCGI type: %i" CLR_STR, header.type);
+            error("Unknown FastCGI type: %i", header.type);
         }
         free(content);
     }
@@ -533,11 +533,10 @@ int fastcgi_dump(fastcgi_conn *conn, char *buf, long len) {
     while (1) {
         ret = recv(conn->socket, &header, sizeof(header), 0);
         if (ret < 0) {
-            print(ERR_STR "Unable to receive from FastCGI socket: %s" CLR_STR, strerror(errno));
+            error("Unable to receive from FastCGI socket");
             return -1;
         } else if (ret != sizeof(header)) {
-            print(ERR_STR "Unable to receive from FastCGI socket: received len (%li) != header len (%li)" CLR_STR,
-                  ret, sizeof(header));
+            error("Unable to receive from FastCGI socket: received len (%li) != header len (%li)", ret, sizeof(header));
             return -1;
         }
 
@@ -549,7 +548,7 @@ int fastcgi_dump(fastcgi_conn *conn, char *buf, long len) {
         while (rcv_len < content_len + header.paddingLength) {
             ret = recv(conn->socket, content + rcv_len, content_len + header.paddingLength - rcv_len, 0);
             if (ret < 0) {
-                print(ERR_STR "Unable to receive from FastCGI socket: %s" CLR_STR, strerror(errno));
+                error("Unable to receive from FastCGI socket");
                 free(content);
                 return -1;
             }
@@ -561,10 +560,10 @@ int fastcgi_dump(fastcgi_conn *conn, char *buf, long len) {
             int app_status = (body->appStatusB3 << 24) | (body->appStatusB2 << 16) | (body->appStatusB1 << 8) |
                              body->appStatusB0;
             if (body->protocolStatus != FCGI_REQUEST_COMPLETE) {
-                print(ERR_STR "FastCGI protocol error: %i" CLR_STR, body->protocolStatus);
+                error("FastCGI protocol error: %i", body->protocolStatus);
             }
             if (app_status != 0) {
-                print(ERR_STR "FastCGI app terminated with exit code %i" CLR_STR, app_status);
+                error("FastCGI app terminated with exit code %i", app_status);
             }
             close(conn->socket);
             conn->socket = 0;
@@ -579,7 +578,7 @@ int fastcgi_dump(fastcgi_conn *conn, char *buf, long len) {
         } else if (header.type == FCGI_STDOUT) {
             ptr += snprintf(ptr, len - (ptr - buf), "%.*s", content_len, content);
         } else {
-            print(ERR_STR "Unknown FastCGI type: %i" CLR_STR, header.type);
+            error("Unknown FastCGI type: %i", header.type);
         }
         free(content);
     }
@@ -603,7 +602,7 @@ int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len) {
     while (rcv_len < len) {
         ret = sock_recv(client, buf, sizeof(buf), 0);
         if (ret <= 0) {
-            print(ERR_STR "Unable to receive: %s" CLR_STR, sock_strerror(client));
+            error("Unable to receive: %s", sock_strerror(client));
             return -1;
         }
 
@@ -613,7 +612,7 @@ int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len) {
         if (send(conn->socket, &header, sizeof(header), 0) != sizeof(header)) goto err;
         if (send(conn->socket, buf, ret, 0) != ret) {
             err:
-            print(ERR_STR "Unable to send to FastCGI socket: %s" CLR_STR, strerror(errno));
+            error("Unable to send to FastCGI socket");
             return -2;
         }
     }

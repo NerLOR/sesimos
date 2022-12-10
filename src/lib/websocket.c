@@ -7,6 +7,7 @@
  */
 
 #include "../defs.h"
+#include "../logger.h"
 #include "websocket.h"
 #include "utils.h"
 
@@ -45,10 +46,10 @@ int ws_recv_frame_header(sock *s, ws_frame *frame) {
 
     long ret = sock_recv(s, buf, 2, 0);
     if (ret < 0) {
-        print(ERR_STR "Unable to receive from socket: %s" CLR_STR, strerror(errno));
+        error("Unable to receive from socket");
         return -1;
     } else if (ret != 2) {
-        print(ERR_STR "Unable to receive 2 bytes from socket" CLR_STR);
+        error("Unable to receive 2 bytes from socket");
         return -2;
     }
 
@@ -70,10 +71,10 @@ int ws_recv_frame_header(sock *s, ws_frame *frame) {
 
     ret = sock_recv(s, buf, remaining, 0);
     if (ret < 0) {
-        print(ERR_STR "Unable to receive from socket: %s" CLR_STR, strerror(errno));
+        error("Unable to receive from socket");
         return -1;
     } else if (ret != remaining) {
-        print(ERR_STR "Unable to receive correct number of bytes from socket" CLR_STR);
+        error("Unable to receive correct number of bytes from socket");
         return -2;
     }
 
@@ -134,10 +135,10 @@ int ws_send_frame_header(sock *s, ws_frame *frame) {
 
     long ret = sock_send(s, buf, ptr - buf, frame->len != 0 ? MSG_MORE : 0);
     if (ret < 0) {
-        print(ERR_STR "Unable to send to socket: %s" CLR_STR, strerror(errno));
+        error("Unable to send to socket");
         return -1;
     } else if (ret != ptr - buf) {
-        print(ERR_STR "Unable to send to socket" CLR_STR);
+        error("Unable to send to socket");
         return -2;
     }
 
@@ -161,13 +162,13 @@ int ws_handle_connection(sock *s1, sock *s2) {
         if (terminate) {
             break;
         } else if (ret < 0) {
-            print(ERR_STR "Unable to poll sockets: %s" CLR_STR, strerror(errno));
+            error("Unable to poll sockets");
             return -1;
         } else if (n_readable == 0) {
-            print(ERR_STR "Connection timed out" CLR_STR);
+            error("Connection timed out");
             return -2;
         } else if (n_error > 0) {
-            print(ERR_STR "Peer closed connection" CLR_STR);
+            error("Peer closed connection");
             return -3;
         }
 
@@ -176,7 +177,7 @@ int ws_handle_connection(sock *s1, sock *s2) {
             sock *o = (s == s1) ? s2 : s1;
             if (ws_recv_frame_header(s, &frame) != 0) return -3;
 
-            // print("WebSocket: Peer %s, Opcode=0x%X, Len=%li", (s == s1) ? "1" : "2", frame.opcode, frame.len);
+            // debug("WebSocket: Peer %s, Opcode=0x%X, Len=%li", (s == s1) ? "1" : "2", frame.opcode, frame.len);
 
             if (frame.opcode == 0x8) {
                 n_sock--;
@@ -193,10 +194,10 @@ int ws_handle_connection(sock *s1, sock *s2) {
             if (frame.len > 0) {
                 ret = sock_splice(o, s, buf, sizeof(buf), frame.len);
                 if (ret < 0) {
-                    print(ERR_STR "Unable to forward data in WebSocket: %s" CLR_STR, strerror(errno));
+                    error("Unable to forward data in WebSocket");
                     return -4;
                 } else if (ret != frame.len) {
-                    print(ERR_STR "Unable to forward correct number of bytes in WebSocket" CLR_STR);
+                    error("Unable to forward correct number of bytes in WebSocket");
                     return -4;
                 }
             }

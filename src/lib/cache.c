@@ -6,6 +6,7 @@
  * @date 2020-12-19
  */
 
+#include "../logger.h"
 #include "cache.h"
 #include "utils.h"
 #include "compress.h"
@@ -27,11 +28,11 @@ cache_entry *cache;
 int magic_init(void) {
     magic = magic_open(MAGIC_MIME);
     if (magic == NULL) {
-        fprintf(stderr, ERR_STR "Unable to open magic cookie: %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to open magic cookie");
         return -1;
     }
     if (magic_load(magic, CACHE_MAGIC_FILE) != 0) {
-        fprintf(stderr, ERR_STR "Unable to load magic cookie: %s" CLR_STR "\n", magic_error(magic));
+        critical("Unable to load magic cookie: %s", magic_error(magic));
         return -2;
     }
     return 0;
@@ -42,30 +43,34 @@ void cache_process_term(int _) {
 }
 
 int cache_process(void) {
+    errno = 0;
     signal(SIGINT, cache_process_term);
     signal(SIGTERM, cache_process_term);
 
+    logger_set_name("cache");
+
     int shm_id = shmget(CACHE_SHM_KEY, CACHE_ENTRIES * sizeof(cache_entry), 0);
     if (shm_id < 0) {
-        fprintf(stderr, ERR_STR "Unable to create cache shared memory: %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to create cache shared memory");
         return -1;
     }
 
     shmdt(cache);
+    errno = 0;
     void *shm_rw = shmat(shm_id, NULL, 0);
     if (shm_rw == (void *) -1) {
-        fprintf(stderr, ERR_STR "Unable to attach cache shared memory (rw): %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to attach cache shared memory (rw)");
         return -2;
     }
     cache = shm_rw;
 
     if (mkdir("/var/sesimos/", 0755) < 0 && errno != EEXIST) {
-        fprintf(stderr, ERR_STR "Unable to create directory '/var/sesimos/': %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to create directory '/var/sesimos/'");
         return -3;
     }
 
     if (mkdir("/var/sesimos/server/", 0755) < 0 && errno != EEXIST) {
-        fprintf(stderr, ERR_STR "Unable to create directory '/var/sesimos/server/': %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to create directory '/var/sesimos/server/'");
         return -3;
     }
 
@@ -74,6 +79,8 @@ int cache_process(void) {
         fread(cache, sizeof(cache_entry), CACHE_ENTRIES, cache_file);
         fclose(cache_file);
     }
+
+    errno = 0;
 
     for (int i = 0; i < CACHE_ENTRIES; i++) {
         cache[i].is_updating = 0;
@@ -93,7 +100,7 @@ int cache_process(void) {
         for (int i = 0; i < CACHE_ENTRIES; i++) {
             if (cache[i].filename[0] != 0 && cache[i].meta.etag[0] == 0 && !cache[i].is_updating) {
                 cache[i].is_updating = 1;
-                fprintf(stdout, "[cache] Hashing file %s\n", cache[i].filename);
+                info("Hashing file %s", cache[i].filename);
 
                 ctx = EVP_MD_CTX_new();
                 EVP_DigestInit(ctx, EVP_sha1());
@@ -106,15 +113,16 @@ int cache_process(void) {
                 if (compress) {
                     sprintf(buf, "%.*s/.sesimos", cache[i].webroot_len, cache[i].filename);
                     if (mkdir(buf, 0755) != 0 && errno != EEXIST) {
-                        fprintf(stderr, ERR_STR "Unable to create directory %s: %s" CLR_STR "\n", buf, strerror(errno));
+                        error("Unable to create directory %s", buf);
                         goto comp_err;
                     }
 
                     sprintf(buf, "%.*s/.sesimos/cache", cache[i].webroot_len, cache[i].filename);
                     if (mkdir(buf, 0700) != 0 && errno != EEXIST) {
-                        fprintf(stderr, ERR_STR "Unable to create directory %s: %s" CLR_STR "\n", buf, strerror(errno));
+                        error("Unable to create directory %s", buf);
                         goto comp_err;
                     }
+                    errno = 0;
 
                     char *rel_path = cache[i].filename + cache[i].webroot_len + 1;
                     for (int j = 0; j < strlen(rel_path); j++) {
@@ -131,22 +139,22 @@ int cache_process(void) {
                                         "%.*s/.sesimos/cache/%s.br",
                                         cache[i].webroot_len, cache[i].filename, buf);
                     if (p_len_gz < 0 || p_len_gz >= sizeof(filename_comp_gz) || p_len_br < 0 || p_len_br >= sizeof(filename_comp_br)) {
-                        fprintf(stderr, ERR_STR "Unable to open cached file: File name for compressed file too long" CLR_STR "\n");
+                        error("Unable to open cached file: File name for compressed file too long");
                         goto comp_err;
                     }
 
-                    fprintf(stdout, "[cache] Compressing file %s\n", cache[i].filename);
+                    info("Compressing file %s", cache[i].filename);
 
                     comp_file_gz = fopen(filename_comp_gz, "wb");
                     comp_file_br = fopen(filename_comp_br, "wb");
                     if (comp_file_gz == NULL || comp_file_br == NULL) {
-                        fprintf(stderr, ERR_STR "Unable to open cached file: %s" CLR_STR "\n", strerror(errno));
+                        error("Unable to open cached file");
                         comp_err:
                         compress = 0;
                     } else {
                         ret = compress_init(&comp_ctx, COMPRESS_GZ | COMPRESS_BR);
                         if (ret != 0) {
-                            fprintf(stderr, ERR_STR "Unable to init compression: %s" CLR_STR "\n", strerror(errno));
+                            error("Unable to init compression");
                             compress = 0;
                             fclose(comp_file_gz);
                             fclose(comp_file_br);
@@ -177,7 +185,7 @@ int cache_process(void) {
                     compress_free(&comp_ctx);
                     fclose(comp_file_gz);
                     fclose(comp_file_br);
-                    fprintf(stdout, "[cache] Finished compressing file %s\n", cache[i].filename);
+                    info("Finished compressing file %s", cache[i].filename);
                     strcpy(cache[i].meta.filename_comp_gz, filename_comp_gz);
                     strcpy(cache[i].meta.filename_comp_br, filename_comp_br);
                 } else {
@@ -193,7 +201,7 @@ int cache_process(void) {
                     sprintf(cache[i].meta.etag + j * 2, "%02x", hash[j]);
                 }
                 fclose(file);
-                fprintf(stdout, "[cache] Finished hashing file %s\n", cache[i].filename);
+                info("Finished hashing file %s", cache[i].filename);
                 cache[i].is_updating = 0;
                 cache_changed = 1;
             }
@@ -203,7 +211,7 @@ int cache_process(void) {
             cache_changed = 0;
             cache_file = fopen("/var/sesimos/server/cache", "wb");
             if (cache_file == NULL) {
-                fprintf(stderr, ERR_STR "Unable to open cache file: %s" CLR_STR "\n", strerror(errno));
+                critical("Unable to open cache file");
                 return -1;
             }
             fwrite(cache, sizeof(cache_entry), CACHE_ENTRIES, cache_file);
@@ -217,32 +225,34 @@ int cache_process(void) {
 }
 
 int cache_init(void) {
+    errno = 0;
     if (magic_init() != 0) {
         return -1;
     }
 
     int shm_id = shmget(CACHE_SHM_KEY, CACHE_ENTRIES * sizeof(cache_entry), IPC_CREAT | IPC_EXCL | 0600);
     if (shm_id < 0) {
-        fprintf(stderr, ERR_STR "Unable to create cache shared memory: %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to create cache shared memory");
         return -2;
     }
 
     void *shm = shmat(shm_id, NULL, SHM_RDONLY);
     if (shm == (void *) -1) {
-        fprintf(stderr, ERR_STR "Unable to attach cache shared memory (ro): %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to attach cache shared memory (ro)");
         return -3;
     }
     cache = shm;
 
     void *shm_rw = shmat(shm_id, NULL, 0);
     if (shm_rw == (void *) -1) {
-        fprintf(stderr, ERR_STR "Unable to attach cache shared memory (rw): %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to attach cache shared memory (rw)");
         return -4;
     }
     cache = shm_rw;
     memset(cache, 0, CACHE_ENTRIES * sizeof(cache_entry));
     shmdt(shm_rw);
     cache = shm;
+    errno = 0;
 
     pid_t pid = fork();
     if (pid == 0) {
@@ -254,10 +264,10 @@ int cache_init(void) {
         }
     } else if (pid > 0) {
         // parent
-        fprintf(stderr, "Started child process with PID %i as cache-updater\n", pid);
+        info("Started child process with PID %i as cache-updater", pid);
         return pid;
     } else {
-        fprintf(stderr, ERR_STR "Unable to create child process: %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to create child process");
         return -5;
     }
 }
@@ -265,15 +275,16 @@ int cache_init(void) {
 int cache_unload(void) {
     int shm_id = shmget(CACHE_SHM_KEY, 0, 0);
     if (shm_id < 0) {
-        fprintf(stderr, ERR_STR "Unable to get cache shared memory id: %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to get cache shared memory id");
         shmdt(cache);
         return -1;
     } else if (shmctl(shm_id, IPC_RMID, NULL) < 0) {
-        fprintf(stderr, ERR_STR "Unable to configure cache shared memory: %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to configure cache shared memory");
         shmdt(cache);
         return -1;
     }
     shmdt(cache);
+    errno = 0;
     return 0;
 }
 
@@ -282,7 +293,7 @@ int cache_update_entry(int entry_num, const char *filename, const char *webroot)
     int shm_id = shmget(CACHE_SHM_KEY, 0, 0);
     void *shm_rw = shmat(shm_id, NULL, 0);
     if (shm_rw == (void *) -1) {
-        print(ERR_STR "Unable to attach cache shared memory (rw): %s" CLR_STR, strerror(errno));
+        error("Unable to attach cache shared memory (rw)");
         return -1;
     }
     cache = shm_rw;
@@ -317,6 +328,7 @@ int cache_update_entry(int entry_num, const char *filename, const char *webroot)
 
     shmdt(shm_rw);
     cache = cache_ro;
+    errno = 0;
     return 0;
 }
 
@@ -325,7 +337,7 @@ int cache_filename_comp_invalid(const char *filename) {
     int shm_id = shmget(CACHE_SHM_KEY, 0, 0);
     void *shm_rw = shmat(shm_id, NULL, 0);
     if (shm_rw == (void *) -1) {
-        print(ERR_STR "Unable to attach cache shared memory (rw): %s" CLR_STR, strerror(errno));
+        error("Unable to attach cache shared memory (rw)");
         return -1;
     }
     cache = shm_rw;

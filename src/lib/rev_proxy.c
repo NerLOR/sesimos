@@ -8,6 +8,7 @@
 
 #include "../defs.h"
 #include "../server.h"
+#include "../logger.h"
 #include "rev_proxy.h"
 #include "utils.h"
 #include "compress.h"
@@ -40,7 +41,7 @@ int rev_proxy_request_header(http_req *req, int enc) {
     } else {
         p_len = snprintf(buf2, sizeof(buf2), "%s, %s", via, buf1);
         if (p_len < 0 || p_len >= sizeof(buf2)) {
-            print(ERR_STR "Header field 'Via' too long" CLR_STR);
+            error("Header field 'Via' too long");
             return -1;
         }
         http_remove_header_field(&req->hdr, "Via", HTTP_REMOVE_ALL);
@@ -57,7 +58,7 @@ int rev_proxy_request_header(http_req *req, int enc) {
                      client_ipv6 ? "\"[" : "", client_addr_str, client_ipv6 ? "]\"" : "",
                      host, enc ? "https" : "http");
     if (p_len < 0 || p_len >= sizeof(buf1)) {
-        print(ERR_STR "Appended part of header field 'Forwarded' too long" CLR_STR);
+        error("Appended part of header field 'Forwarded' too long");
         return -1;
     }
 
@@ -66,7 +67,7 @@ int rev_proxy_request_header(http_req *req, int enc) {
     } else {
         p_len = snprintf(buf2, sizeof(buf2), "%s, %s", forwarded, buf1);
         if (p_len < 0 || p_len >= sizeof(buf2)) {
-            print(ERR_STR "Header field 'Forwarded' too long" CLR_STR);
+            error("Header field 'Forwarded' too long");
             return -1;
         }
         http_remove_header_field(&req->hdr, "Forwarded", HTTP_REMOVE_ALL);
@@ -134,7 +135,7 @@ int rev_proxy_response_header(http_req *req, http_res *res, host_config *conf) {
     const char *via = http_get_header_field(&res->hdr, "Via");
     p_len = snprintf(buf1, sizeof(buf1), "HTTP/%s %s", req->version, SERVER_NAME);
     if (p_len < 0 || p_len >= sizeof(buf1)) {
-        print(ERR_STR "Appended part of header field 'Via' too long" CLR_STR);
+        error("Appended part of header field 'Via' too long");
         return -1;
     }
     if (via == NULL) {
@@ -142,7 +143,7 @@ int rev_proxy_response_header(http_req *req, http_res *res, host_config *conf) {
     } else {
         p_len = snprintf(buf2, sizeof(buf2), "%s, %s", via, buf1);
         if (p_len < 0 || p_len >= sizeof(buf2)) {
-            print(ERR_STR "Header field 'Via' too long" CLR_STR);
+            error("Header field 'Via' too long");
             return -1;
         }
         http_remove_header_field(&res->hdr, "Via", HTTP_REMOVE_ALL);
@@ -190,7 +191,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
 
     retry:
     if (rev_proxy.socket != 0) {
-        print(BLUE_STR "Closing proxy connection" CLR_STR);
+        info(BLUE_STR "Closing proxy connection");
         sock_close(&rev_proxy);
     }
     retry = 0;
@@ -198,7 +199,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
 
     rev_proxy.socket = socket(AF_INET6, SOCK_STREAM, 0);
     if (rev_proxy.socket  < 0) {
-        print(ERR_STR "Unable to create socket: %s" CLR_STR, strerror(errno));
+        error("Unable to create socket");
         res->status = http_get_status(500);
         ctx->origin = INTERNAL;
         return -1;
@@ -217,7 +218,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
         if (host_ent == NULL) {
             res->status = http_get_status(503);
             ctx->origin = SERVER_REQ;
-            print(ERR_STR "Unable to connect to server: Name or service not known" CLR_STR);
+            error("Unable to connect to server: Name or service not known");
             sprintf(err_msg, "Unable to connect to server: Name or service not known.");
             goto proxy_err;
         }
@@ -234,7 +235,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
 
     inet_ntop(address.sin6_family, (void *) &address.sin6_addr, buffer, sizeof(buffer));
 
-    print(BLUE_STR "Connecting to " BLD_STR "[%s]:%i" CLR_STR BLUE_STR "..." CLR_STR, buffer, conf->rev_proxy.port);
+    info(BLUE_STR "Connecting to " BLD_STR "[%s]:%i" CLR_STR BLUE_STR "...", buffer, conf->rev_proxy.port);
     if (connect(rev_proxy.socket, (struct sockaddr *) &address, sizeof(address)) < 0) {
         if (errno == ETIMEDOUT || errno == EINPROGRESS) {
             res->status = http_get_status(504);
@@ -246,7 +247,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
             res->status = http_get_status(500);
             ctx->origin = INTERNAL;
         }
-        print(ERR_STR "Unable to connect to [%s]:%i: %s" CLR_STR, buffer, conf->rev_proxy.port, strerror(errno));
+        error("Unable to connect to [%s]:%i: %s", buffer, conf->rev_proxy.port, strerror(errno));
         sprintf(err_msg, "Unable to connect to server: %s.", strerror(errno));
         goto proxy_err;
     }
@@ -259,7 +260,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
         rev_proxy_timeout_err:
         res->status = http_get_status(500);
         ctx->origin = INTERNAL;
-        print(ERR_STR "Unable to set timeout for reverse proxy socket: %s" CLR_STR, strerror(errno));
+        error("Unable to set timeout for reverse proxy socket");
         sprintf(err_msg, "Unable to set timeout for reverse proxy socket: %s", strerror(errno));
         goto proxy_err;
     }
@@ -277,14 +278,14 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
         if (ret < 0) {
             res->status = http_get_status(502);
             ctx->origin = SERVER_REQ;
-            print(ERR_STR "Unable to perform handshake: %s" CLR_STR, sock_strerror(&rev_proxy));
+            error("Unable to perform handshake: %s", sock_strerror(&rev_proxy));
             sprintf(err_msg, "Unable to perform handshake: %s.", sock_strerror(&rev_proxy));
             goto proxy_err;
         }
     }
 
     rev_proxy_host = conf->name;
-    print(BLUE_STR "Established new connection with " BLD_STR "[%s]:%i" CLR_STR, buffer, conf->rev_proxy.port);
+    info(BLUE_STR "Established new connection with " BLD_STR "[%s]:%i", buffer, conf->rev_proxy.port);
 
     rev_proxy:
     connection = http_get_header_field(&req->hdr, "Connection");
@@ -314,7 +315,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
     if (ret < 0) {
         res->status = http_get_status(502);
         ctx->origin = SERVER_REQ;
-        print(ERR_STR "Unable to send request to server (1): %s" CLR_STR, sock_strerror(&rev_proxy));
+        error("Unable to send request to server (1): %s", sock_strerror(&rev_proxy));
         sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&rev_proxy));
         retry = tries < 4;
         goto proxy_err;
@@ -335,20 +336,20 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
         if (ret == -1) {
             res->status = http_get_status(502);
             ctx->origin = SERVER_REQ;
-            print(ERR_STR "Unable to send request to server (2): %s" CLR_STR, sock_strerror(&rev_proxy));
+            error("Unable to send request to server (2): %s", sock_strerror(&rev_proxy));
             sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&rev_proxy));
             retry = tries < 4;
             goto proxy_err;
         } else if (ret == -2) {
             res->status = http_get_status(400);
             ctx->origin = CLIENT_REQ;
-            print(ERR_STR "Unable to receive request from client: %s" CLR_STR, sock_strerror(client));
+            error("Unable to receive request from client: %s", sock_strerror(client));
             sprintf(err_msg, "Unable to receive request from client: %s.", sock_strerror(client));
             return -1;
         }
         res->status = http_get_status(500);
         ctx->origin = INTERNAL;
-        print(ERR_STR "Unknown Error" CLR_STR);
+        error("Unknown Error");
         return -1;
     }
 
@@ -364,7 +365,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
             res->status = http_get_status(502);
             ctx->origin = SERVER_RES;
         }
-        print(ERR_STR "Unable to receive response from server: %s" CLR_STR, sock_strerror(&rev_proxy));
+        error("Unable to receive response from server: %s", sock_strerror(&rev_proxy));
         sprintf(err_msg, "Unable to receive response from server: %s.", sock_strerror(&rev_proxy));
         retry = tries < 4;
         goto proxy_err;
@@ -376,7 +377,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
     if (header_len <= 0) {
         res->status = http_get_status(502);
         ctx->origin = SERVER_RES;
-        print(ERR_STR "Unable to parse header: End of header not found" CLR_STR);
+        error("Unable to parse header: End of header not found");
         sprintf(err_msg, "Unable to parser header: End of header not found.");
         goto proxy_err;
     }
@@ -385,7 +386,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
         if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {
             res->status = http_get_status(502);
             ctx->origin = SERVER_RES;
-            print(ERR_STR "Unable to parse header: Header contains illegal characters" CLR_STR);
+            error("Unable to parse header: Header contains illegal characters");
             sprintf(err_msg, "Unable to parse header: Header contains illegal characters.");
             goto proxy_err;
         }
@@ -397,7 +398,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
         if (pos0 == NULL) {
             res->status = http_get_status(502);
             ctx->origin = SERVER_RES;
-            print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);
+            error("Unable to parse header: Invalid header format");
             sprintf(err_msg, "Unable to parse header: Invalid header format.");
             goto proxy_err;
         }
@@ -405,7 +406,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
             if (strncmp(ptr, "HTTP/", 5) != 0) {
                 res->status = http_get_status(502);
                 ctx->origin = SERVER_RES;
-                print(ERR_STR "Unable to parse header: Invalid header format" CLR_STR);
+                error("Unable to parse header: Invalid header format");
                 sprintf(err_msg, "Unable to parse header: Invalid header format.");
                 goto proxy_err;
             }
@@ -420,7 +421,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
             } else if (res->status == NULL) {
                 res->status = http_get_status(502);
                 ctx->origin = SERVER_RES;
-                print(ERR_STR "Unable to parse header: Invalid or unknown status code" CLR_STR);
+                error("Unable to parse header: Invalid or unknown status code");
                 sprintf(err_msg, "Unable to parse header: Invalid or unknown status code.");
                 goto proxy_err;
             }
@@ -429,7 +430,7 @@ int rev_proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_conf
             if (ret != 0) {
                 res->status = http_get_status(502);
                 ctx->origin = SERVER_RES;
-                print(ERR_STR "Unable to parse header" CLR_STR);
+                error("Unable to parse header");
                 sprintf(err_msg, "Unable to parse header.");
                 goto proxy_err;
             }
@@ -464,13 +465,13 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
     if (flags & REV_PROXY_COMPRESS_BR) {
         flags &= ~REV_PROXY_COMPRESS_GZ;
         if (compress_init(&comp_ctx, COMPRESS_BR) != 0) {
-            print(ERR_STR "Unable to init brotli: %s" CLR_STR, strerror(errno));
+            error("Unable to init brotli");
             flags &= ~REV_PROXY_COMPRESS_BR;
         }
     } else if (flags & REV_PROXY_COMPRESS_GZ) {
         flags &= ~REV_PROXY_COMPRESS_BR;
         if (compress_init(&comp_ctx, COMPRESS_GZ) != 0) {
-            print(ERR_STR "Unable to init gzip: %s" CLR_STR, strerror(errno));
+            error("Unable to init gzip");
             flags &= ~REV_PROXY_COMPRESS_GZ;
         }
     }
@@ -481,9 +482,9 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
             ret = sock_get_chunk_header(&rev_proxy);
             if (ret < 0) {
                 if (ret == -1) {
-                    print("Unable to receive from server: Malformed chunk header");
+                    error("Unable to receive from server: Malformed chunk header");
                 } else {
-                    print("Unable to receive from server: %s", sock_strerror(&rev_proxy));
+                    error("Unable to receive from server: %s", sock_strerror(&rev_proxy));
                 }
                 break;
             }
@@ -503,7 +504,7 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
             unsigned long avail_in, avail_out;
             ret = sock_recv(&rev_proxy, buffer, CHUNK_SIZE < (len_to_send - snd_len) ? CHUNK_SIZE : len_to_send - snd_len, 0);
             if (ret <= 0) {
-                print("Unable to receive from server: %s", sock_strerror(&rev_proxy));
+                error("Unable to receive from server: %s", sock_strerror(&rev_proxy));
                 break;
             }
             len = ret;
@@ -534,7 +535,7 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
                     if (flags & REV_PROXY_CHUNKED) ret = sock_send(client, "\r\n", 2, 0);
                     if (ret <= 0) {
                         err:
-                        print(ERR_STR "Unable to send: %s" CLR_STR, sock_strerror(client));
+                        error("Unable to send: %s", sock_strerror(client));
                         break;
                     }
                 }
@@ -551,7 +552,7 @@ int rev_proxy_send(sock *client, unsigned long len_to_send, int flags) {
     if (flags & REV_PROXY_CHUNKED) {
         ret = sock_send(client, "0\r\n\r\n", 5, 0);
         if (ret <= 0) {
-            print(ERR_STR "Unable to send: %s" CLR_STR, sock_strerror(client));
+            error("Unable to send: %s", sock_strerror(client));
             return -1;
         }
     }

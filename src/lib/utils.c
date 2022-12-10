@@ -13,8 +13,6 @@
 #include <stdlib.h>
 
 
-char *log_prefix;
-
 static const char base64_encode_table[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 static const int base64_mod_table[3] = {0, 2, 1};
 

@@ -9,6 +9,7 @@
 #include "defs.h"
 #include "server.h"
 #include "client.h"
+#include "logger.h"
 
 #include "lib/cache.h"
 #include "lib/config.h"
@@ -58,7 +59,7 @@ static int ssl_servername_cb(SSL *ssl, int *ad, void *arg) {
 }
 
 void destroy(int _) {
-    fprintf(stderr, "\n" ERR_STR "Terminating forcefully!" CLR_STR "\n");
+    error("Terminating forcefully!");
     int status = 0;
     int ret;
     int kills = 0;
@@ -66,11 +67,11 @@ void destroy(int _) {
         if (children[i] != 0) {
             ret = waitpid(children[i], &status, WNOHANG);
             if (ret < 0) {
-                fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n", children[i], strerror(errno));
+                critical("Unable to wait for child process (PID %i)", children[i]);
             } else if (ret == children[i]) {
                 children[i] = 0;
                 if (status != 0) {
-                    fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n", ret, status);
+                    critical("Child process with PID %i terminated with exit code %i", ret, status);
                 }
             } else {
                 kill(children[i], SIGKILL);
@@ -79,7 +80,7 @@ void destroy(int _) {
         }
     }
     if (kills > 0) {
-        fprintf(stderr, ERR_STR "Killed %i child process(es)" CLR_STR "\n", kills);
+        critical("Killed %i child process(es)", kills);
     }
     cache_unload();
     config_unload();
@@ -87,7 +88,7 @@ void destroy(int _) {
 }
 
 void terminate(int _) {
-    fprintf(stderr, "\nTerminating gracefully...\n");
+    notice("Terminating gracefully...");
     active = 0;
 
     signal(SIGINT, destroy);
@@ -105,11 +106,11 @@ void terminate(int _) {
         if (children[i] != 0) {
             ret = waitpid(children[i], &status, WNOHANG);
             if (ret < 0) {
-                fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n", children[i], strerror(errno));
+                critical("Unable to wait for child process (PID %i)", children[i]);
             } else if (ret == children[i]) {
                 children[i] = 0;
                 if (status != 0) {
-                    fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n", ret, status);
+                    critical("Child process with PID %i terminated with exit code %i", ret, status);
                 }
             } else {
                 kill(children[i], SIGTERM);
@@ -119,18 +120,18 @@ void terminate(int _) {
     }
 
     if (wait_num > 0) {
-        fprintf(stderr, "Waiting for %i child process(es)...\n", wait_num);
+        info("Waiting for %i child process(es)...", wait_num);
     }
 
     for (int i = 0; i < MAX_CHILDREN; i++) {
         if (children[i] != 0) {
             ret = waitpid(children[i], &status, 0);
             if (ret < 0) {
-                fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n", children[i], strerror(errno));
+                critical("Unable to wait for child process (PID %i)", children[i]);
             } else if (ret == children[i]) {
                 children[i] = 0;
                 if (status != 0) {
-                    fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n", ret, status);
+                    critical("Child process with PID %i terminated with exit code %i", ret, status);
                 }
             }
         }
@@ -142,10 +143,9 @@ void terminate(int _) {
         signal(SIGTERM, SIG_IGN);
         struct timespec ts = {.tv_sec = 0, .tv_nsec = 50000000};
         nanosleep(&ts, &ts);
-        fprintf(stderr, "\nGoodbye\n");
-    } else {
-        fprintf(stderr, "Goodbye\n");
     }
+
+    info("Goodbye");
     cache_unload();
     config_unload();
     exit(0);
@@ -173,8 +173,10 @@ int main(int argc, const char *argv[]) {
             {.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_ANY_INIT, .sin6_port = htons(443)}
     };
 
+    logger_set_name("server");
+
     if (setvbuf(stdout, NULL, _IOLBF, 0) != 0) {
-        fprintf(stderr, ERR_STR "Unable to set stdout to line-buffered mode: %s" CLR_STR, strerror(errno));
+        critical("Unable to set stdout to line-buffered mode");
         return 1;
     }
     printf("Sesimos web server " SERVER_VERSION "\n");
@@ -197,13 +199,13 @@ int main(int argc, const char *argv[]) {
             return 0;
         } else if (strcmp(arg, "-c") == 0 || strcmp(arg, "--config") == 0) {
             if (i == argc - 1) {
-                fprintf(stderr, ERR_STR "Unable to parse argument %s, usage: --config <CONFIG-FILE>" CLR_STR "\n", arg);
+                critical("Unable to parse argument %s, usage: --config <CONFIG-FILE>", arg);
                 config_unload();
                 return 1;
             }
             config_file = argv[++i];
         } else {
-            fprintf(stderr, ERR_STR "Unable to parse argument '%s'" CLR_STR "\n", arg);
+            critical("Unable to parse argument '%s'", arg);
             config_unload();
             return 1;
         }
@@ -220,14 +222,14 @@ int main(int argc, const char *argv[]) {
     sockets[1] = socket(AF_INET6, SOCK_STREAM, 0);
     if (sockets[1] < 0) {
         socket_err:
-        fprintf(stderr, ERR_STR "Unable to create socket: %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to create socket");
         config_unload();
         return 1;
     }
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         if (setsockopt(sockets[i], SOL_SOCKET, SO_REUSEADDR, &YES, sizeof(YES)) < 0) {
-            fprintf(stderr, ERR_STR "Unable to set options for socket %i: %s" CLR_STR "\n", i, strerror(errno));
+            critical("Unable to set options for socket %i", i);
             config_unload();
             return 1;
         }
@@ -236,7 +238,7 @@ int main(int argc, const char *argv[]) {
     if (bind(sockets[0], (struct sockaddr *) &addresses[0], sizeof(addresses[0])) < 0) goto bind_err;
     if (bind(sockets[1], (struct sockaddr *) &addresses[1], sizeof(addresses[1])) < 0) {
         bind_err:
-        fprintf(stderr, ERR_STR "Unable to bind socket to address: %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to bind socket to address");
         config_unload();
         return 1;
     }
@@ -247,7 +249,7 @@ int main(int argc, const char *argv[]) {
     if (geoip_dir[0] != 0) {
         DIR *geoip = opendir(geoip_dir);
         if (geoip == NULL) {
-            fprintf(stderr, ERR_STR "Unable to open GeoIP dir: %s" CLR_STR "\n", strerror(errno));
+            critical("Unable to open GeoIP dir");
             config_unload();
             return 1;
         }
@@ -256,21 +258,21 @@ int main(int argc, const char *argv[]) {
         while ((dir = readdir(geoip)) != NULL) {
             if (strcmp(dir->d_name + strlen(dir->d_name) - 5, ".mmdb") != 0) continue;
             if (i >= MAX_MMDB) {
-                fprintf(stderr, ERR_STR "Too many .mmdb files" CLR_STR "\n");
+                critical("Too many .mmdb files");
                 config_unload();
                 return 1;
             }
             sprintf(buf, "%s/%s", geoip_dir, dir->d_name);
             ret = MMDB_open(buf, 0, &mmdbs[i]);
             if (ret != MMDB_SUCCESS) {
-                fprintf(stderr, ERR_STR "Unable to open .mmdb file: %s" CLR_STR "\n", MMDB_strerror(ret));
+                critical("Unable to open .mmdb file: %s", MMDB_strerror(ret));
                 config_unload();
                 return 1;
             }
             i++;
         }
         if (i == 0) {
-            fprintf(stderr, ERR_STR "No .mmdb files found in %s" CLR_STR "\n", geoip_dir);
+            critical("No .mmdb files found in %s", geoip_dir);
             config_unload();
             return 1;
         }
@@ -304,13 +306,13 @@ int main(int argc, const char *argv[]) {
         SSL_CTX_set_tlsext_servername_callback(ctx, ssl_servername_cb);
 
         if (SSL_CTX_use_certificate_chain_file(ctx, conf->full_chain) != 1) {
-            fprintf(stderr, ERR_STR "Unable to load certificate chain file: %s: %s" CLR_STR "\n", ERR_reason_error_string(ERR_get_error()), conf->full_chain);
+            critical("Unable to load certificate chain file: %s: %s", ERR_reason_error_string(ERR_get_error()), conf->full_chain);
             config_unload();
             cache_unload();
             return 1;
         }
         if (SSL_CTX_use_PrivateKey_file(ctx, conf->priv_key, SSL_FILETYPE_PEM) != 1) {
-            fprintf(stderr, ERR_STR "Unable to load private key file: %s: %s" CLR_STR "\n", ERR_reason_error_string(ERR_get_error()), conf->priv_key);
+            critical("Unable to load private key file: %s: %s", ERR_reason_error_string(ERR_get_error()), conf->priv_key);
             config_unload();
             cache_unload();
             return 1;
@@ -324,7 +326,7 @@ int main(int argc, const char *argv[]) {
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         if (listen(sockets[i], LISTEN_BACKLOG) < 0) {
-            fprintf(stderr, ERR_STR "Unable to listen on socket %i: %s" CLR_STR "\n", i, strerror(errno));
+            critical("Unable to listen on socket %i", i);
             config_unload();
             cache_unload();
             return 1;
@@ -336,12 +338,13 @@ int main(int argc, const char *argv[]) {
         poll_fds[i].events = POLLIN;
     }
 
-    fprintf(stderr, "Ready to accept connections\n");
+    errno = 0;
+    info("Ready to accept connections");
 
     while (active) {
         ready_sockets_num = poll(poll_fds, NUM_SOCKETS, 1000);
         if (ready_sockets_num < 0) {
-            fprintf(stderr, ERR_STR "Unable to poll sockets: %s" CLR_STR "\n", strerror(errno));
+            critical("Unable to poll sockets");
             terminate(0);
             return 1;
         }
@@ -350,7 +353,7 @@ int main(int argc, const char *argv[]) {
             if (poll_fds[i].revents & POLLIN) {
                 client_fd = accept(sockets[i], (struct sockaddr *) &client_addr, &client_addr_len);
                 if (client_fd < 0) {
-                    fprintf(stderr, ERR_STR "Unable to accept connection: %s" CLR_STR "\n", strerror(errno));
+                    critical("Unable to accept connection");
                     continue;
                 }
 
@@ -374,7 +377,7 @@ int main(int argc, const char *argv[]) {
                         }
                     }
                 } else {
-                    fprintf(stderr, ERR_STR "Unable to create child process: %s" CLR_STR "\n", strerror(errno));
+                    critical("Unable to create child process");
                 }
             }
         }
@@ -385,11 +388,11 @@ int main(int argc, const char *argv[]) {
             if (children[i] != 0) {
                 ret = waitpid(children[i], &status, WNOHANG);
                 if (ret < 0) {
-                    fprintf(stderr, ERR_STR "Unable to wait for child process (PID %i): %s" CLR_STR "\n", children[i], strerror(errno));
+                    critical("Unable to wait for child process (PID %i)", children[i]);
                 } else if (ret == children[i]) {
                     children[i] = 0;
                     if (status != 0) {
-                        fprintf(stderr, ERR_STR "Child process with PID %i terminated with exit code %i" CLR_STR "\n", ret, status);
+                        critical("Child process with PID %i terminated with exit code %i", ret, status);
                     }
                 }
             }

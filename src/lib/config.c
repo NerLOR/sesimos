@@ -6,6 +6,7 @@
  * @date 2021-01-05
  */
 
+#include "../logger.h"
 #include "config.h"
 #include "utils.h"
 
@@ -23,20 +24,20 @@ char geoip_dir[256], dns_server[256];
 int config_init(void) {
     int shm_id = shmget(CONFIG_SHM_KEY, sizeof(t_config), IPC_CREAT | IPC_EXCL | 0640);
     if (shm_id < 0) {
-        fprintf(stderr, ERR_STR "Unable to create config shared memory: %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to create config shared memory");
         return -1;
     }
 
     void *shm = shmat(shm_id, NULL, SHM_RDONLY);
     if (shm == (void *) -1) {
-        fprintf(stderr, ERR_STR "Unable to attach config shared memory (ro): %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to attach config shared memory (ro)");
         return -2;
     }
     config = shm;
 
     void *shm_rw = shmat(shm_id, NULL, 0);
     if (shm_rw == (void *) -1) {
-        fprintf(stderr, ERR_STR "Unable to attach config shared memory (rw): %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to attach config shared memory (rw)");
         return -3;
     }
     config = shm_rw;
@@ -49,11 +50,11 @@ int config_init(void) {
 int config_unload(void) {
     int shm_id = shmget(CONFIG_SHM_KEY, 0, 0);
     if (shm_id < 0) {
-        fprintf(stderr, ERR_STR "Unable to get config shared memory id: %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to get config shared memory id");
         shmdt(config);
         return -1;
     } else if (shmctl(shm_id, IPC_RMID, NULL) < 0) {
-        fprintf(stderr, ERR_STR "Unable to configure config shared memory: %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to configure config shared memory");
         shmdt(config);
         return -1;
     }
@@ -64,7 +65,7 @@ int config_unload(void) {
 int config_load(const char *filename) {
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
-        fprintf(stderr, ERR_STR "Unable to open config file: %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to open config file");
         return -1;
     }
 
@@ -211,7 +212,7 @@ int config_load(const char *filename) {
         if (strlen(source) == 0) {
             err:
             free(tmp_config);
-            fprintf(stderr, ERR_STR "Unable to parse config file (line %i)" CLR_STR "\n", line);
+            critical("Unable to parse config file (line %i)", line);
             return -2;
         }
 
@@ -252,14 +253,14 @@ int config_load(const char *filename) {
         if (!found) {
             err2:
             free(tmp_config);
-            fprintf(stderr, ERR_STR "Unable to parse config file" CLR_STR "\n");
+            critical("Unable to parse config file");
             return -2;
         }
     }
 
     int shm_id = shmget(CONFIG_SHM_KEY, 0, 0);
     if (shm_id < 0) {
-        fprintf(stderr, ERR_STR "Unable to get config shared memory id: %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to get config shared memory id");
         shmdt(config);
         return -3;
     }
@@ -267,7 +268,7 @@ int config_load(const char *filename) {
     void *shm_rw = shmat(shm_id, NULL, 0);
     if (shm_rw == (void *) -1) {
         free(tmp_config);
-        fprintf(stderr, ERR_STR "Unable to attach config shared memory (rw): %s" CLR_STR "\n", strerror(errno));
+        critical("Unable to attach config shared memory (rw)");
         return -4;
     }
     memcpy(shm_rw, tmp_config, sizeof(t_config));

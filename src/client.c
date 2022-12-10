@@ -9,6 +9,7 @@
 #include "defs.h"
 #include "client.h"
 #include "server.h"
+#include "logger.h"
 
 #include "lib/utils.h"
 #include "lib/config.h"
@@ -141,13 +142,13 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         strcpy(host, host_ptr);
     }
 
-    sprintf(log_req_prefix, "[%6i][%s%*s%s]%s ", getpid(), BLD_STR, INET6_ADDRSTRLEN, host, CLR_STR, log_client_prefix);
-    log_prefix = log_req_prefix;
-    print(BLD_STR "%s %s" CLR_STR, req.method, req.uri);
+    sprintf(log_req_prefix, "[%6i][%s%*s%s]%s", getpid(), BLD_STR, INET6_ADDRSTRLEN, host, CLR_STR, log_client_prefix);
+    logger_set_prefix(log_req_prefix);
+    info(BLD_STR "%s %s", req.method, req.uri);
 
     conf = get_host_config(host);
     if (conf == NULL) {
-        print("Unknown host, redirecting to default");
+        info("Unknown host, redirecting to default");
         res.status = http_get_status(307);
         sprintf(buf0, "https://%s%s", DEFAULT_HOST, req.uri);
         http_add_header_field(&res.hdr, "Location", buf0);
@@ -184,7 +185,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 p_len = snprintf(buf1, sizeof(buf1), "https://%s%s", host, buf0);
                 if (p_len < 0 || p_len >= sizeof(buf1)) {
                     res.status = http_get_status(500);
-                    print(ERR_STR "Header field 'Location' too long" CLR_STR);
+                    error("Header field 'Location' too long");
                     goto respond;
                 }
                 http_add_header_field(&res.hdr, "Location", buf1);
@@ -373,7 +374,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 mode = FASTCGI_PHP;
             } else {
                 res.status = http_get_status(500);
-                print(ERR_STR "Invalid FastCGI extension: %s" CLR_STR, uri.filename);
+                error("Invalid FastCGI extension: %s", uri.filename);
                 goto respond;
             }
 
@@ -475,7 +476,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
             }
         }
     } else if (conf->type == CONFIG_TYPE_REVERSE_PROXY) {
-        print("Reverse proxy for " BLD_STR "%s:%i" CLR_STR, conf->rev_proxy.hostname, conf->rev_proxy.port);
+        info("Reverse proxy for " BLD_STR "%s:%i" CLR_STR, conf->rev_proxy.hostname, conf->rev_proxy.port);
         http_remove_header_field(&res.hdr, "Date", HTTP_REMOVE_ALL);
         http_remove_header_field(&res.hdr, "Server", HTTP_REMOVE_ALL);
 
@@ -542,7 +543,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         }
         */
     } else {
-        print(ERR_STR "Unknown host type: %i" CLR_STR, conf->type);
+        error("Unknown host type: %i", conf->type);
         res.status = http_get_status(501);
     }
 
@@ -637,21 +638,21 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     clock_gettime(CLOCK_MONOTONIC, &end);
     const char *location = http_get_header_field(&res.hdr, "Location");
     unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
-    print("%s%s%03i %s%s%s (%s)%s", http_get_status_color(res.status), use_rev_proxy ? "-> " : "", res.status->code,
-          res.status->msg, location != NULL ? " -> " : "", location != NULL ? location : "",
-          format_duration(micros, buf0), CLR_STR);
+    info("%s%s%03i %s%s%s (%s)%s", http_get_status_color(res.status), use_rev_proxy ? "-> " : "", res.status->code,
+         res.status->msg, location != NULL ? " -> " : "", location != NULL ? location : "",
+         format_duration(micros, buf0), CLR_STR);
 
     // TODO access/error log file
 
     if (use_rev_proxy == 2) {
         // WebSocket
-        print("Upgrading connection to WebSocket connection");
+        info("Upgrading connection to WebSocket connection");
         ret = ws_handle_connection(client, &rev_proxy);
         if (ret != 0) {
             client_keep_alive = 0;
             close_proxy = 1;
         }
-        print("WebSocket connection closed");
+        info("WebSocket connection closed");
     } else if (strcmp(req.method, "HEAD") != 0) {
         // default response
         unsigned long snd_len = 0;
@@ -659,7 +660,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         if (msg_buf[0] != 0) {
             ret = sock_send(client, msg_buf, content_length, 0);
             if (ret <= 0) {
-                print(ERR_STR "Unable to send: %s" CLR_STR, sock_strerror(client));
+                error("Unable to send: %s", sock_strerror(client));
             }
             snd_len += ret;
         } else if (file != NULL) {
@@ -670,7 +671,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
                 }
                 ret = sock_send(client, buffer, len, feof(file) ? 0 : MSG_MORE);
                 if (ret <= 0) {
-                    print(ERR_STR "Unable to send: %s" CLR_STR, sock_strerror(client));
+                    error("Unable to send: %s", sock_strerror(client));
                     break;
                 }
                 snd_len += ret;
@@ -701,13 +702,13 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
     }
 
     if (close_proxy && rev_proxy.socket != 0) {
-        print(BLUE_STR "Closing proxy connection" CLR_STR);
+        info(BLUE_STR "Closing proxy connection");
         sock_close(&rev_proxy);
     }
 
     clock_gettime(CLOCK_MONOTONIC, &end);
     micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
-    print("Transfer complete: %s", format_duration(micros, buf0));
+    info("Transfer complete: %s", format_duration(micros, buf0));
 
     uri_free(&uri);
     abort:
@@ -732,13 +733,13 @@ int client_connection_handler(sock *client, unsigned long client_num) {
         sprintf(buf, "dig @%s +short +time=1 -x %s", dns_server, client_addr_str);
         FILE *dig = popen(buf, "r");
         if (dig == NULL) {
-            print(ERR_STR "Unable to start dig: %s" CLR_STR "\n", strerror(errno));
+            error("Unable to start dig: %s", strerror(errno));
             goto dig_err;
         }
         unsigned long read = fread(buf, 1, sizeof(buf), dig);
         ret = pclose(dig);
         if (ret != 0) {
-            print(ERR_STR "Dig terminated with exit code %i" CLR_STR "\n", ret);
+            error("Dig terminated with exit code %i", ret);
             goto dig_err;
         }
         char *ptr = memchr(buf, '\n', read);
@@ -759,10 +760,10 @@ int client_connection_handler(sock *client, unsigned long client_num) {
         int gai_error, mmdb_res;
         MMDB_lookup_result_s result = MMDB_lookup_string(&mmdbs[i], client_addr_str, &gai_error, &mmdb_res);
         if (mmdb_res != MMDB_SUCCESS) {
-            print(ERR_STR "Unable to lookup geoip info: %s" CLR_STR "\n", MMDB_strerror(mmdb_res));
+            error("Unable to lookup geoip info: %s", MMDB_strerror(mmdb_res));
             continue;
         } else if (gai_error != 0) {
-            print(ERR_STR "Unable to lookup geoip info" CLR_STR "\n");
+            error("Unable to lookup geoip info");
             continue;
         } else if (!result.found_entry) {
             continue;
@@ -771,7 +772,7 @@ int client_connection_handler(sock *client, unsigned long client_num) {
         MMDB_entry_data_list_s *list;
         mmdb_res = MMDB_get_entry_data_list(&result.entry, &list);
         if (mmdb_res != MMDB_SUCCESS) {
-            print(ERR_STR "Unable to lookup geoip info: %s" CLR_STR "\n", MMDB_strerror(mmdb_res));
+            error("Unable to lookup geoip info: %s", MMDB_strerror(mmdb_res));
             continue;
         }
 
@@ -802,9 +803,9 @@ int client_connection_handler(sock *client, unsigned long client_num) {
         }
     }
 
-    print("Connection accepted from %s %s%s%s[%s]", client_addr_str, client_host_str != NULL ? "(" : "",
-          client_host_str != NULL ? client_host_str : "", client_host_str != NULL ? ") " : "",
-          client_cc[0] != 0 ? client_cc : "N/A");
+    info("Connection accepted from %s %s%s%s[%s]", client_addr_str, client_host_str != NULL ? "(" : "",
+         client_host_str != NULL ? client_host_str : "", client_host_str != NULL ? ") " : "",
+         client_cc[0] != 0 ? client_cc : "N/A");
 
     client_timeout.tv_sec = CLIENT_TIMEOUT;
     client_timeout.tv_usec = 0;
@@ -812,7 +813,7 @@ int client_connection_handler(sock *client, unsigned long client_num) {
         goto set_timeout_err;
     if (setsockopt(client->socket, SOL_SOCKET, SO_SNDTIMEO, &client_timeout, sizeof(client_timeout)) < 0) {
         set_timeout_err:
-        print(ERR_STR "Unable to set timeout for socket: %s" CLR_STR, strerror(errno));
+        error("Unable to set timeout for socket");
         return 1;
     }
 
@@ -826,7 +827,7 @@ int client_connection_handler(sock *client, unsigned long client_num) {
         client->_errno = errno;
         client->_ssl_error = ERR_get_error();
         if (ret <= 0) {
-            print(ERR_STR "Unable to perform handshake: %s" CLR_STR, sock_strerror(client));
+            error("Unable to perform handshake: %s", sock_strerror(client));
             ret = -1;
             goto close;
         }
@@ -836,21 +837,21 @@ int client_connection_handler(sock *client, unsigned long client_num) {
     ret = 0;
     while (ret == 0 && server_keep_alive && req_num < REQ_PER_CONNECTION) {
         ret = client_request_handler(client, client_num, req_num++);
-        log_prefix = log_conn_prefix;
+        logger_set_prefix(log_conn_prefix);
     }
 
     close:
     sock_close(client);
 
     if (rev_proxy.socket != 0) {
-        print(BLUE_STR "Closing proxy connection" CLR_STR);
+        info(BLUE_STR "Closing proxy connection");
         sock_close(&rev_proxy);
     }
 
     clock_gettime(CLOCK_MONOTONIC, &end);
     unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
 
-    print("Connection closed (%s)", format_duration(micros, buf));
+    info("Connection closed (%s)", format_duration(micros, buf));
     return 0;
 }
 
@@ -890,10 +891,10 @@ int client_handler(sock *client, unsigned long client_num, struct sockaddr_in6 *
             ntohs(client_addr->sin6_port), CLR_STR);
 
     log_conn_prefix = malloc(256);
-    sprintf(log_conn_prefix, "[%6i][%*s]%s ", getpid(), INET6_ADDRSTRLEN, server_addr_str, log_client_prefix);
-    log_prefix = log_conn_prefix;
+    sprintf(log_conn_prefix, "[%6i][%*s]%s", getpid(), INET6_ADDRSTRLEN, server_addr_str, log_client_prefix);
+    logger_set_prefix(log_conn_prefix);
 
-    print("Started child process with PID %i", getpid());
+    info("Started child process with PID %i", getpid());
 
     ret = client_connection_handler(client, client_num);
 
