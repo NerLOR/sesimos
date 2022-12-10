@@ -5,7 +5,7 @@ LIBS=-lssl -lcrypto -lmagic -lz -lmaxminddb -lbrotlienc
 
 DEBIAN_OPTS=-D CACHE_MAGIC_FILE="\"/usr/share/file/magic.mgc\"" -D PHP_FPM_SOCKET="\"/var/run/php/php7.4-fpm.sock\""
 
-.PHONY: all prod debug default permit clean
+.PHONY: all prod debug default permit clean test
 all: prod
 default: bin bin/lib bin/libsesimos.so bin/sesimos
 prod: CFLAGS += -O3
@@ -14,12 +14,20 @@ debug: default
 debian: CFLAGS += $(DEBIAN_OPTS)
 debian: prod
 
+test: CFLAGS += -include test/mock_*.h
+test: bin bin/test
+	bin/test
+
 
 bin:
 	mkdir -p bin
 
 bin/lib:
 	mkdir -p bin/lib
+
+
+bin/test: test/mock_*.c test/test_*.c src/lib/utils.c src/lib/sock.c
+	$(CC) -o $@ $(CFLAGS) $^ -lcriterion
 
 
 bin/%.o: src/%.c

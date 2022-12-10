@@ -179,8 +179,7 @@ int client_request_handler(sock *client, unsigned long client_num, unsigned int 
         int change_proto = strncmp(uri.uri, "/.well-known/", 13) != 0 && !client->enc;
         if (strcmp(uri.uri, buf0) != 0 || change_proto) {
             res.status = http_get_status(308);
-            size = sizeof(buf0);
-            url_encode(uri.uri, buf0, &size);
+            size = url_encode(uri.uri, strlen(uri.uri), buf0, sizeof(buf0));
             if (change_proto) {
                 p_len = snprintf(buf1, sizeof(buf1), "https://%s%s", host, buf0);
                 if (p_len < 0 || p_len >= sizeof(buf1)) {

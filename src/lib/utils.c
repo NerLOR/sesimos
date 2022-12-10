@@ -15,69 +15,77 @@
 
 char *log_prefix;
 
+static const char base64_encode_table[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+static const int base64_mod_table[3] = {0, 2, 1};
+
+
 char *format_duration(unsigned long micros, char *buf) {
     if (micros < 10000) {
         sprintf(buf, "%.1f ms", (double) micros / 1000);
-    } else if (micros < 1000000) {
-        sprintf(buf, "%li ms", micros / 1000);
-    } else if (micros < 60000000) {
+    } else if (micros < 1000000 - 1000) {
+        sprintf(buf, "%.0f ms", (double) micros / 1000);
+    } else if (micros < 60000000 - 1000000) {
         sprintf(buf, "%.1f s", (double) micros / 1000000);
     } else if (micros < 6000000000) {
         sprintf(buf, "%.1f min", (double) micros / 1000000 / 60);
     } else {
-        sprintf(buf, "%li min", micros / 1000000 / 60);
+        sprintf(buf, "%.0f min", (double) micros / 1000000 / 60);
     }
     return buf;
 }
 
-int url_encode_component(const char *str, char *enc, long *size) {
-    char *ptr = enc;
-    char ch;
-    memset(enc, 0, *size);
-    for (int i = 0; i < strlen(str); i++, ptr++) {
-        if ((ptr - enc) >= *size) {
-            return -1;
+int url_encode_component(const void *in, size_t size_in, char *out, size_t size_out) {
+    int size = 0;
+
+    // Encode control characters
+    for (int i = 0; i < size_in; i++) {
+        unsigned char ch = ((unsigned char *) in)[i];
+        if (ch == ' ') {
+            ch = '+';
+        } else if (
+                ch <= 0x20 || ch >= 0x7F ||
+                !((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') ||
+                  ch == '-' || ch == '_' || ch == '.' || ch == '!' || ch == '~' || ch == '*' || ch == '\'' ||
+                  ch == '(' || ch == ')')
+        ) {
+            size += 3;
+            if (size < size_out) sprintf(out + size - 3, "%%%02X", ch);
+            ch = 0;
         }
-        ch = str[i];
-        if (ch == ':' || ch == '/' || ch == '?' || ch == '#' || ch == '[' || ch == ']' || ch == '@' || ch == '!' ||
-                ch == '$' || ch == '&' || ch == '\'' || ch == '(' || ch == ')' || ch == '*' || ch == '+' || ch == ',' ||
-                ch == ';' || ch == '=' || ch < ' ' || ch > '~') {
-            if ((ptr - enc + 2) >= *size) {
-                return -1;
-            }
-            sprintf(ptr, "%%%02X", ch);
-            ptr += 2;
-        } else if (ch == ' ') {
-            ptr[0] = '+';
-        } else {
-            ptr[0] = ch;
+
+        if (ch != 0) {
+            size++;
+            if (size < size_out) out[size - 1] = (char) ch;
         }
     }
-    *size = ptr - enc;
-    return 0;
+
+    // Set terminating null byte
+    if (size_out > 0) out[size < size_out ? size : size_out - 1] = 0;
+
+    // Return theoretical size
+    return size;
 }
 
-int url_encode(const char *str, char *enc, long *size) {
-    char *ptr = enc;
-    unsigned char ch;
-    memset(enc, 0, *size);
-    for (int i = 0; i < strlen(str); i++, ptr++) {
-        if ((ptr - enc) >= *size) {
-            return -1;
-        }
-        ch = str[i];
-        if (ch > 0x7F || ch == ' ') {
-            if ((ptr - enc + 2) >= *size) {
-                return -1;
-            }
-            sprintf(ptr, "%%%02X", ch);
-            ptr += 2;
+int url_encode(const void *in, size_t size_in, char *out, size_t size_out) {
+    int size = 0;
+
+    // Encode control characters
+    for (int i = 0; i < size_in; i++) {
+        unsigned char ch = ((unsigned char *) in)[i];
+        if (ch <= 0x20 || ch >= 0x7F) {
+            size += 3;
+            if (size < size_out) sprintf(out + size - 3, "%%%02X", ch);
         } else {
-            ptr[0] = (char) ch;
+            size++;
+            if (size < size_out) out[size - 1] = (char) ch;
         }
     }
-    *size = ptr - enc;
-    return 0;
+
+    // Set terminating null byte
+    if (size_out > 0) out[size < size_out ? size : size_out - 1] = 0;
+
+    // Return theoretical size
+    return size;
 }
 
 int url_decode(const char *str, char *dec, long *size) {

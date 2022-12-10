@@ -3,6 +3,8 @@
 !src/**
 !doc
 !doc/**
+!test
+!test/**
 !Makefile
 !.gitignore
 !README.md

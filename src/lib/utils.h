@@ -21,9 +21,6 @@
 
 extern char *log_prefix;
 
-static const char base64_encode_table[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-static const int base64_mod_table[3] = {0, 2, 1};
-
 
 #define out_1(fmt) fprintf(stdout, "%s" fmt "\n", log_prefix)
 #define out_2(fmt, args...) fprintf(stdout, "%s" fmt "\n", log_prefix, args)
@@ -37,9 +34,9 @@ static const int base64_mod_table[3] = {0, 2, 1};
 
 char *format_duration(unsigned long micros, char *buf);
 
-int url_encode_component(const char *str, char *enc, long *size);
+int url_encode_component(const void *in, size_t size_in, char *out, size_t size_out);
 
-int url_encode(const char *str, char *enc, long *size);
+int url_encode(const void *in, size_t size_in, char *out, size_t size_out);
 
 int url_decode(const char *str, char *dec, long *size);
 
