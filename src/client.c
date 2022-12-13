@@ -34,6 +34,8 @@
 volatile sig_atomic_t server_keep_alive = 1;
 struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
 
+static const char *color_table[] = {"\x1B[31m", "\x1B[32m", "\x1B[33m", "\x1B[34m", "\x1B[35m", "\x1B[36m"};
+
 host_config *get_host_config(const char *host) {
     for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
         host_config *hc = &config->hosts[i];
@@ -813,8 +815,6 @@ int client_handler(sock *client, unsigned long client_num) {
 
     client_ctx_t ctx;
     char log_client_prefix[256], log_conn_prefix[512];
-
-    char *color_table[] = {"\x1B[31m", "\x1B[32m", "\x1B[33m", "\x1B[34m", "\x1B[35m", "\x1B[36m"};
 
     signal(SIGINT, client_terminate);
     signal(SIGTERM, client_terminate);

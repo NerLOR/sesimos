@@ -49,8 +49,10 @@ static int ssl_servername_cb(SSL *ssl, int *ad, void *arg) {
     return SSL_TLSEXT_ERR_OK;
 }
 
-void destroy(int sig) {
-    critical("Terminating forcefully!");
+void terminate_forcefully(int sig) {
+    fprintf(stderr, "\n");
+    notice("Terminating forcefully!");
+
     int status = 0;
     int ret;
     int kills = 0;
@@ -71,20 +73,20 @@ void destroy(int sig) {
         }
     }
     if (kills > 0) {
-        critical("Killed %i child process(es)", kills);
+        notice("Killed %i child process(es)", kills);
     }
     cache_unload();
     config_unload();
     exit(2);
 }
 
-void terminate(int sig) {
+void terminate_gracefully(int sig) {
     fprintf(stderr, "\n");
     notice("Terminating gracefully...");
-    active = 0;
 
-    signal(SIGINT, destroy);
-    signal(SIGTERM, destroy);
+    active = 0;
+    signal(SIGINT, terminate_forcefully);
+    signal(SIGTERM, terminate_forcefully);
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         shutdown(sockets[i], SHUT_RDWR);
@@ -231,8 +233,8 @@ int main(int argc, const char *argv[]) {
         return 1;
     }
 
-    signal(SIGINT, terminate);
-    signal(SIGTERM, terminate);
+    signal(SIGINT, terminate_gracefully);
+    signal(SIGTERM, terminate_gracefully);
 
     if ((ret = geoip_init(geoip_dir)) != 0) {
         if (ret == -1) {
@@ -306,7 +308,7 @@ int main(int argc, const char *argv[]) {
         ready_sockets_num = poll(poll_fds, NUM_SOCKETS, 1000);
         if (ready_sockets_num < 0) {
             critical("Unable to poll sockets");
-            terminate(0);
+            terminate_gracefully(0);
             return 1;
         }
 
