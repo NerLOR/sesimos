@@ -15,7 +15,6 @@
 
 #define NUM_SOCKETS 2
 #define MAX_CHILDREN 1024
-#define MAX_MMDB 3
 #define LISTEN_BACKLOG 16
 #define REQ_PER_CONNECTION 200
 #define CLIENT_TIMEOUT 3600
@@ -24,7 +23,6 @@
 
 extern int sockets[NUM_SOCKETS];
 extern pid_t children[MAX_CHILDREN];
-extern MMDB_s mmdbs[MAX_MMDB];
 
 extern volatile sig_atomic_t server_keep_alive;
 extern struct timeval client_timeout;

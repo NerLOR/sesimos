@@ -751,51 +751,9 @@ int client_connection_handler(client_ctx_t *ctx, sock *client, unsigned long cli
         ctx->host[0] = 0;
     }
 
-    long str_off = 0;
-    for (int i = 0; i < MAX_MMDB && mmdbs[i].filename != NULL; i++) {
-        int gai_error, mmdb_res;
-        MMDB_lookup_result_s result = MMDB_lookup_string(&mmdbs[i], ctx->addr, &gai_error, &mmdb_res);
-        if (mmdb_res != MMDB_SUCCESS) {
-            error("Unable to lookup geoip info: %s", MMDB_strerror(mmdb_res));
-            continue;
-        } else if (gai_error != 0) {
-            error("Unable to lookup geoip info");
-            continue;
-        } else if (!result.found_entry) {
-            continue;
-        }
-
-        MMDB_entry_data_list_s *list;
-        mmdb_res = MMDB_get_entry_data_list(&result.entry, &list);
-        if (mmdb_res != MMDB_SUCCESS) {
-            error("Unable to lookup geoip info: %s", MMDB_strerror(mmdb_res));
-            continue;
-        }
-
-        long prev = str_off;
-        if (str_off != 0) {
-            str_off--;
-        }
-        mmdb_json(list, ctx->geoip, &str_off, GEOIP_MAX_SIZE);
-        if (prev != 0) {
-            ctx->geoip[prev - 1] = ',';
-        }
-
-        MMDB_free_entry_data_list(list);
-    }
-
     ctx->cc[0] = 0;
-    if (str_off == 0) {
-        ctx->geoip[0] = 0;
-    } else {
-        const char *pos = ctx->geoip;
-        pos = strstr(pos, "\"country\":");
-        if (pos != NULL) {
-            pos = strstr(pos, "\"iso_code\":");
-            pos += 12;
-            snprintf(ctx->cc, sizeof(ctx->cc), "%s", pos);
-        }
-    }
+    ctx->geoip[0] = 0;
+    geoip_lookup_country((struct sockaddr *) &client->addr, ctx->cc);
 
     info("Connection accepted from %s %s%s%s[%s]", ctx->addr, ctx->host[0] != 0 ? "(" : "",
          ctx->host[0] != 0 ? ctx->host : "", ctx->host[0] != 0 ? ") " : "",
@@ -849,7 +807,7 @@ int client_connection_handler(client_ctx_t *ctx, sock *client, unsigned long cli
     return 0;
 }
 
-int client_handler(sock *client, unsigned long client_num, struct sockaddr_in6 *client_addr) {
+int client_handler(sock *client, unsigned long client_num) {
     struct sockaddr_in6 *server_addr;
     struct sockaddr_storage server_addr_storage;
 
@@ -861,7 +819,7 @@ int client_handler(sock *client, unsigned long client_num, struct sockaddr_in6 *
     signal(SIGINT, client_terminate);
     signal(SIGTERM, client_terminate);
 
-    inet_ntop(client_addr->sin6_family, (void *) &client_addr->sin6_addr, ctx._c_addr, sizeof(ctx._c_addr));
+    inet_ntop(client->addr.sin6_family, (void *) &client->addr.sin6_addr, ctx._c_addr, sizeof(ctx._c_addr));
     if (strncmp(ctx._c_addr, "::ffff:", 7) == 0) {
         ctx.addr = ctx._c_addr + 7;
     } else {
@@ -880,7 +838,7 @@ int client_handler(sock *client, unsigned long client_num, struct sockaddr_in6 *
 
     sprintf(log_client_prefix, "[%s%4i%s]%s[%*s][%5i]%s", (int) client->enc ? HTTPS_STR : HTTP_STR,
             ntohs(server_addr->sin6_port), CLR_STR, color_table[client_num % 6], INET6_ADDRSTRLEN, ctx.addr,
-            ntohs(client_addr->sin6_port), CLR_STR);
+            ntohs(client->addr.sin6_port), CLR_STR);
 
     sprintf(log_conn_prefix, "[%6i][%*s]%s", getpid(), INET6_ADDRSTRLEN, ctx.s_addr, log_client_prefix);
     logger_set_prefix(log_conn_prefix);

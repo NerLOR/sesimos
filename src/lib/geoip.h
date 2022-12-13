@@ -12,8 +12,13 @@
 
 #include <maxminddb.h>
 
-#define GEOIP_MAX_SIZE 8192
+#define GEOIP_MAX_JSON_SIZE 8192
+#define GEOIP_MAX_MMDB 3
 
-MMDB_entry_data_list_s *mmdb_json(MMDB_entry_data_list_s *list, char *str, long *str_off, long str_len);
+int geoip_init(const char *directory);
+
+void geoip_free();
+
+int geoip_lookup_country(struct sockaddr *addr, char *str);
 
 #endif //SESIMOS_GEOIP_H

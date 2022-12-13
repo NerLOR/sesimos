@@ -11,10 +11,12 @@
 
 #include <openssl/crypto.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 
 typedef struct {
     unsigned int enc:1;
     int socket;
+    struct sockaddr_in6 addr;
     SSL_CTX *ctx;
     SSL *ssl;
     long _last_ret;

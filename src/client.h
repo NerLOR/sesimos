@@ -20,13 +20,13 @@ typedef struct {
     char *s_addr;
     char cc[3];
     char host[256];
-    char geoip[GEOIP_MAX_SIZE + 1];
+    char geoip[GEOIP_MAX_JSON_SIZE + 1];
     char _c_addr[INET6_ADDRSTRLEN + 1];
     char _s_addr[INET6_ADDRSTRLEN + 1];
 } client_ctx_t;
 
 host_config *get_host_config(const char *host);
 
-int client_handler(sock *client, unsigned long client_num, struct sockaddr_in6 *client_addr);
+int client_handler(sock *client, unsigned long client_num);
 
 #endif //SESIMOS_CLIENT_H

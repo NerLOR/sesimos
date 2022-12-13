@@ -32,14 +32,12 @@
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <openssl/conf.h>
-#include <dirent.h>
 
 
 volatile sig_atomic_t active = 1;
 const char *config_file;
 int sockets[NUM_SOCKETS];
 pid_t children[MAX_CHILDREN];
-MMDB_s mmdbs[MAX_MMDB];
 SSL_CTX *contexts[CONFIG_MAX_CERT_CONFIG];
 
 static int ssl_servername_cb(SSL *ssl, int *ad, void *arg) {
@@ -150,17 +148,13 @@ int main(int argc, const char *argv[]) {
     struct pollfd poll_fds[NUM_SOCKETS];
     int ready_sockets_num;
     long client_num = 0;
-    char buf[1024];
     int ret;
 
     int client_fd;
     sock client;
-    struct sockaddr_in6 client_addr;
-    unsigned int client_addr_len = sizeof(client_addr);
 
     memset(sockets, 0, sizeof(sockets));
     memset(children, 0, sizeof(children));
-    memset(mmdbs, 0, sizeof(mmdbs));
 
     const struct sockaddr_in6 addresses[2] = {
             {.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_ANY_INIT, .sin6_port = htons(80)},
@@ -240,37 +234,12 @@ int main(int argc, const char *argv[]) {
     signal(SIGINT, terminate);
     signal(SIGTERM, terminate);
 
-    if (geoip_dir[0] != 0) {
-        DIR *geoip = opendir(geoip_dir);
-        if (geoip == NULL) {
-            critical("Unable to open GeoIP dir");
-            config_unload();
-            return 1;
+    if ((ret = geoip_init(geoip_dir)) != 0) {
+        if (ret == -1) {
+            critical("Unable to initialize geoip");
         }
-        struct dirent *dir;
-        int i = 0;
-        while ((dir = readdir(geoip)) != NULL) {
-            if (strcmp(dir->d_name + strlen(dir->d_name) - 5, ".mmdb") != 0) continue;
-            if (i >= MAX_MMDB) {
-                critical("Too many .mmdb files");
-                config_unload();
-                return 1;
-            }
-            sprintf(buf, "%s/%s", geoip_dir, dir->d_name);
-            ret = MMDB_open(buf, 0, &mmdbs[i]);
-            if (ret != MMDB_SUCCESS) {
-                critical("Unable to open .mmdb file: %s", MMDB_strerror(ret));
-                config_unload();
-                return 1;
-            }
-            i++;
-        }
-        if (i == 0) {
-            critical("No .mmdb files found in %s", geoip_dir);
-            config_unload();
-            return 1;
-        }
-        closedir(geoip);
+        config_unload();
+        return 1;
     }
 
     ret = cache_init();
@@ -343,7 +312,8 @@ int main(int argc, const char *argv[]) {
 
         for (int i = 0; i < NUM_SOCKETS; i++) {
             if (poll_fds[i].revents & POLLIN) {
-                client_fd = accept(sockets[i], (struct sockaddr *) &client_addr, &client_addr_len);
+                socklen_t addr_len = sizeof(client.addr);
+                client_fd = accept(sockets[i], (struct sockaddr *) &client.addr, &addr_len);
                 if (client_fd < 0) {
                     critical("Unable to accept connection");
                     continue;
@@ -357,7 +327,7 @@ int main(int argc, const char *argv[]) {
 
                     client.socket = client_fd;
                     client.enc = (i == 1);
-                    return client_handler(&client, client_num, &client_addr);
+                    return client_handler(&client, client_num);
                 } else if (pid > 0) {
                     // parent
                     client_num++;
