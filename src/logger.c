@@ -222,7 +222,7 @@ void logger_stop(void) {
     logger_alive = 0;
 }
 
-void logger(void) {
+void logger_thread(void) {
     if (logger_init() != 0)
         return;
 
