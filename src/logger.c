@@ -57,7 +57,7 @@ static const char *level_keywords[] = {
 static void err(const char *restrict msg) {
     char err_buf[64];
     strerror_r(errno, err_buf, sizeof(err_buf));
-    fprintf(stderr, ERR_STR "[%6s][logger] %s: %s" CLR_STR "\n", level_keywords[LOG_CRITICAL], msg, err_buf);
+    fprintf(stderr, ERR_STR "[logger][%6s] %s: %s" CLR_STR "\n", level_keywords[LOG_CRITICAL], msg, err_buf);
 }
 
 void logmsgf(log_lvl_t level, const char *restrict format, ...) {
@@ -82,7 +82,7 @@ void logmsgf(log_lvl_t level, const char *restrict format, ...) {
     if (!logger_alive) {
         // no logger thread running
         // simply write to stdout without synchronization
-        printf("%s[%-6s][%-6s]%s%s ", color, level_keywords[level], (name != NULL) ? (char *) name : "", CLR_STR, (prefix != NULL) ? (char *) prefix : "");
+        printf("%s[%-6s][%-6s]%s%s ", color, (name != NULL) ? (char *) name : "", level_keywords[level], CLR_STR, (prefix != NULL) ? (char *) prefix : "");
         vprintf(buf, args);
         printf("\n");
     } else {

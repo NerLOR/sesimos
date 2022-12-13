@@ -77,6 +77,7 @@ void terminate_forcefully(int sig) {
     }
     cache_unload();
     config_unload();
+    geoip_free();
     exit(2);
 }
 
@@ -142,6 +143,7 @@ void terminate_gracefully(int sig) {
     info("Goodbye");
     cache_unload();
     config_unload();
+    geoip_free();
     exit(0);
 }
 
@@ -247,6 +249,7 @@ int main(int argc, const char *argv[]) {
     ret = cache_init();
     if (ret < 0) {
         config_unload();
+        geoip_free();
         return 1;
     } else if (ret != 0) {
         children[0] = ret;  // pid
@@ -272,12 +275,14 @@ int main(int argc, const char *argv[]) {
             critical("Unable to load certificate chain file: %s: %s", ERR_reason_error_string(ERR_get_error()), conf->full_chain);
             config_unload();
             cache_unload();
+            geoip_free();
             return 1;
         }
         if (SSL_CTX_use_PrivateKey_file(ctx, conf->priv_key, SSL_FILETYPE_PEM) != 1) {
             critical("Unable to load private key file: %s: %s", ERR_reason_error_string(ERR_get_error()), conf->priv_key);
             config_unload();
             cache_unload();
+            geoip_free();
             return 1;
         }
     }
@@ -292,6 +297,7 @@ int main(int argc, const char *argv[]) {
             critical("Unable to listen on socket %i", i);
             config_unload();
             cache_unload();
+            geoip_free();
             return 1;
         }
     }
@@ -365,5 +371,6 @@ int main(int argc, const char *argv[]) {
 
     config_unload();
     cache_unload();
+    geoip_free();
     return 0;
 }
