@@ -118,7 +118,7 @@ extern const int http_statuses_size;
 extern const int http_status_messages_size;
 
 extern const char http_default_document[];
-extern const char http_rev_proxy_document[];
+extern const char http_proxy_document[];
 extern const char http_error_document[];
 extern const char http_error_icon[];
 extern const char http_warning_document[];

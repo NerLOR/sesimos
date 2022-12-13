@@ -15,7 +15,7 @@
 #include "lib/config.h"
 #include "lib/sock.h"
 #include "lib/http.h"
-#include "lib/rev_proxy.h"
+#include "lib/proxy.h"
 #include "lib/fastcgi.h"
 #include "lib/cache.h"
 #include "lib/geoip.h"
@@ -74,7 +74,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
     long content_length = 0;
     int accept_if_modified_since = 0;
     int use_fastcgi = 0;
-    int use_rev_proxy = 0;
+    int use_proxy = 0;
     int p_len;
 
     fastcgi_conn fcgi_conn = {.socket = 0, .req_id = 0, .ctx = cctx};
@@ -474,12 +474,12 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
             }
         }
     } else if (conf->type == CONFIG_TYPE_REVERSE_PROXY) {
-        info("Reverse proxy for " BLD_STR "%s:%i" CLR_STR, conf->rev_proxy.hostname, conf->rev_proxy.port);
+        info("Reverse proxy for " BLD_STR "%s:%i" CLR_STR, conf->proxy.hostname, conf->proxy.port);
         http_remove_header_field(&res.hdr, "Date", HTTP_REMOVE_ALL);
         http_remove_header_field(&res.hdr, "Server", HTTP_REMOVE_ALL);
 
-        ret = rev_proxy_init(&req, &res, &ctx, conf, client, cctx, &custom_status, err_msg);
-        use_rev_proxy = (ret == 0);
+        ret = proxy_init(&req, &res, &ctx, conf, client, cctx, &custom_status, err_msg);
+        use_proxy = (ret == 0);
 
         if (res.status->code == 101) {
             const char *connection = http_get_header_field(&res.hdr, "Connection");
@@ -490,7 +490,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
             {
                 const char *ws_accept = http_get_header_field(&res.hdr, "Sec-WebSocket-Accept");
                 if (ws_calc_accept_key(ctx.ws_key, buf0) == 0) {
-                    use_rev_proxy = (strcmp(buf0, ws_accept) == 0) ? 2 : 1;
+                    use_proxy = (strcmp(buf0, ws_accept) == 0) ? 2 : 1;
                 }
             } else {
                 ctx.status = 101;
@@ -500,7 +500,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
         }
 
         // Let 300 be formatted by origin server
-        if (use_rev_proxy && res.status->code >= 301 && res.status->code < 600) {
+        if (use_proxy && res.status->code >= 301 && res.status->code < 600) {
             const char *content_type = http_get_header_field(&res.hdr, "Content-Type");
             const char *content_length_f = http_get_header_field(&res.hdr, "Content-Length");
             const char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding");
@@ -511,20 +511,20 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
                         ctx.status = res.status->code;
                         ctx.origin = res.status->code >= 400 ? SERVER : NONE;
                     }
-                    use_rev_proxy = 0;
-                    rev_proxy_dump(msg_content, content_len);
+                    use_proxy = 0;
+                    proxy_dump(msg_content, content_len);
                 }
             }
         }
 
         /*
         char *content_encoding = http_get_header_field(&res.hdr, "Content-Encoding");
-        if (use_rev_proxy && content_encoding == NULL) {
+        if (use_proxy && content_encoding == NULL) {
             int http_comp = http_get_compression(&req, &res);
             if (http_comp & COMPRESS_BR) {
-                use_rev_proxy |= REV_PROXY_COMPRESS_BR;
+                use_proxy |= PROXY_COMPRESS_BR;
             } else if (http_comp & COMPRESS_GZ) {
-                use_rev_proxy |= REV_PROXY_COMPRESS_GZ;
+                use_proxy |= PROXY_COMPRESS_GZ;
             }
         }
 
@@ -532,9 +532,9 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
         int chunked = transfer_encoding != NULL && strcmp(transfer_encoding, "chunked") == 0;
         http_remove_header_field(&res.hdr, "Transfer-Encoding", HTTP_REMOVE_ALL);
         ret = sprintf(buf0, "%s%s%s",
-                      (use_rev_proxy & REV_PROXY_COMPRESS_BR) ? "br" :
-                      ((use_rev_proxy & REV_PROXY_COMPRESS_GZ) ? "gzip" : ""),
-                      ((use_rev_proxy & REV_PROXY_COMPRESS) && chunked) ? ", " : "",
+                      (use_proxy & PROXY_COMPRESS_BR) ? "br" :
+                      ((use_proxy & PROXY_COMPRESS_GZ) ? "gzip" : ""),
+                      ((use_proxy & PROXY_COMPRESS) && chunked) ? ", " : "",
                       chunked ? "chunked" : "");
         if (ret > 0) {
             http_add_header_field(&res.hdr, "Transfer-Encoding", buf0);
@@ -546,7 +546,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
     }
 
     respond:
-    if (!use_rev_proxy) {
+    if (!use_proxy) {
         if (conf != NULL && conf->type == CONFIG_TYPE_LOCAL && uri.is_static && res.status->code == 405) {
             http_add_header_field(&res.hdr, "Allow", "GET, HEAD, TRACE");
         }
@@ -580,12 +580,12 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
                 // TODO let relevant information pass?
             }
 
-            char *rev_proxy_doc = "";
+            char *proxy_doc = "";
             if (conf != NULL && conf->type == CONFIG_TYPE_REVERSE_PROXY) {
                 const http_status *status = http_get_status(ctx.status);
                 char stat_str[8];
                 sprintf(stat_str, "%03i", ctx.status);
-                sprintf(msg_pre_buf_2, http_rev_proxy_document,
+                sprintf(msg_pre_buf_2, http_proxy_document,
                         " success",
                         (ctx.origin == CLIENT_REQ) ? " error" : " success",
                         (ctx.origin == INTERNAL) ? " error" : " success",
@@ -600,13 +600,13 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
                         (ctx.status == 0) ? "???" : stat_str,
                         (status != NULL) ? status->msg : "",
                         host);
-                rev_proxy_doc = msg_pre_buf_2;
+                proxy_doc = msg_pre_buf_2;
             }
 
             sprintf(msg_pre_buf_1, info->doc, res.status->code, res.status->msg, http_msg != NULL ? http_msg->msg : "", err_msg[0] != 0 ? err_msg : "");
             content_length = snprintf(msg_buf, sizeof(msg_buf), http_default_document, res.status->code,
                                       res.status->msg, msg_pre_buf_1, info->mode, info->icon, info->color, host,
-                                      rev_proxy_doc, msg_content[0] != 0 ? msg_content : "");
+                                      proxy_doc, msg_content[0] != 0 ? msg_content : "");
         }
         if (content_length >= 0) {
             sprintf(buf0, "%li", content_length);
@@ -618,7 +618,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
     }
 
     int close_proxy = 0;
-    if (use_rev_proxy != 2) {
+    if (use_proxy != 2) {
         const char *conn = http_get_header_field(&res.hdr, "Connection");
         close_proxy = (conn == NULL || (strstr(conn, "keep-alive") == NULL && strstr(conn, "Keep-Alive") == NULL));
         http_remove_header_field(&res.hdr, "Connection", HTTP_REMOVE_ALL);
@@ -636,16 +636,16 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
     clock_gettime(CLOCK_MONOTONIC, &end);
     const char *location = http_get_header_field(&res.hdr, "Location");
     unsigned long micros = (end.tv_nsec - begin.tv_nsec) / 1000 + (end.tv_sec - begin.tv_sec) * 1000000;
-    info("%s%s%03i %s%s%s (%s)%s", http_get_status_color(res.status), use_rev_proxy ? "-> " : "", res.status->code,
+    info("%s%s%03i %s%s%s (%s)%s", http_get_status_color(res.status), use_proxy ? "-> " : "", res.status->code,
          res.status->msg, location != NULL ? " -> " : "", location != NULL ? location : "",
          format_duration(micros, buf0), CLR_STR);
 
     // TODO access/error log file
 
-    if (use_rev_proxy == 2) {
+    if (use_proxy == 2) {
         // WebSocket
         info("Upgrading connection to WebSocket connection");
-        ret = ws_handle_connection(client, &rev_proxy);
+        ret = ws_handle_connection(client, &proxy);
         if (ret != 0) {
             client_keep_alive = 0;
             close_proxy = 1;
@@ -680,7 +680,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
 
             int flags = (chunked ? FASTCGI_CHUNKED : 0) | (use_fastcgi & (FASTCGI_COMPRESS | FASTCGI_COMPRESS_HOLD));
             ret = fastcgi_send(&fcgi_conn, client, flags);
-        } else if (use_rev_proxy) {
+        } else if (use_proxy) {
             const char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
             int chunked = transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL;
 
@@ -690,8 +690,8 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
                 len_to_send = strtol(content_len, NULL, 10);
             }
 
-            int flags = (chunked ? REV_PROXY_CHUNKED : 0) | (use_rev_proxy & REV_PROXY_COMPRESS);
-            ret = rev_proxy_send(client, len_to_send, flags);
+            int flags = (chunked ? PROXY_CHUNKED : 0) | (use_proxy & PROXY_COMPRESS);
+            ret = proxy_send(client, len_to_send, flags);
         }
 
         if (ret < 0) {
@@ -699,9 +699,9 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
         }
     }
 
-    if (close_proxy && rev_proxy.socket != 0) {
+    if (close_proxy && proxy.socket != 0) {
         info(BLUE_STR "Closing proxy connection");
-        sock_close(&rev_proxy);
+        sock_close(&proxy);
     }
 
     clock_gettime(CLOCK_MONOTONIC, &end);
@@ -837,9 +837,9 @@ int client_connection_handler(client_ctx_t *ctx, sock *client, unsigned long cli
     close:
     sock_close(client);
 
-    if (rev_proxy.socket != 0) {
+    if (proxy.socket != 0) {
         info(BLUE_STR "Closing proxy connection");
-        sock_close(&rev_proxy);
+        sock_close(&proxy);
     }
 
     clock_gettime(CLOCK_MONOTONIC, &end);

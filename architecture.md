@@ -7,7 +7,7 @@
 * connection_initializer
 * request_handler
 * local_handler
-* rev_proxy_handler
+* proxy_handler
 * ws_handler
 * fastcgi_handler
 
@@ -19,4 +19,4 @@
 * request_handler -> local_handler -> request_handler
 * local_handler -> fastcgi_handler -> request_handler
 * request_handler -> rp_handler -> request_handler
-* rev_proxy_handler -> ws_handler -> request_handler
+* proxy_handler -> ws_handler -> request_handler

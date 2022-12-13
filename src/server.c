@@ -14,7 +14,7 @@
 #include "lib/cache.h"
 #include "lib/config.h"
 #include "lib/sock.h"
-#include "lib/rev_proxy.h"
+#include "lib/proxy.h"
 #include "lib/geoip.h"
 #include "lib/utils.h"
 
@@ -314,7 +314,7 @@ int main(int argc, const char *argv[]) {
     client.ctx = contexts[0];
 
 
-    rev_proxy_preload();
+    proxy_preload();
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         if (listen(sockets[i], LISTEN_BACKLOG) < 0) {

@@ -42,16 +42,16 @@ bin/lib/%.o: src/lib/%.c
 
 bin/sesimos: bin/server.o bin/client.o bin/logger.o \
 			 bin/lib/cache.o bin/lib/compress.o bin/lib/config.o bin/lib/fastcgi.o bin/lib/geoip.o \
-			 bin/lib/http.o bin/lib/http_static.o bin/lib/rev_proxy.o bin/lib/sock.o bin/lib/uri.o \
+			 bin/lib/http.o bin/lib/http_static.o bin/lib/proxy.o bin/lib/sock.o bin/lib/uri.o \
 		     bin/lib/utils.o bin/lib/websocket.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
 
 
 bin/server.o: src/server.h src/defs.h src/client.h src/lib/cache.h src/lib/config.h src/lib/sock.h \
-              src/lib/rev_proxy.h src/lib/geoip.h src/lib/utils.h src/logger.h
+              src/lib/proxy.h src/lib/geoip.h src/lib/utils.h src/logger.h
 
 bin/client.o: src/client.h src/defs.h src/server.h src/lib/utils.h src/lib/config.h src/lib/sock.h \
-              src/lib/http.h src/lib/rev_proxy.h src/lib/fastcgi.h src/lib/cache.h src/lib/geoip.h src/lib/compress.h \
+              src/lib/http.h src/lib/proxy.h src/lib/fastcgi.h src/lib/cache.h src/lib/geoip.h src/lib/compress.h \
               src/lib/websocket.h src/logger.h
 
 bin/logger.o: src/logger.h
@@ -69,7 +69,7 @@ bin/lib/geoip.o: src/lib/geoip.h
 
 bin/lib/http.o: src/lib/http.h src/lib/utils.h src/lib/compress.h src/lib/sock.h src/logger.h
 
-bin/lib/rev_proxy.o: src/lib/rev_proxy.h src/defs.h src/server.h src/lib/compress.h src/logger.h
+bin/lib/proxy.o: src/lib/proxy.h src/defs.h src/server.h src/lib/compress.h src/logger.h
 
 bin/lib/sock.o: src/lib/sock.h
 

@@ -34,7 +34,7 @@ typedef struct {
             char hostname[256];
             unsigned short port;
             unsigned char enc:1;
-        } rev_proxy;
+        } proxy;
         struct {
             char webroot[256];
             unsigned char dir_mode:2;

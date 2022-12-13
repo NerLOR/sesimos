@@ -212,7 +212,7 @@ const char http_default_document[] =
         "</body>\n"
         "</html>\n";
 
-const char http_rev_proxy_document[] =
+const char http_proxy_document[] =
         "\t\t<section class=\"error-ctx\">\n"
         "\t\t\t<div class=\"box%1$s\">\n"
         "\t\t\t\t<div class=\"content\">\n"

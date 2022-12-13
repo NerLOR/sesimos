@@ -170,7 +170,7 @@ int config_load(const char *filename) {
                 }
             } else if (len > 9 && strncmp(ptr, "hostname", 8) == 0 && (ptr[8] == ' ' || ptr[8] == '\t')) {
                 source = ptr + 8;
-                target = hc->rev_proxy.hostname;
+                target = hc->proxy.hostname;
                 if (hc->type != 0 && hc->type != CONFIG_TYPE_REVERSE_PROXY) {
                     goto err;
                 } else {
@@ -190,7 +190,7 @@ int config_load(const char *filename) {
                     goto err;
                 } else {
                     hc->type = CONFIG_TYPE_REVERSE_PROXY;
-                    hc->rev_proxy.enc = 0;
+                    hc->proxy.enc = 0;
                 }
                 continue;
             } else if (strcmp(ptr, "https") == 0) {
@@ -198,7 +198,7 @@ int config_load(const char *filename) {
                     goto err;
                 } else {
                     hc->type = CONFIG_TYPE_REVERSE_PROXY;
-                    hc->rev_proxy.enc = 1;
+                    hc->proxy.enc = 1;
                 }
                 continue;
             } else {
@@ -229,7 +229,7 @@ int config_load(const char *filename) {
                 goto err;
             }
         } else if (mode == 2) {
-            tmp_config->hosts[i - 1].rev_proxy.port = (unsigned short) strtoul(source, NULL, 10);
+            tmp_config->hosts[i - 1].proxy.port = (unsigned short) strtoul(source, NULL, 10);
         }
     }
 
