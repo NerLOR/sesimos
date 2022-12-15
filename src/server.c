@@ -321,7 +321,7 @@ int main(int argc, const char *argv[]) {
         for (int i = 0; i < NUM_SOCKETS; i++) {
             if (poll_fds[i].revents & POLLIN) {
                 socklen_t addr_len = sizeof(client.addr);
-                client_fd = accept(sockets[i], (struct sockaddr *) &client.addr, &addr_len);
+                client_fd = accept(sockets[i], &client.addr.sock, &addr_len);
                 if (client_fd < 0) {
                     critical("Unable to accept connection");
                     continue;

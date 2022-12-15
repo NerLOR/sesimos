@@ -16,7 +16,10 @@
 typedef struct {
     unsigned int enc:1;
     int socket;
-    struct sockaddr_in6 addr;
+    union {
+        struct sockaddr sock;
+        struct sockaddr_in6 ipv6;
+    } addr;
     SSL_CTX *ctx;
     SSL *ssl;
     long _last_ret;

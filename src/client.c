@@ -755,7 +755,7 @@ int client_connection_handler(client_ctx_t *ctx, sock *client, unsigned long cli
 
     ctx->cc[0] = 0;
     ctx->geoip[0] = 0;
-    geoip_lookup_country((struct sockaddr *) &client->addr, ctx->cc);
+    geoip_lookup_country(&client->addr.sock, ctx->cc);
 
     info("Connection accepted from %s %s%s%s[%s]", ctx->addr, ctx->host[0] != 0 ? "(" : "",
          ctx->host[0] != 0 ? ctx->host : "", ctx->host[0] != 0 ? ") " : "",
@@ -819,7 +819,7 @@ int client_handler(sock *client, unsigned long client_num) {
     signal(SIGINT, client_terminate);
     signal(SIGTERM, client_terminate);
 
-    inet_ntop(client->addr.sin6_family, (void *) &client->addr.sin6_addr, ctx._c_addr, sizeof(ctx._c_addr));
+    inet_ntop(client->addr.ipv6.sin6_family, &client->addr.ipv6.sin6_addr, ctx._c_addr, sizeof(ctx._c_addr));
     if (strncmp(ctx._c_addr, "::ffff:", 7) == 0) {
         ctx.addr = ctx._c_addr + 7;
     } else {
@@ -838,7 +838,7 @@ int client_handler(sock *client, unsigned long client_num) {
 
     sprintf(log_client_prefix, "[%s%4i%s]%s[%*s][%5i]%s", (int) client->enc ? HTTPS_STR : HTTP_STR,
             ntohs(server_addr->sin6_port), CLR_STR, color_table[client_num % 6], INET6_ADDRSTRLEN, ctx.addr,
-            ntohs(client->addr.sin6_port), CLR_STR);
+            ntohs(client->addr.ipv6.sin6_port), CLR_STR);
 
     sprintf(log_conn_prefix, "[%6i][%*s]%s", getpid(), INET6_ADDRSTRLEN, ctx.s_addr, log_client_prefix);
     logger_set_prefix(log_conn_prefix);
