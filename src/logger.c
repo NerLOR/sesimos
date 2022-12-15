@@ -153,7 +153,7 @@ static int logger_init(void) {
     int ret;
 
     // try to initialize all three semaphores
-    if (sem_init(&sem_buf, 0, 1) != 0 || sem_init(&sem_buf_free, 0, 1) != 0 || sem_init(&sem_buf_used, 0, 0) != 0) {
+    if (sem_init(&sem_buf, 0, 1) != 0 || sem_init(&sem_buf_free, 0, LOG_BUF_SIZE) != 0 || sem_init(&sem_buf_used, 0, 0) != 0) {
         err("Unable to initialize semaphore");
         logger_destroy();
         return -1;

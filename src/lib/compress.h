@@ -27,11 +27,9 @@ typedef struct {
 
 int compress_init(compress_ctx *ctx, int mode);
 
-int compress_compress(compress_ctx *ctx, const char *in, unsigned long *in_len, char *out, unsigned long *out_len,
-                      int finish);
+int compress_compress(compress_ctx *ctx, const char *in, unsigned long *in_len, char *out, unsigned long *out_len, int finish);
 
-int compress_compress_mode(compress_ctx *ctx, int mode, const char *in, unsigned long *in_len, char *out,
-                           unsigned long *out_len, int finish);
+int compress_compress_mode(compress_ctx *ctx, int mode, const char *in, unsigned long *in_len, char *out, unsigned long *out_len, int finish);
 
 int compress_free(compress_ctx *ctx);
 
