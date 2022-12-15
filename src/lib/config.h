@@ -11,7 +11,6 @@
 
 #include "uri.h"
 
-#define CONFIG_SHM_KEY 255642
 #define CONFIG_MAX_HOST_CONFIG 64
 #define CONFIG_MAX_CERT_CONFIG 64
 
@@ -40,26 +39,22 @@ typedef struct {
             unsigned char dir_mode:2;
         } local;
     };
-} host_config;
+} host_config_t;
 
 typedef struct {
     char name[256];
     char full_chain[256];
     char priv_key[256];
-} cert_config;
+} cert_config_t;
 
 typedef struct {
-    host_config hosts[CONFIG_MAX_HOST_CONFIG];
-    cert_config certs[CONFIG_MAX_CERT_CONFIG];
-} t_config;
+    host_config_t hosts[CONFIG_MAX_HOST_CONFIG];
+    cert_config_t certs[CONFIG_MAX_CERT_CONFIG];
+} config_t;
 
-extern t_config *config;
+extern config_t config;
 extern char geoip_dir[256], dns_server[256];
 
-int config_init(void);
-
 int config_load(const char *filename);
-
-int config_unload(void);
 
 #endif //SESIMOS_CONFIG_H

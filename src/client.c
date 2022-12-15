@@ -36,9 +36,9 @@ struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
 
 static const char *color_table[] = {"\x1B[31m", "\x1B[32m", "\x1B[33m", "\x1B[34m", "\x1B[35m", "\x1B[36m"};
 
-host_config *get_host_config(const char *host) {
+host_config_t *get_host_config(const char *host) {
     for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
-        host_config *hc = &config->hosts[i];
+        host_config_t *hc = &config.hosts[i];
         if (hc->type == CONFIG_TYPE_UNSET) break;
         if (strcmp(hc->name, host) == 0) return hc;
         if (hc->name[0] == '*' && hc->name[1] == '.') {
@@ -70,7 +70,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
     err_msg[0] = 0;
     msg_content[0] = 0;
 
-    host_config *conf = NULL;
+    host_config_t *conf = NULL;
     FILE *file = NULL;
 
     long content_length = 0;

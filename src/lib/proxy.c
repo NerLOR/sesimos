@@ -128,7 +128,7 @@ int proxy_request_header(http_req *req, int enc, client_ctx_t *ctx) {
     return 0;
 }
 
-int proxy_response_header(http_req *req, http_res *res, host_config *conf) {
+int proxy_response_header(http_req *req, http_res *res, host_config_t *conf) {
     char buf1[256], buf2[256];
     int p_len;
 
@@ -180,7 +180,7 @@ int proxy_response_header(http_req *req, http_res *res, host_config *conf) {
     return 0;
 }
 
-int proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config *conf, sock *client, client_ctx_t *cctx, http_status *custom_status, char *err_msg) {
+int proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config_t *conf, sock *client, client_ctx_t *cctx, http_status *custom_status, char *err_msg) {
     char buffer[CHUNK_SIZE];
     const char *connection, *upgrade, *ws_version;
     long ret;

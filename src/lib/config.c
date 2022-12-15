@@ -8,59 +8,14 @@
 
 #include "../logger.h"
 #include "config.h"
-#include "utils.h"
 
 #include <stdio.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
 #include <string.h>
-#include <errno.h>
 #include <stdlib.h>
 
 
-t_config *config;
+config_t config;
 char geoip_dir[256], dns_server[256];
-
-int config_init(void) {
-    int shm_id = shmget(CONFIG_SHM_KEY, sizeof(t_config), IPC_CREAT | IPC_EXCL | 0640);
-    if (shm_id < 0) {
-        critical("Unable to create config shared memory");
-        return -1;
-    }
-
-    void *shm = shmat(shm_id, NULL, SHM_RDONLY);
-    if (shm == (void *) -1) {
-        critical("Unable to attach config shared memory (ro)");
-        return -2;
-    }
-    config = shm;
-
-    void *shm_rw = shmat(shm_id, NULL, 0);
-    if (shm_rw == (void *) -1) {
-        critical("Unable to attach config shared memory (rw)");
-        return -3;
-    }
-    config = shm_rw;
-    memset(config, 0, sizeof(t_config));
-    shmdt(shm_rw);
-    config = shm;
-    return 0;
-}
-
-int config_unload(void) {
-    int shm_id = shmget(CONFIG_SHM_KEY, 0, 0);
-    if (shm_id < 0) {
-        critical("Unable to get config shared memory id");
-        shmdt(config);
-        return -1;
-    } else if (shmctl(shm_id, IPC_RMID, NULL) < 0) {
-        critical("Unable to configure config shared memory");
-        shmdt(config);
-        return -1;
-    }
-    shmdt(config);
-    return 0;
-}
 
 int config_load(const char *filename) {
     FILE *file = fopen(filename, "r");
@@ -69,30 +24,23 @@ int config_load(const char *filename) {
         return -1;
     }
 
-    fseek(file, 0, SEEK_END);
-    unsigned long len = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    char *conf = alloca(len + 1);
-    fread(conf, 1, len, file);
-    conf[len] = 0;
-    fclose(file);
-
-    t_config *tmp_config = malloc(sizeof(t_config));
-    memset(tmp_config, 0, sizeof(t_config));
-
     int i = 0;
     int j = 0;
-    int line = 0;
+    int line_num = 0;
     int mode = 0;
     char section = 0;
-    char *ptr = NULL;
     char *source, *target;
-    while ((ptr = strsep(&conf, "\r\n")) != NULL) {
-        line++;
-        char *comment = strchr(ptr, '#');
+
+    char *line = NULL;
+    ssize_t read;
+    size_t line_len = 0;
+    while ((read = getline(&line, &line_len, file)) != -1) {
+        line_num++;
+        char *ptr = line;
+        char *comment = strpbrk(ptr, "#\r\n");
         if (comment != NULL) comment[0] = 0;
 
-        len = strlen(ptr);
+        unsigned long len = strlen(ptr);
         char *end_ptr = ptr + len - 1;
         while (end_ptr[0] == ' ' || end_ptr[0] == '\t') {
             end_ptr[0] = 0;
@@ -110,7 +58,7 @@ int config_load(const char *filename) {
                 while (ptr[0] == ' ' || ptr[0] == '\t' || ptr[0] == ']') ptr++;
                 while (ptr[l] != ' ' && ptr[l] != '\t' && ptr[l] != ']') l++;
                 if (l == 0) goto err;
-                snprintf(tmp_config->hosts[i].name, sizeof(tmp_config->hosts[i].name), "%.*s", l, ptr);
+                snprintf(config.hosts[i].name, sizeof(config.hosts[i].name), "%.*s", l, ptr);
                 i++;
                 section = 'h';
             } else if (strncmp(ptr, "cert", 4) == 0 && (ptr[4] == ' ' || ptr[4] == '\t')) {
@@ -118,7 +66,7 @@ int config_load(const char *filename) {
                 while (ptr[0] == ' ' || ptr[0] == '\t' || ptr[0] == ']') ptr++;
                 while (ptr[l] != ' ' && ptr[l] != '\t' && ptr[l] != ']') l++;
                 if (l == 0) goto err;
-                snprintf(tmp_config->certs[j].name, sizeof(tmp_config->certs[j].name), "%.*s", l, ptr);
+                snprintf(config.certs[j].name, sizeof(config.certs[j].name), "%.*s", l, ptr);
                 j++;
                 section = 'c';
             } else {
@@ -136,7 +84,7 @@ int config_load(const char *filename) {
                 goto err;
             }
         } else if (section == 'c') {
-            cert_config *cc = &tmp_config->certs[j - 1];
+            cert_config_t *cc = &config.certs[j - 1];
             if (len > 12 && strncmp(ptr, "certificate", 11) == 0 && (ptr[11] == ' ' || ptr[11] == '\t')) {
                 source = ptr + 11;
                 target = cc->full_chain;
@@ -147,7 +95,7 @@ int config_load(const char *filename) {
                 goto err;
             }
         } else if (section == 'h') {
-            host_config *hc = &tmp_config->hosts[i - 1];
+            host_config_t *hc = &config.hosts[i - 1];
             if (len > 8 && strncmp(ptr, "webroot", 7) == 0 && (ptr[7] == ' ' || ptr[7] == '\t')) {
                 source = ptr + 7;
                 target = hc->local.webroot;
@@ -211,8 +159,7 @@ int config_load(const char *filename) {
         while (source[0] == ' ' || source[0] == '\t') source++;
         if (strlen(source) == 0) {
             err:
-            free(tmp_config);
-            critical("Unable to parse config file (line %i)", line);
+            critical("Unable to parse config file (line_num %i)", line_num);
             return -2;
         }
 
@@ -220,23 +167,25 @@ int config_load(const char *filename) {
             strcpy(target, source);
         } else if (mode == 1) {
             if (strcmp(source, "forbidden") == 0) {
-                tmp_config->hosts[i - 1].local.dir_mode = URI_DIR_MODE_FORBIDDEN;
+                config.hosts[i - 1].local.dir_mode = URI_DIR_MODE_FORBIDDEN;
             } else if (strcmp(source, "info") == 0) {
-                tmp_config->hosts[i - 1].local.dir_mode = URI_DIR_MODE_INFO;
+                config.hosts[i - 1].local.dir_mode = URI_DIR_MODE_INFO;
             } else if (strcmp(source, "list") == 0) {
-                tmp_config->hosts[i - 1].local.dir_mode = URI_DIR_MODE_LIST;
+                config.hosts[i - 1].local.dir_mode = URI_DIR_MODE_LIST;
             } else {
                 goto err;
             }
         } else if (mode == 2) {
-            tmp_config->hosts[i - 1].proxy.port = (unsigned short) strtoul(source, NULL, 10);
+            config.hosts[i - 1].proxy.port = (unsigned short) strtoul(source, NULL, 10);
         }
     }
 
+    free(line);
+
     for (int k = 0; k < i; k++) {
-        host_config *hc = &tmp_config->hosts[k];
+        host_config_t *hc = &config.hosts[k];
         if (hc->type == CONFIG_TYPE_LOCAL) {
-            char *webroot = tmp_config->hosts[k].local.webroot;
+            char *webroot = config.hosts[k].local.webroot;
             if (webroot[strlen(webroot) - 1] == '/') {
                 webroot[strlen(webroot) - 1] = 0;
             }
@@ -244,7 +193,7 @@ int config_load(const char *filename) {
         if (hc->cert_name[0] == 0) goto err2;
         int found = 0;
         for (int m = 0; m < j; m++) {
-            if (strcmp(tmp_config->certs[m].name, hc->cert_name) == 0) {
+            if (strcmp(config.certs[m].name, hc->cert_name) == 0) {
                 hc->cert = m;
                 found = 1;
                 break;
@@ -252,27 +201,10 @@ int config_load(const char *filename) {
         }
         if (!found) {
             err2:
-            free(tmp_config);
             critical("Unable to parse config file");
             return -2;
         }
     }
 
-    int shm_id = shmget(CONFIG_SHM_KEY, 0, 0);
-    if (shm_id < 0) {
-        critical("Unable to get config shared memory id");
-        shmdt(config);
-        return -3;
-    }
-
-    void *shm_rw = shmat(shm_id, NULL, 0);
-    if (shm_rw == (void *) -1) {
-        free(tmp_config);
-        critical("Unable to attach config shared memory (rw)");
-        return -4;
-    }
-    memcpy(shm_rw, tmp_config, sizeof(t_config));
-    free(tmp_config);
-    shmdt(shm_rw);
     return 0;
 }

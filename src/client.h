@@ -25,7 +25,7 @@ typedef struct {
     char _s_addr[INET6_ADDRSTRLEN + 1];
 } client_ctx_t;
 
-host_config *get_host_config(const char *host);
+host_config_t *get_host_config(const char *host);
 
 int client_handler(sock *client, unsigned long client_num);
 

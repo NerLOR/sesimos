@@ -43,7 +43,7 @@ SSL_CTX *contexts[CONFIG_MAX_CERT_CONFIG];
 static int ssl_servername_cb(SSL *ssl, int *ad, void *arg) {
     const char *servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
     if (servername != NULL) {
-        const host_config *conf = get_host_config(servername);
+        const host_config_t *conf = get_host_config(servername);
         if (conf != NULL) SSL_set_SSL_CTX(ssl, contexts[conf->cert]);
     }
     return SSL_TLSEXT_ERR_OK;
@@ -76,7 +76,6 @@ void terminate_forcefully(int sig) {
         notice("Killed %i child process(es)", kills);
     }
     cache_unload();
-    config_unload();
     geoip_free();
     exit(2);
 }
@@ -142,7 +141,6 @@ void terminate_gracefully(int sig) {
 
     info("Goodbye");
     cache_unload();
-    config_unload();
     geoip_free();
     exit(0);
 }
@@ -173,11 +171,6 @@ int main(int argc, const char *argv[]) {
     }
     printf("Sesimos web server " SERVER_VERSION "\n");
 
-    ret = config_init();
-    if (ret != 0) {
-        return 1;
-    }
-
     config_file = NULL;
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
@@ -187,51 +180,38 @@ int main(int argc, const char *argv[]) {
                    "Options:\n"
                    "  -c, --config <CONFIG-FILE>  path to the config file. If not provided, default will be used\n"
                    "  -h, --help                  print this dialogue\n");
-            config_unload();
             return 0;
         } else if (strcmp(arg, "-c") == 0 || strcmp(arg, "--config") == 0) {
             if (i == argc - 1) {
                 critical("Unable to parse argument %s, usage: --config <CONFIG-FILE>", arg);
-                config_unload();
                 return 1;
             }
             config_file = argv[++i];
         } else {
             critical("Unable to parse argument '%s'", arg);
-            config_unload();
             return 1;
         }
     }
 
-    ret = config_load(config_file == NULL ? DEFAULT_CONFIG_FILE : config_file);
-    if (ret != 0) {
-        config_unload();
+    if (config_load(config_file == NULL ? DEFAULT_CONFIG_FILE : config_file) != 0)
         return 1;
-    }
 
-    sockets[0] = socket(AF_INET6, SOCK_STREAM, 0);
-    if (sockets[0] < 0) goto socket_err;
-    sockets[1] = socket(AF_INET6, SOCK_STREAM, 0);
-    if (sockets[1] < 0) {
-        socket_err:
+    if ((sockets[0] = socket(AF_INET6, SOCK_STREAM, 0)) == - 1 || (sockets[1] = socket(AF_INET6, SOCK_STREAM, 0)) == -1) {
         critical("Unable to create socket");
-        config_unload();
         return 1;
     }
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         if (setsockopt(sockets[i], SOL_SOCKET, SO_REUSEADDR, &YES, sizeof(YES)) < 0) {
             critical("Unable to set options for socket %i", i);
-            config_unload();
             return 1;
         }
     }
 
-    if (bind(sockets[0], (struct sockaddr *) &addresses[0], sizeof(addresses[0])) < 0) goto bind_err;
-    if (bind(sockets[1], (struct sockaddr *) &addresses[1], sizeof(addresses[1])) < 0) {
-        bind_err:
+    if (bind(sockets[0], (struct sockaddr *) &addresses[0], sizeof(addresses[0])) == -1 ||
+        bind(sockets[1], (struct sockaddr *) &addresses[1], sizeof(addresses[1])) == -1)
+    {
         critical("Unable to bind socket to address");
-        config_unload();
         return 1;
     }
 
@@ -242,13 +222,11 @@ int main(int argc, const char *argv[]) {
         if (ret == -1) {
             critical("Unable to initialize geoip");
         }
-        config_unload();
         return 1;
     }
 
     ret = cache_init();
     if (ret < 0) {
-        config_unload();
         geoip_free();
         return 1;
     } else if (ret != 0) {
@@ -258,7 +236,7 @@ int main(int argc, const char *argv[]) {
     }
 
     for (int i = 0; i < CONFIG_MAX_CERT_CONFIG; i++) {
-        const cert_config *conf = &config->certs[i];
+        const cert_config_t *conf = &config.certs[i];
         if (conf->name[0] == 0) break;
 
         contexts[i] = SSL_CTX_new(TLS_server_method());
@@ -273,14 +251,12 @@ int main(int argc, const char *argv[]) {
 
         if (SSL_CTX_use_certificate_chain_file(ctx, conf->full_chain) != 1) {
             critical("Unable to load certificate chain file: %s: %s", ERR_reason_error_string(ERR_get_error()), conf->full_chain);
-            config_unload();
             cache_unload();
             geoip_free();
             return 1;
         }
         if (SSL_CTX_use_PrivateKey_file(ctx, conf->priv_key, SSL_FILETYPE_PEM) != 1) {
             critical("Unable to load private key file: %s: %s", ERR_reason_error_string(ERR_get_error()), conf->priv_key);
-            config_unload();
             cache_unload();
             geoip_free();
             return 1;
@@ -295,7 +271,6 @@ int main(int argc, const char *argv[]) {
     for (int i = 0; i < NUM_SOCKETS; i++) {
         if (listen(sockets[i], LISTEN_BACKLOG) < 0) {
             critical("Unable to listen on socket %i", i);
-            config_unload();
             cache_unload();
             geoip_free();
             return 1;
@@ -369,7 +344,6 @@ int main(int argc, const char *argv[]) {
         }
     }
 
-    config_unload();
     cache_unload();
     geoip_free();
     return 0;

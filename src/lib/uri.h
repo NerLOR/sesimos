@@ -16,10 +16,14 @@
 #define URI_DIR_MODE_LIST 2
 #define URI_DIR_MODE_INFO 3
 
+#define URI_ETAG_SIZE 64  // SHA256 hex len
+#define URI_TYPE_SIZE 64
+#define URI_CHARSET_SIZE 16
+
 typedef struct {
-    char etag[64];
-    char type[24];
-    char charset[16];
+    char etag[URI_ETAG_SIZE];
+    char type[URI_TYPE_SIZE];
+    char charset[URI_CHARSET_SIZE];
     char filename_comp_gz[256];
     char filename_comp_br[256];
     struct stat stat;
