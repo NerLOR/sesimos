@@ -21,7 +21,7 @@
 
 typedef struct {
     int mode;
-    z_stream *gzip;
+    z_stream gzip;
     BrotliEncoderState *brotli;
 } compress_ctx;
 

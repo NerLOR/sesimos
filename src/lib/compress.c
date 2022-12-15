@@ -8,22 +8,19 @@
 
 #include "compress.h"
 
-#include <malloc.h>
 #include <errno.h>
 
 
 int compress_init(compress_ctx *ctx, int mode) {
-    ctx->gzip = NULL;
     ctx->brotli = NULL;
     ctx->mode = 0;
     int ret;
     if (mode & COMPRESS_GZ) {
         ctx->mode |= COMPRESS_GZ;
-        ctx->gzip = malloc(sizeof(z_stream));
-        ctx->gzip->zalloc = Z_NULL;
-        ctx->gzip->zfree = Z_NULL;
-        ctx->gzip->opaque = Z_NULL;
-        ret = deflateInit2(ctx->gzip, COMPRESS_LEVEL_GZIP, Z_DEFLATED, 15 + 16, 9, Z_DEFAULT_STRATEGY);
+        ctx->gzip.zalloc = Z_NULL;
+        ctx->gzip.zfree = Z_NULL;
+        ctx->gzip.opaque = Z_NULL;
+        ret = deflateInit2(&ctx->gzip, COMPRESS_LEVEL_GZIP, Z_DEFLATED, 15 + 16, 9, Z_DEFAULT_STRATEGY);
         if (ret != Z_OK) return -1;
     }
     if (mode & COMPRESS_BR) {
@@ -49,13 +46,13 @@ int compress_compress_mode(compress_ctx *ctx, int mode, const char *in, unsigned
         errno = EINVAL;
         return -1;
     } else if (mode & COMPRESS_GZ) {
-        ctx->gzip->next_in = (unsigned char*) in;
-        ctx->gzip->avail_in = *in_len;
-        ctx->gzip->next_out = (unsigned char*) out;
-        ctx->gzip->avail_out = *out_len;
-        int ret = deflate(ctx->gzip, finish ? Z_FINISH : Z_NO_FLUSH);
-        *in_len = ctx->gzip->avail_in;
-        *out_len = ctx->gzip->avail_out;
+        ctx->gzip.next_in = (unsigned char*) in;
+        ctx->gzip.avail_in = *in_len;
+        ctx->gzip.next_out = (unsigned char*) out;
+        ctx->gzip.avail_out = *out_len;
+        int ret = deflate(&ctx->gzip, finish ? Z_FINISH : Z_NO_FLUSH);
+        *in_len = ctx->gzip.avail_in;
+        *out_len = ctx->gzip.avail_out;
         return ret;
     } else if (mode & COMPRESS_BR) {
         int ret = BrotliEncoderCompressStream(ctx->brotli, finish ? BROTLI_OPERATION_FINISH : BROTLI_OPERATION_PROCESS,
@@ -68,11 +65,6 @@ int compress_compress_mode(compress_ctx *ctx, int mode, const char *in, unsigned
 }
 
 int compress_free(compress_ctx *ctx) {
-    if (ctx->gzip != NULL) {
-        deflateEnd(ctx->gzip);
-        free(ctx->gzip);
-        ctx->gzip = NULL;
-    }
     if (ctx->brotli != NULL) {
         BrotliEncoderDestroyInstance(ctx->brotli);
         ctx->brotli = NULL;
