@@ -25,16 +25,17 @@ int cache_continue = 1;
 magic_t magic;
 cache_entry *cache;
 
-int magic_init(void) {
-    magic = magic_open(MAGIC_MIME);
-    if (magic == NULL) {
+static int magic_init(void) {
+    if ((magic = magic_open(MAGIC_MIME)) == NULL) {
         critical("Unable to open magic cookie");
-        return -1;
+        return 1;
     }
+
     if (magic_load(magic, CACHE_MAGIC_FILE) != 0) {
         critical("Unable to load magic cookie: %s", magic_error(magic));
-        return -2;
+        return 1;
     }
+
     return 0;
 }
 
@@ -288,7 +289,7 @@ int cache_unload(void) {
     return 0;
 }
 
-int cache_update_entry(int entry_num, const char *filename, const char *webroot) {
+static int cache_update_entry(int entry_num, const char *filename, const char *webroot) {
     void *cache_ro = cache;
     int shm_id = shmget(CACHE_SHM_KEY, 0, 0);
     void *shm_rw = shmat(shm_id, NULL, 0);
@@ -364,7 +365,7 @@ int cache_filename_comp_invalid(const char *filename) {
     return 0;
 }
 
-int uri_cache_init(http_uri *uri) {
+int cache_init_uri(http_uri *uri) {
     if (uri->filename == NULL) {
         return 0;
     }

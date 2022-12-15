@@ -254,8 +254,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
                 goto respond;
             }
 
-            ret = uri_cache_init(&uri);
-            if (ret != 0) {
+            if ((ret = cache_init_uri(&uri)) != 0) {
                 res.status = http_get_status(500);
                 sprintf(err_msg, "Unable to communicate with internal file cache.");
                 goto respond;

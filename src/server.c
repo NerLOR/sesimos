@@ -19,6 +19,7 @@
 #include "lib/utils.h"
 
 #include <stdio.h>
+#include <getopt.h>
 #include <sys/socket.h>
 #include <signal.h>
 #include <unistd.h>
@@ -145,7 +146,7 @@ void terminate_gracefully(int sig) {
     exit(0);
 }
 
-int main(int argc, const char *argv[]) {
+int main(int argc, char *const argv[]) {
     const int YES = 1;
     struct pollfd poll_fds[NUM_SOCKETS];
     int ready_sockets_num;
@@ -171,32 +172,45 @@ int main(int argc, const char *argv[]) {
     }
     printf("Sesimos web server " SERVER_VERSION "\n");
 
+    static const struct option long_opts[] = {
+            {"help",    no_argument,        0, 'h'},
+            {"config",  required_argument,  0, 'c'},
+            { 0,        0,                  0,  0 }
+    };
+
     config_file = NULL;
-    for (int i = 1; i < argc; i++) {
-        const char *arg = argv[i];
-        if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
-            printf("Usage: sesimos [-h] [-c <CONFIG-FILE>]\n"
-                   "\n"
-                   "Options:\n"
-                   "  -c, --config <CONFIG-FILE>  path to the config file. If not provided, default will be used\n"
-                   "  -h, --help                  print this dialogue\n");
-            return 0;
-        } else if (strcmp(arg, "-c") == 0 || strcmp(arg, "--config") == 0) {
-            if (i == argc - 1) {
-                critical("Unable to parse argument %s, usage: --config <CONFIG-FILE>", arg);
+    int c, opt_idx;
+    while ((c = getopt_long(argc, argv, "hc:", long_opts, &opt_idx)) != -1) {
+        switch (c) {
+            case 'h':
+                fprintf(stderr,
+                        "Usage: sesimos [-h] [-c <CONFIG FILE>]\n"
+                        "\n"
+                        "Options:\n"
+                        "  -c, --config <CONFIG-FILE>  path to the config file. If not provided, default will be used\n"
+                        "  -h, --help                  print this dialogue\n");
+                return 0;
+            case 'c':
+                config_file = optarg;
+                break;
+            case '?':
+            default:
+                critical("Unable to parse arguments");
                 return 1;
-            }
-            config_file = argv[++i];
-        } else {
-            critical("Unable to parse argument '%s'", arg);
-            return 1;
         }
+    }
+
+    if (optind != argc) {
+        critical("No positional arguments expected");
+        return 1;
     }
 
     if (config_load(config_file == NULL ? DEFAULT_CONFIG_FILE : config_file) != 0)
         return 1;
 
-    if ((sockets[0] = socket(AF_INET6, SOCK_STREAM, 0)) == - 1 || (sockets[1] = socket(AF_INET6, SOCK_STREAM, 0)) == -1) {
+    if ((sockets[0] = socket(AF_INET6, SOCK_STREAM, 0)) == -1 ||
+        (sockets[1] = socket(AF_INET6, SOCK_STREAM, 0)) == -1)
+    {
         critical("Unable to create socket");
         return 1;
     }

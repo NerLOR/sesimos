@@ -31,8 +31,6 @@ extern cache_entry *cache;
 
 extern int cache_continue;
 
-int magic_init(void);
-
 void cache_process_term(int _);
 
 int cache_process(void);
@@ -41,10 +39,8 @@ int cache_init(void);
 
 int cache_unload(void);
 
-int cache_update_entry(int entry_num, const char *filename, const char *webroot);
-
 int cache_filename_comp_invalid(const char *filename);
 
-int uri_cache_init(http_uri *uri);
+int cache_init_uri(http_uri *uri);
 
 #endif //SESIMOS_CACHE_H
