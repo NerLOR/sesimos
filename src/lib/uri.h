@@ -16,7 +16,7 @@
 #define URI_DIR_MODE_LIST 2
 #define URI_DIR_MODE_INFO 3
 
-#define URI_ETAG_SIZE 64  // SHA256 hex len
+#define URI_ETAG_SIZE 64  // SHA256 size (hex)
 #define URI_TYPE_SIZE 64
 #define URI_CHARSET_SIZE 16
 
@@ -38,8 +38,8 @@ typedef struct {
     char *filename;       // "/account/index.php"
     char *uri;            // "/account/login?username=test"
     meta_data *meta;
-    unsigned char is_static:1;
-    unsigned char is_dir:1;
+    unsigned int is_static:1;
+    unsigned int is_dir:1;
 } http_uri;
 
 
