@@ -36,6 +36,7 @@ typedef struct {
     log_msg_t msgs[LOG_BUF_SIZE];
 } buf_t;
 
+static pthread_t thread;
 static volatile sig_atomic_t logger_alive = 0;
 static sem_t sem_buf, sem_buf_free, sem_buf_used;
 static buf_t buffer;
@@ -149,31 +150,6 @@ static void logger_destroy(void) {
     sem_destroy(&sem_buf_used);
 }
 
-static int logger_init(void) {
-    int ret;
-
-    // try to initialize all three semaphores
-    if (sem_init(&sem_buf, 0, 1) != 0 || sem_init(&sem_buf_free, 0, LOG_BUF_SIZE) != 0 || sem_init(&sem_buf_used, 0, 0) != 0) {
-        err("Unable to initialize semaphore");
-        logger_destroy();
-        return -1;
-    }
-
-    // initialize read/write heads
-    buffer.rd = 0;
-    buffer.wr = 0;
-
-    // initialize thread specific values (keys)
-    if ((ret = pthread_key_create(&key_name, free)) != 0 || (ret = pthread_key_create(&key_prefix, free)) != 0) {
-        errno = ret;
-        err("Unable to initialize thread specific values");
-        logger_destroy();
-        return -1;
-    }
-
-    return 0;
-}
-
 static int logger_remaining(void) {
     int val = 0;
     sem_getvalue(&sem_buf_used, &val);
@@ -200,14 +176,14 @@ void logger_set_name(const char *restrict name) {
 }
 
 void logger_set_prefix(const char *restrict prefix) {
-    if (key_name == -1) {
+    if (key_prefix == -1) {
+        // not initialized
         strncpy(global_prefix, prefix, sizeof(global_prefix));
     } else {
         int ret;
-        void *ptr = pthread_getspecific(key_name);
+        void *ptr = pthread_getspecific(key_prefix);
         if (!ptr) {
             ptr = malloc(LOG_PREFIX_LEN);
-            pthread_setspecific(key_prefix, ptr);
             if ((ret = pthread_setspecific(key_prefix, ptr)) != 0) {
                 errno = ret;
                 err("Unable to set thread specific values");
@@ -218,14 +194,7 @@ void logger_set_prefix(const char *restrict prefix) {
     }
 }
 
-void logger_stop(void) {
-    logger_alive = 0;
-}
-
-void logger_thread(void) {
-    if (logger_init() != 0)
-        return;
-
+static void *logger_thread(void *arg) {
     logger_set_name("logger");
     logger_alive = 1;
 
@@ -243,11 +212,47 @@ void logger_thread(void) {
         log_msg_t *msg = &buffer.msgs[buffer.wr];
         buffer.wr = (buffer.wr + 1) % LOG_BUF_SIZE;
 
-        printf("[%s]%s %s\n", msg->name, (msg->prefix[0] != 0) ? msg->prefix : "", msg->txt);
+        printf("%s[%-6s][%-6s]%s%s %s\n",
+               (msg->lvl <= LOG_ERROR) ? ERR_STR : ((msg->lvl <= LOG_WARNING) ? WRN_STR : ""),
+               (msg->name[0] != 0) ? (char *) msg->name : "", level_keywords[msg->lvl], CLR_STR,
+               (msg->prefix[0] != 0) ? (char *) msg->prefix : "",  msg->txt);
 
         // unlock slot in buffer
         sem_post(&sem_buf_free);
     }
 
     logger_destroy();
+
+    return NULL;
+}
+
+int logger_init(void) {
+    int ret;
+
+    // try to initialize all three semaphores
+    if (sem_init(&sem_buf, 0, 1) != 0 || sem_init(&sem_buf_free, 0, LOG_BUF_SIZE) != 0 || sem_init(&sem_buf_used, 0, 0) != 0) {
+        err("Unable to initialize semaphore");
+        logger_destroy();
+        return -1;
+    }
+
+    // initialize read/write heads
+    buffer.rd = 0;
+    buffer.wr = 0;
+
+    // initialize thread specific values (keys)
+    if ((ret = pthread_key_create(&key_name, free)) != 0 || (ret = pthread_key_create(&key_prefix, free)) != 0) {
+        errno = ret;
+        err("Unable to initialize thread specific values");
+        logger_destroy();
+        return -1;
+    }
+
+    pthread_create(&thread, NULL, logger_thread, NULL);
+
+    return 0;
+}
+
+void logger_stop(void) {
+    logger_alive = 0;
 }

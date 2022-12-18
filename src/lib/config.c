@@ -13,7 +13,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-
 config_t config;
 char geoip_dir[256], dns_server[256];
 
@@ -23,6 +22,8 @@ int config_load(const char *filename) {
         critical("Unable to open config file");
         return -1;
     }
+
+    memset(&config, 0, sizeof(config));
 
     int i = 0;
     int j = 0;
@@ -159,7 +160,7 @@ int config_load(const char *filename) {
         while (source[0] == ' ' || source[0] == '\t') source++;
         if (strlen(source) == 0) {
             err:
-            critical("Unable to parse config file (line_num %i)", line_num);
+            critical("Unable to parse config file (line %i)", line);
             return -2;
         }
 

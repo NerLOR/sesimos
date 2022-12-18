@@ -11,9 +11,9 @@
 
 #include "uri.h"
 
-#define CACHE_SHM_KEY 255641
 #define CACHE_ENTRIES 1024
-#define CACHE_BUF_SIZE 16384
+
+#define CACHE_DIRTY 1
 
 #ifndef CACHE_MAGIC_FILE
 #   define CACHE_MAGIC_FILE "/usr/share/file/misc/magic.mgc"
@@ -23,24 +23,22 @@
 typedef struct {
     char filename[256];
     unsigned char webroot_len;
-    unsigned char is_updating:1;
-    meta_data meta;
-} cache_entry;
+    unsigned char flags;
+    metadata_t meta;
+} cache_entry_t;
 
-extern cache_entry *cache;
-
-extern int cache_continue;
-
-void cache_process_term(int _);
-
-int cache_process(void);
+typedef struct {
+    char sig[6];
+    unsigned char ver;
+    cache_entry_t entries[CACHE_ENTRIES];
+} cache_t;
 
 int cache_init(void);
 
-int cache_unload(void);
+int cache_join(void);
 
-int cache_filename_comp_invalid(const char *filename);
+void cache_mark_dirty(cache_t *cache, const char *filename);
 
-int cache_init_uri(http_uri *uri);
+int cache_init_uri(cache_t *cache, http_uri *uri);
 
 #endif //SESIMOS_CACHE_H

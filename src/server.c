@@ -27,7 +27,6 @@
 #include <string.h>
 #include <errno.h>
 #include <arpa/inet.h>
-#include <wait.h>
 #include <sys/types.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
@@ -35,11 +34,20 @@
 #include <openssl/conf.h>
 
 
-volatile sig_atomic_t active = 1;
+volatile sig_atomic_t alive = 1;
 const char *config_file;
-int sockets[NUM_SOCKETS];
-pid_t children[MAX_CHILDREN];
-SSL_CTX *contexts[CONFIG_MAX_CERT_CONFIG];
+
+static int sockets[NUM_SOCKETS];
+static sock clients[MAX_CHILDREN];
+static pthread_t children[MAX_CHILDREN];
+static SSL_CTX *contexts[CONFIG_MAX_CERT_CONFIG];
+
+static int clean() {
+    remove("/var/sesimos/server/cache");
+    rmdir("/var/sesimos/server/");
+
+    return 0;
+}
 
 static int ssl_servername_cb(SSL *ssl, int *ad, void *arg) {
     const char *servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
@@ -50,42 +58,38 @@ static int ssl_servername_cb(SSL *ssl, int *ad, void *arg) {
     return SSL_TLSEXT_ERR_OK;
 }
 
-void terminate_forcefully(int sig) {
+static void accept_cb() {
+
+}
+
+static void accept_err_cb() {
+
+}
+
+static void terminate_forcefully(int sig) {
     fprintf(stderr, "\n");
     notice("Terminating forcefully!");
 
-    int status = 0;
     int ret;
-    int kills = 0;
     for (int i = 0; i < MAX_CHILDREN; i++) {
         if (children[i] != 0) {
-            ret = waitpid(children[i], &status, WNOHANG);
-            if (ret < 0) {
+            if ((ret = pthread_kill(children[i], SIGKILL)) < 0) {
+                errno = ret;
                 error("Unable to wait for child process (PID %i)", children[i]);
-            } else if (ret == children[i]) {
-                children[i] = 0;
-                if (status != 0) {
-                    error("Child process with PID %i terminated with exit code %i", ret, status);
-                }
-            } else {
-                kill(children[i], SIGKILL);
-                kills++;
+                errno = 0;
             }
         }
     }
-    if (kills > 0) {
-        notice("Killed %i child process(es)", kills);
-    }
-    cache_unload();
+
     geoip_free();
     exit(2);
 }
 
-void terminate_gracefully(int sig) {
+static void terminate_gracefully(int sig) {
     fprintf(stderr, "\n");
     notice("Terminating gracefully...");
 
-    active = 0;
+    alive = 0;
     signal(SIGINT, terminate_forcefully);
     signal(SIGTERM, terminate_forcefully);
 
@@ -94,54 +98,19 @@ void terminate_gracefully(int sig) {
         close(sockets[i]);
     }
 
-    int status = 0;
-    int wait_num = 0;
     int ret;
     for (int i = 0; i < MAX_CHILDREN; i++) {
         if (children[i] != 0) {
-            ret = waitpid(children[i], &status, WNOHANG);
+            ret = pthread_kill(children[i], SIGKILL);
             if (ret < 0) {
                 critical("Unable to wait for child process (PID %i)", children[i]);
             } else if (ret == children[i]) {
                 children[i] = 0;
-                if (status != 0) {
-                    critical("Child process with PID %i terminated with exit code %i", ret, status);
-                }
-            } else {
-                kill(children[i], SIGTERM);
-                wait_num++;
             }
         }
-    }
-
-    if (wait_num > 0) {
-        notice("Waiting for %i child process(es)...", wait_num);
-    }
-
-    for (int i = 0; i < MAX_CHILDREN; i++) {
-        if (children[i] != 0) {
-            ret = waitpid(children[i], &status, 0);
-            if (ret < 0) {
-                critical("Unable to wait for child process (PID %i)", children[i]);
-            } else if (ret == children[i]) {
-                children[i] = 0;
-                if (status != 0) {
-                    critical("Child process with PID %i terminated with exit code %i", ret, status);
-                }
-            }
-        }
-    }
-
-    if (wait_num > 0) {
-        // Wait another 50 ms to let child processes write to stdout/stderr
-        signal(SIGINT, SIG_IGN);
-        signal(SIGTERM, SIG_IGN);
-        struct timespec ts = {.tv_sec = 0, .tv_nsec = 50000000};
-        nanosleep(&ts, &ts);
     }
 
     info("Goodbye");
-    cache_unload();
     geoip_free();
     exit(0);
 }
@@ -153,9 +122,6 @@ int main(int argc, char *const argv[]) {
     long client_num = 0;
     int ret;
 
-    int client_fd;
-    sock client;
-
     memset(sockets, 0, sizeof(sockets));
     memset(children, 0, sizeof(children));
 
@@ -163,6 +129,8 @@ int main(int argc, char *const argv[]) {
             {.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_ANY_INIT, .sin6_port = htons(80)},
             {.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_ANY_INIT, .sin6_port = htons(443)}
     };
+
+    logger_init();
 
     logger_set_name("server");
 
@@ -239,14 +207,10 @@ int main(int argc, char *const argv[]) {
         return 1;
     }
 
-    ret = cache_init();
-    if (ret < 0) {
+    if ((ret = cache_init()) != 0) {
         geoip_free();
+        if (ret == -1) critical("Unable to initialize cache");
         return 1;
-    } else if (ret != 0) {
-        children[0] = ret;  // pid
-    } else {
-        return 0;
     }
 
     for (int i = 0; i < CONFIG_MAX_CERT_CONFIG; i++) {
@@ -265,27 +229,21 @@ int main(int argc, char *const argv[]) {
 
         if (SSL_CTX_use_certificate_chain_file(ctx, conf->full_chain) != 1) {
             critical("Unable to load certificate chain file: %s: %s", ERR_reason_error_string(ERR_get_error()), conf->full_chain);
-            cache_unload();
             geoip_free();
             return 1;
         }
         if (SSL_CTX_use_PrivateKey_file(ctx, conf->priv_key, SSL_FILETYPE_PEM) != 1) {
             critical("Unable to load private key file: %s: %s", ERR_reason_error_string(ERR_get_error()), conf->priv_key);
-            cache_unload();
             geoip_free();
             return 1;
         }
     }
-
-    client.ctx = contexts[0];
-
 
     proxy_preload();
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         if (listen(sockets[i], LISTEN_BACKLOG) < 0) {
             critical("Unable to listen on socket %i", i);
-            cache_unload();
             geoip_free();
             return 1;
         }
@@ -299,7 +257,7 @@ int main(int argc, char *const argv[]) {
     errno = 0;
     notice("Ready to accept connections");
 
-    while (active) {
+    while (alive) {
         ready_sockets_num = poll(poll_fds, NUM_SOCKETS, 1000);
         if (ready_sockets_num < 0) {
             critical("Unable to poll sockets");
@@ -309,56 +267,48 @@ int main(int argc, char *const argv[]) {
 
         for (int i = 0; i < NUM_SOCKETS; i++) {
             if (poll_fds[i].revents & POLLIN) {
-                socklen_t addr_len = sizeof(client.addr);
-                client_fd = accept(sockets[i], &client.addr.sock, &addr_len);
+                int j;
+                for (j = 0; j < MAX_CHILDREN; j++) {
+                    if (children[j] == 0) break;
+                }
+                sock *client = &clients[j];
+
+                client->ctx = contexts[0];
+                socklen_t addr_len = sizeof(client->addr);
+                int client_fd = accept(sockets[i], &client->addr.sock, &addr_len);
                 if (client_fd < 0) {
                     critical("Unable to accept connection");
                     continue;
                 }
 
-                pid_t pid = fork();
-                if (pid == 0) {
-                    // child
-                    signal(SIGINT, SIG_IGN);
-                    signal(SIGTERM, SIG_IGN);
-
-                    client.socket = client_fd;
-                    client.enc = (i == 1);
-                    return client_handler(&client, client_num);
-                } else if (pid > 0) {
-                    // parent
-                    client_num++;
-                    close(client_fd);
-                    for (int j = 0; j < MAX_CHILDREN; j++) {
-                        if (children[j] == 0) {
-                            children[j] = pid;
-                            break;
-                        }
-                    }
-                } else {
+                client->socket = client_fd;
+                client->enc = (i == 1);
+                ret = pthread_create(&children[j], NULL, (void *(*)(void *)) &client_handler, client);
+                if (ret != 0) {
+                    errno = ret;
                     critical("Unable to create child process");
                 }
+
+                client_num++;
             }
         }
 
         // TODO outsource in thread
-        int status = 0;
+        /*
+        void *ret_val = NULL;
         for (int i = 0; i < MAX_CHILDREN; i++) {
             if (children[i] != 0) {
-                ret = waitpid(children[i], &status, WNOHANG);
+                ret = pthread_timed(children[i], &ret_val);
                 if (ret < 0) {
-                    critical("Unable to wait for child process (PID %i)", children[i]);
+                    critical("Unable to wait for thread (PID %i)", children[i]);
                 } else if (ret == children[i]) {
                     children[i] = 0;
-                    if (status != 0) {
-                        critical("Child process with PID %i terminated with exit code %i", ret, status);
-                    }
                 }
             }
         }
+        */
     }
 
-    cache_unload();
     geoip_free();
     return 0;
 }

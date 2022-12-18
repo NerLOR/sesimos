@@ -9,6 +9,7 @@
 #include "uri.h"
 #include "utils.h"
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -20,12 +21,16 @@ int path_is_directory(const char *path) {
 
 int path_is_file(const char *path) {
     struct stat statbuf;
-    return stat(path, &statbuf) == 0 && S_ISDIR(statbuf.st_mode) == 0;
+    int ret = stat(path, &statbuf);
+    errno = 0;
+    return ret == 0 && S_ISDIR(statbuf.st_mode) == 0;
 }
 
 int path_exists(const char *path) {
     struct stat statbuf;
-    return stat(path, &statbuf) == 0;
+    int ret = stat(path, &statbuf);
+    errno = 0;
+    return ret == 0;
 }
 
 int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mode) {

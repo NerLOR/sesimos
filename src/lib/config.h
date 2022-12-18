@@ -10,6 +10,7 @@
 #define SESIMOS_CONFIG_H
 
 #include "uri.h"
+#include "cache.h"
 
 #define CONFIG_MAX_HOST_CONFIG 64
 #define CONFIG_MAX_CERT_CONFIG 64
@@ -28,6 +29,7 @@ typedef struct {
     char name[256];
     char cert_name[256];
     int cert;
+    cache_t *cache;
     union {
         struct {
             char hostname[256];

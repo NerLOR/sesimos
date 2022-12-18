@@ -18,6 +18,8 @@
 typedef struct {
     char *addr;
     char *s_addr;
+    unsigned char s_keep_alive:1;
+    unsigned char c_keep_alive:1;
     char cc[3];
     char host[256];
     char geoip[GEOIP_MAX_JSON_SIZE + 1];
@@ -27,6 +29,6 @@ typedef struct {
 
 host_config_t *get_host_config(const char *host);
 
-int client_handler(sock *client, unsigned long client_num);
+void *client_handler(sock *client);
 
 #endif //SESIMOS_CLIENT_H

@@ -31,9 +31,6 @@
 #include <arpa/inet.h>
 
 
-volatile sig_atomic_t server_keep_alive = 1;
-struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
-
 static const char *color_table[] = {"\x1B[31m", "\x1B[32m", "\x1B[33m", "\x1B[34m", "\x1B[35m", "\x1B[36m"};
 
 host_config_t *get_host_config(const char *host) {
@@ -49,14 +46,15 @@ host_config_t *get_host_config(const char *host) {
     return NULL;
 }
 
+/*
 void client_terminate(int _) {
     server_keep_alive = 0;
 }
+*/
 
 int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long client_num, unsigned int req_num, const char *restrict log_client_prefix) {
     struct timespec begin, end;
     long ret;
-    int client_keep_alive;
 
     char buf0[1024], buf1[1024];
     char msg_buf[8192], msg_pre_buf_1[4096], msg_pre_buf_2[4096], err_msg[256];
@@ -94,7 +92,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
     if (ret <= 0) {
         if (errno != 0) return 1;
 
-        client_keep_alive = 0;
+        cctx->c_keep_alive = 0;
         res.status = http_get_status(408);
         goto respond;
     }
@@ -103,7 +101,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
     http_req req;
     ret = http_receive_request(client, &req);
     if (ret != 0) {
-        client_keep_alive = 0;
+        cctx->c_keep_alive = 0;
         if (ret < 0) {
             goto abort;
         } else if (ret == 1) {
@@ -122,7 +120,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
     }
 
     hdr_connection = http_get_header_field(&req.hdr, "Connection");
-    client_keep_alive = (hdr_connection != NULL && (strstr(hdr_connection, "keep-alive") != NULL || strstr(hdr_connection, "Keep-Alive") != NULL));
+    cctx->c_keep_alive = (hdr_connection != NULL && (strstr(hdr_connection, "keep-alive") != NULL || strstr(hdr_connection, "Keep-Alive") != NULL));
     host_ptr = http_get_header_field(&req.hdr, "Host");
     if (host_ptr != NULL && strlen(host_ptr) > 255) {
         host[0] = 0;
@@ -142,7 +140,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
         strcpy(host, host_ptr);
     }
 
-    sprintf(log_req_prefix, "[%6i][%s%*s%s]%s", getpid(), BLD_STR, INET6_ADDRSTRLEN, host, CLR_STR, log_client_prefix);
+    sprintf(log_req_prefix, "[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, host, CLR_STR, log_client_prefix);
     logger_set_prefix(log_req_prefix);
     info(BLD_STR "%s %s", req.method, req.uri);
 
@@ -254,7 +252,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
                 goto respond;
             }
 
-            if ((ret = cache_init_uri(&uri)) != 0) {
+            if ((ret = cache_init_uri(conf->cache, &uri)) != 0) {
                 res.status = http_get_status(500);
                 sprintf(err_msg, "Unable to communicate with internal file cache.");
                 goto respond;
@@ -271,7 +269,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
                 if (uri.meta->filename_comp_br[0] != 0 && strstr(accept_encoding, "br") != NULL) {
                     file = fopen(uri.meta->filename_comp_br, "rb");
                     if (file == NULL) {
-                        cache_filename_comp_invalid(uri.filename);
+                        cache_mark_dirty(conf->cache, uri.filename);
                     } else {
                         http_add_header_field(&res.hdr, "Content-Encoding", "br");
                         enc = COMPRESS_BR;
@@ -279,7 +277,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
                 } else if (uri.meta->filename_comp_gz[0] != 0 && strstr(accept_encoding, "gzip") != NULL) {
                     file = fopen(uri.meta->filename_comp_gz, "rb");
                     if (file == NULL) {
-                        cache_filename_comp_invalid(uri.filename);
+                        cache_mark_dirty(conf->cache, uri.filename);
                     } else {
                         http_add_header_field(&res.hdr, "Content-Encoding", "gzip");
                         enc = COMPRESS_GZ;
@@ -614,7 +612,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
             http_remove_header_field(&res.hdr, "Content-Length", HTTP_REMOVE_ALL);
             http_add_header_field(&res.hdr, "Content-Length", buf0);
         } else if (http_get_header_field(&res.hdr, "Transfer-Encoding") == NULL) {
-            server_keep_alive = 0;
+            cctx->s_keep_alive = 0;
         }
     }
 
@@ -624,7 +622,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
         close_proxy = (conn == NULL || (strstr(conn, "keep-alive") == NULL && strstr(conn, "Keep-Alive") == NULL));
         http_remove_header_field(&res.hdr, "Connection", HTTP_REMOVE_ALL);
         http_remove_header_field(&res.hdr, "Keep-Alive", HTTP_REMOVE_ALL);
-        if (server_keep_alive && client_keep_alive) {
+        if (cctx->s_keep_alive && cctx->c_keep_alive) {
             http_add_header_field(&res.hdr, "Connection", "keep-alive");
             sprintf(buf0, "timeout=%i, max=%i", CLIENT_TIMEOUT, REQ_PER_CONNECTION);
             http_add_header_field(&res.hdr, "Keep-Alive", buf0);
@@ -648,7 +646,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
         info("Upgrading connection to WebSocket connection");
         ret = ws_handle_connection(client, &proxy);
         if (ret != 0) {
-            client_keep_alive = 0;
+            cctx->c_keep_alive = 0;
             close_proxy = 1;
         }
         info("WebSocket connection closed");
@@ -696,7 +694,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
         }
 
         if (ret < 0) {
-            client_keep_alive = 0;
+            cctx->c_keep_alive = 0;
         }
     }
 
@@ -718,12 +716,12 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
     }
     http_free_req(&req);
     http_free_res(&res);
-    return !client_keep_alive;
+    return 0;
 }
 
 int client_connection_handler(client_ctx_t *ctx, sock *client, unsigned long client_num, const char *restrict log_conn_prefix, const char *restrict log_client_prefix) {
     struct timespec begin, end;
-    int ret, req_num;
+    int ret;
     char buf[1024];
 
     clock_gettime(CLOCK_MONOTONIC, &begin);
@@ -760,12 +758,10 @@ int client_connection_handler(client_ctx_t *ctx, sock *client, unsigned long cli
          ctx->host[0] != 0 ? ctx->host : "", ctx->host[0] != 0 ? ") " : "",
          ctx->cc[0] != 0 ? ctx->cc : "N/A");
 
-    client_timeout.tv_sec = CLIENT_TIMEOUT;
-    client_timeout.tv_usec = 0;
-    if (setsockopt(client->socket, SOL_SOCKET, SO_RCVTIMEO, &client_timeout, sizeof(client_timeout)) < 0)
-        goto set_timeout_err;
-    if (setsockopt(client->socket, SOL_SOCKET, SO_SNDTIMEO, &client_timeout, sizeof(client_timeout)) < 0) {
-        set_timeout_err:
+    struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
+    if (setsockopt(client->socket, SOL_SOCKET, SO_RCVTIMEO, &client_timeout, sizeof(client_timeout)) == -1 ||
+        setsockopt(client->socket, SOL_SOCKET, SO_SNDTIMEO, &client_timeout, sizeof(client_timeout)) == -1)
+    {
         error("Unable to set timeout for socket");
         return 1;
     }
@@ -786,9 +782,10 @@ int client_connection_handler(client_ctx_t *ctx, sock *client, unsigned long cli
         }
     }
 
-    req_num = 0;
-    ret = 0;
-    while (ret == 0 && server_keep_alive && req_num < REQ_PER_CONNECTION) {
+    int req_num = 0;
+    ctx->s_keep_alive = 1;
+    ctx->c_keep_alive = 1;
+    while (ctx->c_keep_alive && ctx->s_keep_alive && req_num < REQ_PER_CONNECTION) {
         ret = client_request_handler(ctx, client, client_num, req_num++, log_client_prefix);
         logger_set_prefix(log_conn_prefix);
     }
@@ -808,15 +805,17 @@ int client_connection_handler(client_ctx_t *ctx, sock *client, unsigned long cli
     return 0;
 }
 
-int client_handler(sock *client, unsigned long client_num) {
+void *client_handler(sock *client) {
     struct sockaddr_in6 *server_addr;
     struct sockaddr_storage server_addr_storage;
 
     client_ctx_t ctx;
     char log_client_prefix[256], log_conn_prefix[512];
 
-    signal(SIGINT, client_terminate);
-    signal(SIGTERM, client_terminate);
+    logger_set_name("client");
+
+    //signal(SIGINT, client_terminate);
+    //signal(SIGTERM, client_terminate);
 
     inet_ntop(client->addr.ipv6.sin6_family, &client->addr.ipv6.sin6_addr, ctx._c_addr, sizeof(ctx._c_addr));
     if (strncmp(ctx._c_addr, "::ffff:", 7) == 0) {
@@ -836,13 +835,15 @@ int client_handler(sock *client, unsigned long client_num) {
     }
 
     sprintf(log_client_prefix, "[%s%4i%s]%s[%*s][%5i]%s", (int) client->enc ? HTTPS_STR : HTTP_STR,
-            ntohs(server_addr->sin6_port), CLR_STR, color_table[client_num % 6], INET6_ADDRSTRLEN, ctx.addr,
+            ntohs(server_addr->sin6_port), CLR_STR, color_table[0], INET6_ADDRSTRLEN, ctx.addr,
             ntohs(client->addr.ipv6.sin6_port), CLR_STR);
 
-    sprintf(log_conn_prefix, "[%6i][%*s]%s", getpid(), INET6_ADDRSTRLEN, ctx.s_addr, log_client_prefix);
+    sprintf(log_conn_prefix, "[%*s]%s", INET6_ADDRSTRLEN, ctx.s_addr, log_client_prefix);
     logger_set_prefix(log_conn_prefix);
 
-    info("Started child process with PID %i", getpid());
+    info("Started thread");
 
-    return client_connection_handler(&ctx, client, client_num, log_conn_prefix, log_client_prefix);
+    client_connection_handler(&ctx, client, 0, log_conn_prefix, log_client_prefix);
+
+    return NULL;
 }

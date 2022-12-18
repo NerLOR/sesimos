@@ -405,8 +405,8 @@ const char *http_get_status_color(const http_status *status) {
 }
 
 char *http_format_date(time_t time, char *buf, size_t size) {
-    struct tm *timeinfo = gmtime(&time);
-    strftime(buf, size, "%a, %d %b %Y %H:%M:%S GMT", timeinfo);
+    struct tm timeinfo;
+    strftime(buf, size, "%a, %d %b %Y %H:%M:%S GMT", gmtime_r(&time, &timeinfo));
     return buf;
 }
 

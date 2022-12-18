@@ -33,7 +33,7 @@ void logger_set_name(const char *restrict name);
 
 void logger_set_prefix(const char *restrict prefix);
 
-void logger_thread(void);
+int logger_init(void);
 
 void logger_stop(void);
 
