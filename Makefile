@@ -47,16 +47,16 @@ bin/sesimos: bin/server.o bin/client.o bin/logger.o \
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
 
 
-bin/server.o: src/server.h src/defs.h src/client.h src/lib/cache.h src/lib/config.h src/lib/sock.h \
+bin/server.o: src/server.h src/defs.h src/client.h src/cache_handler.h src/lib/config.h src/lib/sock.h \
               src/lib/proxy.h src/lib/geoip.h src/lib/utils.h src/logger.h
 
 bin/client.o: src/client.h src/defs.h src/server.h src/lib/utils.h src/lib/config.h src/lib/sock.h \
-              src/lib/http.h src/lib/proxy.h src/lib/fastcgi.h src/lib/cache.h src/lib/geoip.h src/lib/compress.h \
+              src/lib/http.h src/lib/proxy.h src/lib/fastcgi.h src/cache_handler.h src/lib/geoip.h src/lib/compress.h \
               src/lib/websocket.h src/logger.h
 
 bin/logger.o: src/logger.h
 
-bin/lib/cache.o: src/lib/cache.h src/lib/utils.h src/lib/uri.h src/lib/compress.h src/logger.h
+bin/lib/cache.o: src/cache_handler.h src/lib/utils.h src/lib/uri.h src/lib/compress.h src/logger.h
 
 bin/lib/compress.o: src/lib/compress.h
 

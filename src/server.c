@@ -11,7 +11,7 @@
 #include "client.h"
 #include "logger.h"
 
-#include "lib/cache.h"
+#include "cache_handler.h"
 #include "lib/config.h"
 #include "lib/sock.h"
 #include "lib/proxy.h"

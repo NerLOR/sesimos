@@ -1,23 +1,22 @@
 /**
  * sesimos - secure, simple, modern web server
  * @brief File cache implementation
- * @file src/lib/cache.c
+ * @file src/cache_handler.c
  * @author Lorenz Stechauner
  * @date 2020-12-19
  */
 
-#include "../server.h"
-#include "../logger.h"
-#include "cache.h"
-#include "utils.h"
-#include "compress.h"
-#include "config.h"
+#include "server.h"
+#include "logger.h"
+#include "cache_handler.h"
+#include "lib/utils.h"
+#include "lib/compress.h"
+#include "lib/config.h"
 
 #include <stdio.h>
 #include <magic.h>
 #include <string.h>
 #include <errno.h>
-#include <signal.h>
 #include <openssl/evp.h>
 #include <sys/mman.h>
 #include <fcntl.h>
@@ -26,8 +25,7 @@
 #define CACHE_BUF_SIZE 16
 
 
-magic_t magic;
-
+static magic_t magic;
 static pthread_t thread;
 static sem_t sem_free, sem_used, sem_lock;
 
@@ -38,8 +36,6 @@ typedef struct {
 } buf_t;
 
 static buf_t buffer;
-
-
 
 static int magic_init(void) {
     if ((magic = magic_open(MAGIC_MIME)) == NULL) {
@@ -323,7 +319,7 @@ static void cache_mark_entry_dirty(cache_entry_t *entry) {
     sem_post(&sem_used);
 }
 
-static int cache_update_entry(cache_entry_t *entry, const char *filename, const char *webroot) {
+static void cache_update_entry(cache_entry_t *entry, const char *filename, const char *webroot) {
     struct stat statbuf;
     stat(filename, &statbuf);
     memcpy(&entry->meta.stat, &statbuf, sizeof(statbuf));
@@ -348,8 +344,6 @@ static int cache_update_entry(cache_entry_t *entry, const char *filename, const 
     strcpy(entry->meta.charset, magic_file(magic, filename));
 
     cache_mark_entry_dirty(entry);
-
-    return 0;
 }
 
 void cache_mark_dirty(cache_t *cache, const char *filename) {
@@ -357,18 +351,15 @@ void cache_mark_dirty(cache_t *cache, const char *filename) {
     if (entry) cache_mark_entry_dirty(entry);
 }
 
-int cache_init_uri(cache_t *cache, http_uri *uri) {
-    if (uri->filename == NULL)
-        return 0;
+void cache_init_uri(cache_t *cache, http_uri *uri) {
+    if (!uri->filename)
+        return;
 
     cache_entry_t *entry = cache_get_entry(cache, uri->filename);
-    if (entry == NULL) {
+    if (!entry) {
         // no entry found -> create new entry
-        entry = cache_get_new_entry(cache);
-        if (entry) {
-            if (cache_update_entry(entry, uri->filename, uri->webroot) != 0) {
-                return -1;
-            }
+        if ((entry = cache_get_new_entry(cache))) {
+            cache_update_entry(entry, uri->filename, uri->webroot);
             uri->meta = &entry->meta;
         } else {
             warning("No empty cache entry slot found");
@@ -376,18 +367,14 @@ int cache_init_uri(cache_t *cache, http_uri *uri) {
     } else {
         uri->meta = &entry->meta;
         if (entry->flags & CACHE_DIRTY)
-            return 0;
+            return;
 
         // check, if file has changed
         struct stat statbuf;
         stat(uri->filename, &statbuf);
         if (memcmp(&uri->meta->stat.st_mtime, &statbuf.st_mtime, sizeof(statbuf.st_mtime)) != 0) {
             // modify time has changed
-            if (cache_update_entry(entry, uri->filename, uri->webroot) != 0) {
-                return -1;
-            }
+            cache_update_entry(entry, uri->filename, uri->webroot);
         }
     }
-
-    return 0;
 }

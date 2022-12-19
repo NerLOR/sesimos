@@ -1,15 +1,15 @@
 /**
  * sesimos - secure, simple, modern web server
  * @brief File cache implementation (header file)
- * @file src/lib/cache.h
+ * @file src/cache_handler.h
  * @author Lorenz Stechauner
  * @date 2020-12-19
  */
 
-#ifndef SESIMOS_CACHE_H
-#define SESIMOS_CACHE_H
+#ifndef SESIMOS_CACHE_HANDLER_H
+#define SESIMOS_CACHE_HANDLER_H
 
-#include "uri.h"
+#include "lib/uri.h"
 
 #define CACHE_ENTRIES 1024
 
@@ -39,6 +39,6 @@ int cache_join(void);
 
 void cache_mark_dirty(cache_t *cache, const char *filename);
 
-int cache_init_uri(cache_t *cache, http_uri *uri);
+void cache_init_uri(cache_t *cache, http_uri *uri);
 
-#endif //SESIMOS_CACHE_H
+#endif //SESIMOS_CACHE_HANDLER_H

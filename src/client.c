@@ -17,7 +17,7 @@
 #include "lib/http.h"
 #include "lib/proxy.h"
 #include "lib/fastcgi.h"
-#include "lib/cache.h"
+#include "cache_handler.h"
 #include "lib/geoip.h"
 #include "lib/compress.h"
 #include "lib/websocket.h"
@@ -252,11 +252,8 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
                 goto respond;
             }
 
-            if ((ret = cache_init_uri(conf->cache, &uri)) != 0) {
-                res.status = http_get_status(500);
-                sprintf(err_msg, "Unable to communicate with internal file cache.");
-                goto respond;
-            }
+            cache_init_uri(conf->cache, &uri);
+
             const char *last_modified = http_format_date(uri.meta->stat.st_mtime, buf0, sizeof(buf0));
             http_add_header_field(&res.hdr, "Last-Modified", last_modified);
             sprintf(buf1, "%s; charset=%s", uri.meta->type, uri.meta->charset);
