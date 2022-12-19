@@ -726,8 +726,8 @@ int client_connection_handler(client_ctx_t *ctx, sock *client, unsigned long cli
 
     clock_gettime(CLOCK_MONOTONIC, &begin);
 
-    if (dns_server[0] != 0) {
-        sprintf(buf, "dig @%s +short +time=1 -x %s", dns_server, ctx->addr);
+    if (config.dns_server[0] != 0) {
+        sprintf(buf, "dig @%s +short +time=1 -x %s", config.dns_server, ctx->addr);
         FILE *dig = popen(buf, "r");
         if (dig == NULL) {
             error("Unable to start dig: %s", strerror(errno));

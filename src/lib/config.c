@@ -14,7 +14,6 @@
 #include <stdlib.h>
 
 config_t config;
-char geoip_dir[256], dns_server[256];
 
 int config_load(const char *filename) {
     FILE *file = fopen(filename, "r");
@@ -77,10 +76,10 @@ int config_load(const char *filename) {
         } else if (section == 0) {
             if (len > 10 && strncmp(ptr, "geoip_dir", 9) == 0 && (ptr[9] == ' ' || ptr[9] == '\t')) {
                 source = ptr + 9;
-                target = geoip_dir;
+                target = config.geoip_dir;
             } else if (len > 11 && strncmp(ptr, "dns_server", 10) == 0 && (ptr[10] == ' ' || ptr[10] == '\t')) {
                 source = ptr + 10;
-                target = dns_server;
+                target = config.dns_server;
             } else {
                 goto err;
             }

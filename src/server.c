@@ -200,7 +200,7 @@ int main(int argc, char *const argv[]) {
     signal(SIGINT, terminate_gracefully);
     signal(SIGTERM, terminate_gracefully);
 
-    if ((ret = geoip_init(geoip_dir)) != 0) {
+    if ((ret = geoip_init(config.geoip_dir)) != 0) {
         if (ret == -1) {
             critical("Unable to initialize geoip");
         }

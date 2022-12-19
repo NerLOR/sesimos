@@ -20,8 +20,10 @@
 
 #define LOG_MAX_MSG_SIZE 2048
 #define LOG_BUF_SIZE 16
-#define LOG_NAME_LEN 8
+#define LOG_NAME_LEN 12
 #define LOG_PREFIX_LEN 256
+
+#define LOG_PREFIX "[%-8s][%-6s]"
 
 typedef struct {
     log_lvl_t lvl;
@@ -58,7 +60,7 @@ static const char *level_keywords[] = {
 static void err(const char *restrict msg) {
     char err_buf[64];
     strerror_r(errno, err_buf, sizeof(err_buf));
-    fprintf(stderr, ERR_STR "[logger][%6s] %s: %s" CLR_STR "\n", level_keywords[LOG_CRITICAL], msg, err_buf);
+    fprintf(stderr, ERR_STR LOG_PREFIX " %s: %s" CLR_STR "\n", "logger", level_keywords[LOG_CRITICAL], msg, err_buf);
 }
 
 void logmsgf(log_lvl_t level, const char *restrict format, ...) {
@@ -83,7 +85,7 @@ void logmsgf(log_lvl_t level, const char *restrict format, ...) {
     if (!logger_alive) {
         // no logger thread running
         // simply write to stdout without synchronization
-        printf("%s[%-6s][%-6s]%s%s ", color, (name != NULL) ? (char *) name : "", level_keywords[level], CLR_STR, (prefix != NULL) ? (char *) prefix : "");
+        printf("%s" LOG_PREFIX "%s%s ", color, (name != NULL) ? (char *) name : "", level_keywords[level], CLR_STR, (prefix != NULL) ? (char *) prefix : "");
         vprintf(buf, args);
         printf("\n");
     } else {
@@ -212,7 +214,7 @@ static void *logger_thread(void *arg) {
         log_msg_t *msg = &buffer.msgs[buffer.wr];
         buffer.wr = (buffer.wr + 1) % LOG_BUF_SIZE;
 
-        printf("%s[%-6s][%-6s]%s%s %s\n",
+        printf("%s" LOG_PREFIX "%s%s %s\n",
                (msg->lvl <= LOG_ERROR) ? ERR_STR : ((msg->lvl <= LOG_WARNING) ? WRN_STR : ""),
                (msg->name[0] != 0) ? (char *) msg->name : "", level_keywords[msg->lvl], CLR_STR,
                (msg->prefix[0] != 0) ? (char *) msg->prefix : "",  msg->txt);

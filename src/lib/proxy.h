@@ -15,7 +15,7 @@
 #define PROXY_COMPRESS 6
 
 #ifndef SERVER_NAME
-#   define SERVER_NAME "revproxy"
+#   define SERVER_NAME "reverse proxy"
 #endif
 
 #include "http.h"
