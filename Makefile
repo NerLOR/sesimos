@@ -40,7 +40,7 @@ bin/%.o: src/%.c
 bin/lib/%.o: src/lib/%.c
 	$(CC) -c -o $@ $(CFLAGS) $<
 
-bin/sesimos: bin/server.o bin/client.o bin/logger.o bin/cache_handler.o \
+bin/sesimos: bin/server.o bin/client.o bin/logger.o bin/cache_handler.o bin/async.o \
 			 bin/lib/compress.o bin/lib/config.o bin/lib/fastcgi.o bin/lib/geoip.o \
 			 bin/lib/http.o bin/lib/http_static.o bin/lib/proxy.o bin/lib/sock.o bin/lib/uri.o \
 		     bin/lib/utils.o bin/lib/websocket.o
@@ -57,6 +57,8 @@ bin/client.o: src/client.h src/defs.h src/server.h src/lib/utils.h src/lib/confi
 bin/logger.o: src/logger.h
 
 bin/cache_handler.o: src/cache_handler.h src/lib/utils.h src/lib/uri.h src/lib/compress.h src/logger.h
+
+bin/async.o: src/async.h src/logger.h
 
 bin/lib/compress.o: src/lib/compress.h
 

@@ -1,12 +1,17 @@
-
+/**
+ * Sesimos - secure, simple, modern web server
+ * @brief Async handler (header file)
+ * @file src/async.h
+ * @author Lorenz Stechauner
+ * @date 2022-12-28
+ */
 
 #ifndef SESIMOS_ASYNC_H
 #define SESIMOS_ASYNC_H
 
-#define async_read(fd, cb, arg, err_cb, err_arg) async(fd, 0, 0, cb, arg, err, err_arg)
-#define async_read_keep(fd, cb, arg, err_cb, err_arg) async(fd, 0, 0, cb, arg, err, err_arg)
+#define ASYNC_KEEP 1
 
-int async(int fd, int events, int flags, void (*cb)(void *), void *arg, void (*err_cb)(void *), void *err_arg);
+int async(int fd, short events, int flags, void cb(void *), void *arg, void err_cb(void *), void *err_arg);
 
 void async_thread(void);
 

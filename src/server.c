@@ -10,6 +10,7 @@
 #include "server.h"
 #include "client.h"
 #include "logger.h"
+#include "async.h"
 
 #include "cache_handler.h"
 #include "lib/config.h"
@@ -39,7 +40,7 @@ static int sockets[NUM_SOCKETS];
 static pthread_t children[MAX_CHILDREN];
 static SSL_CTX *contexts[CONFIG_MAX_CERT_CONFIG];
 
-static client_ctx_t clients[MAX_CLIENTS];
+static client_ctx_t clients[MAX_CLIENTS];  // TODO dynamic
 
 static int clean() {
     remove("/var/sesimos/server/cache");
@@ -56,12 +57,38 @@ static int ssl_servername_cb(SSL *ssl, int *ad, void *arg) {
     return SSL_TLSEXT_ERR_OK;
 }
 
-static void accept_cb() {
+static void accept_cb(void *arg) {
+    int i = (int) (((int *) arg) - sockets);
+    int fd = sockets[i];
 
+    int j;
+    for (j = 0; j < MAX_CHILDREN; j++) {
+        if (children[j] == 0) break;
+    }
+    client_ctx_t *client_ctx = &clients[j];
+    sock *client = &client_ctx->socket;
+
+    client->ctx = contexts[0];
+    socklen_t addr_len = sizeof(client->addr);
+    int client_fd = accept(fd, &client->addr.sock, &addr_len);
+    if (client_fd < 0) {
+        critical("Unable to accept connection");
+        return;
+    }
+
+    client->socket = client_fd;
+    client->enc = (i == 1);
+    pthread_t ret = pthread_create(&children[j], NULL, (void *(*)(void *)) &client_handler, client);
+    if (ret != 0) {
+        errno = (int) ret;
+        critical("Unable to create thread");
+    }
 }
 
-static void accept_err_cb() {
-
+static void accept_err_cb(void *arg) {
+    int i = (int) (((int *) arg) - sockets);
+    int fd = sockets[i];
+    // TODO accept error callback
 }
 
 static void terminate_forcefully(int sig) {
@@ -115,9 +142,6 @@ static void terminate_gracefully(int sig) {
 
 int main(int argc, char *const argv[]) {
     const int YES = 1;
-    struct pollfd poll_fds[NUM_SOCKETS];
-    int ready_sockets_num;
-    long client_num = 0;
     int ret;
 
     memset(sockets, 0, sizeof(sockets));
@@ -248,66 +272,15 @@ int main(int argc, char *const argv[]) {
     }
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
-        poll_fds[i].fd = sockets[i];
-        poll_fds[i].events = POLLIN;
+        async(sockets[i], POLLIN, ASYNC_KEEP, accept_cb, &sockets[i], accept_err_cb, &sockets[i]);
     }
 
     errno = 0;
     notice("Ready to accept connections");
 
-    while (alive) {
-        ready_sockets_num = poll(poll_fds, NUM_SOCKETS, 1000);
-        if (ready_sockets_num < 0) {
-            critical("Unable to poll sockets");
-            terminate_gracefully(0);
-            return 1;
-        }
+    async_thread();
 
-        for (int i = 0; i < NUM_SOCKETS; i++) {
-            if (poll_fds[i].revents & POLLIN) {
-                int j;
-                for (j = 0; j < MAX_CHILDREN; j++) {
-                    if (children[j] == 0) break;
-                }
-                client_ctx_t *client_ctx = &clients[j];
-                sock *client = &client_ctx->socket;
-
-                client->ctx = contexts[0];
-                socklen_t addr_len = sizeof(client->addr);
-                int client_fd = accept(sockets[i], &client->addr.sock, &addr_len);
-                if (client_fd < 0) {
-                    critical("Unable to accept connection");
-                    continue;
-                }
-
-                client->socket = client_fd;
-                client->enc = (i == 1);
-                ret = pthread_create(&children[j], NULL, (void *(*)(void *)) &client_handler, client);
-                if (ret != 0) {
-                    errno = ret;
-                    critical("Unable to create child process");
-                }
-
-                client_num++;
-            }
-        }
-
-        // TODO outsource in thread
-        /*
-        void *ret_val = NULL;
-        for (int i = 0; i < MAX_CHILDREN; i++) {
-            if (children[i] != 0) {
-                ret = pthread_timed(children[i], &ret_val);
-                if (ret < 0) {
-                    critical("Unable to wait for thread (PID %i)", children[i]);
-                } else if (ret == children[i]) {
-                    children[i] = 0;
-                }
-            }
-        }
-        */
-    }
-
+    // cleanup
     geoip_free();
     return 0;
 }
