@@ -716,10 +716,11 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
     return 0;
 }
 
-int client_connection_handler(client_ctx_t *ctx, sock *client, unsigned long client_num, const char *restrict log_conn_prefix, const char *restrict log_client_prefix) {
+int client_connection_handler(client_ctx_t *ctx, unsigned long client_num, const char *restrict log_conn_prefix, const char *restrict log_client_prefix) {
     struct timespec begin, end;
     int ret;
     char buf[1024];
+    sock *client = &ctx->socket;
 
     clock_gettime(CLOCK_MONOTONIC, &begin);
 
@@ -748,7 +749,6 @@ int client_connection_handler(client_ctx_t *ctx, sock *client, unsigned long cli
     }
 
     ctx->cc[0] = 0;
-    ctx->geoip[0] = 0;
     geoip_lookup_country(&client->addr.sock, ctx->cc);
 
     info("Connection accepted from %s %s%s%s[%s]", ctx->addr, ctx->host[0] != 0 ? "(" : "",
@@ -802,11 +802,9 @@ int client_connection_handler(client_ctx_t *ctx, sock *client, unsigned long cli
     return 0;
 }
 
-void *client_handler(sock *client) {
+void *client_handler(client_ctx_t *ctx) {
     struct sockaddr_in6 *server_addr;
     struct sockaddr_storage server_addr_storage;
-
-    client_ctx_t ctx;
     char log_client_prefix[256], log_conn_prefix[512];
 
     logger_set_name("client");
@@ -814,33 +812,33 @@ void *client_handler(sock *client) {
     //signal(SIGINT, client_terminate);
     //signal(SIGTERM, client_terminate);
 
-    inet_ntop(client->addr.ipv6.sin6_family, &client->addr.ipv6.sin6_addr, ctx._c_addr, sizeof(ctx._c_addr));
-    if (strncmp(ctx._c_addr, "::ffff:", 7) == 0) {
-        ctx.addr = ctx._c_addr + 7;
+    inet_ntop(ctx->socket.addr.ipv6.sin6_family, &ctx->socket.addr.ipv6.sin6_addr, ctx->_c_addr, sizeof(ctx->_c_addr));
+    if (strncmp(ctx->_c_addr, "::ffff:", 7) == 0) {
+        ctx->addr = ctx->_c_addr + 7;
     } else {
-        ctx.addr = ctx._c_addr;
+        ctx->addr = ctx->_c_addr;
     }
 
     socklen_t len = sizeof(server_addr_storage);
-    getsockname(client->socket, (struct sockaddr *) &server_addr_storage, &len);
+    getsockname(ctx->socket.socket, (struct sockaddr *) &server_addr_storage, &len);
     server_addr = (struct sockaddr_in6 *) &server_addr_storage;
-    inet_ntop(server_addr->sin6_family, (void *) &server_addr->sin6_addr, ctx._s_addr, sizeof(ctx._s_addr));
-    if (strncmp(ctx._s_addr, "::ffff:", 7) == 0) {
-        ctx.s_addr = ctx._s_addr + 7;
+    inet_ntop(server_addr->sin6_family, (void *) &server_addr->sin6_addr, ctx->_s_addr, sizeof(ctx->_s_addr));
+    if (strncmp(ctx->_s_addr, "::ffff:", 7) == 0) {
+        ctx->s_addr = ctx->_s_addr + 7;
     } else {
-        ctx.s_addr = ctx._s_addr;
+        ctx->s_addr = ctx->_s_addr;
     }
 
-    sprintf(log_client_prefix, "[%s%4i%s]%s[%*s][%5i]%s", (int) client->enc ? HTTPS_STR : HTTP_STR,
-            ntohs(server_addr->sin6_port), CLR_STR, color_table[0], INET6_ADDRSTRLEN, ctx.addr,
-            ntohs(client->addr.ipv6.sin6_port), CLR_STR);
+    sprintf(log_client_prefix, "[%s%4i%s]%s[%*s][%5i]%s", (int) ctx->socket.enc ? HTTPS_STR : HTTP_STR,
+            ntohs(server_addr->sin6_port), CLR_STR, color_table[0], INET6_ADDRSTRLEN, ctx->addr,
+            ntohs(ctx->socket.addr.ipv6.sin6_port), CLR_STR);
 
-    sprintf(log_conn_prefix, "[%*s]%s", INET6_ADDRSTRLEN, ctx.s_addr, log_client_prefix);
+    sprintf(log_conn_prefix, "[%*s]%s", INET6_ADDRSTRLEN, ctx->s_addr, log_client_prefix);
     logger_set_prefix(log_conn_prefix);
 
     info("Started thread");
 
-    client_connection_handler(&ctx, client, 0, log_conn_prefix, log_client_prefix);
+    client_connection_handler(ctx, 0, log_conn_prefix, log_client_prefix);
 
     return NULL;
 }

@@ -13,10 +13,8 @@
 
 #include "cache_handler.h"
 #include "lib/config.h"
-#include "lib/sock.h"
 #include "lib/proxy.h"
 #include "lib/geoip.h"
-#include "lib/utils.h"
 
 #include <stdio.h>
 #include <getopt.h>
@@ -38,14 +36,14 @@ volatile sig_atomic_t alive = 1;
 const char *config_file;
 
 static int sockets[NUM_SOCKETS];
-static sock clients[MAX_CHILDREN];
 static pthread_t children[MAX_CHILDREN];
 static SSL_CTX *contexts[CONFIG_MAX_CERT_CONFIG];
+
+static client_ctx_t clients[MAX_CLIENTS];
 
 static int clean() {
     remove("/var/sesimos/server/cache");
     rmdir("/var/sesimos/server/");
-
     return 0;
 }
 
@@ -271,7 +269,8 @@ int main(int argc, char *const argv[]) {
                 for (j = 0; j < MAX_CHILDREN; j++) {
                     if (children[j] == 0) break;
                 }
-                sock *client = &clients[j];
+                client_ctx_t *client_ctx = &clients[j];
+                sock *client = &client_ctx->socket;
 
                 client->ctx = contexts[0];
                 socklen_t addr_len = sizeof(client->addr);

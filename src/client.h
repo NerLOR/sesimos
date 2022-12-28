@@ -11,24 +11,23 @@
 
 #include "lib/config.h"
 #include "lib/sock.h"
-#include "lib/geoip.h"
 
 #include <arpa/inet.h>
 
 typedef struct {
+    sock socket;
     char *addr;
     char *s_addr;
     unsigned char s_keep_alive:1;
     unsigned char c_keep_alive:1;
     char cc[3];
     char host[256];
-    char geoip[GEOIP_MAX_JSON_SIZE + 1];
     char _c_addr[INET6_ADDRSTRLEN + 1];
     char _s_addr[INET6_ADDRSTRLEN + 1];
 } client_ctx_t;
 
 host_config_t *get_host_config(const char *host);
 
-void *client_handler(sock *client);
+void *client_handler(client_ctx_t *client);
 
 #endif //SESIMOS_CLIENT_H

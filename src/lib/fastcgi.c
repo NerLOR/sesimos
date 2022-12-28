@@ -156,9 +156,9 @@ int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned
     param_ptr = fastcgi_add_param(param_ptr, "CONTENT_LENGTH", content_length != NULL ? content_length : "");
     const char *content_type = http_get_header_field(&req->hdr, "Content-Type");
     param_ptr = fastcgi_add_param(param_ptr, "CONTENT_TYPE", content_type != NULL ? content_type : "");
-    if (conn->ctx->geoip[0] != 0) {
-        param_ptr = fastcgi_add_param(param_ptr, "REMOTE_INFO", conn->ctx->geoip);
-    }
+    //if (conn->ctx->geoip[0] != 0) {
+    //    param_ptr = fastcgi_add_param(param_ptr, "REMOTE_INFO", conn->ctx->geoip);
+    //}
 
     for (int i = 0; i < req->hdr.field_num; i++) {
         const http_field *f = &req->hdr.fields[i];
