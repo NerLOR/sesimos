@@ -39,7 +39,7 @@ typedef struct {
 } buf_t;
 
 static pthread_t thread;
-static volatile sig_atomic_t logger_alive = 0;
+static volatile sig_atomic_t alive = 0;
 static sem_t sem_buf, sem_buf_free, sem_buf_used;
 static buf_t buffer;
 
@@ -82,7 +82,7 @@ void logmsgf(log_lvl_t level, const char *restrict format, ...) {
     void *prefix = pthread_getspecific(key_prefix);
     if (prefix == NULL && global_prefix[0] != 0) prefix = global_prefix;
 
-    if (!logger_alive) {
+    if (!alive) {
         // no logger thread running
         // simply write to stdout without synchronization
         printf("%s" LOG_PREFIX "%s%s ", color, (name != NULL) ? (char *) name : "", level_keywords[level], CLR_STR, (prefix != NULL) ? (char *) prefix : "");
@@ -198,9 +198,9 @@ void logger_set_prefix(const char *restrict prefix) {
 
 static void *logger_thread(void *arg) {
     logger_set_name("logger");
-    logger_alive = 1;
+    alive = 1;
 
-    while (logger_alive || logger_remaining() > 0) {
+    while (alive || logger_remaining() > 0) {
         // wait for buffer to be filled
         if (sem_wait(&sem_buf_used) != 0) {
             if (errno == EINTR) {
@@ -256,5 +256,5 @@ int logger_init(void) {
 }
 
 void logger_stop(void) {
-    logger_alive = 0;
+    alive = 0;
 }
