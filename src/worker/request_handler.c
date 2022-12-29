@@ -74,7 +74,6 @@ static void request_handler(client_ctx_t *cctx) {
     char buffer[CHUNK_SIZE];
     char host[256];
     const char *host_ptr, *hdr_connection;
-    char log_req_prefix[512];
 
     msg_buf[0] = 0;
     err_msg[0] = 0;
@@ -95,6 +94,7 @@ static void request_handler(client_ctx_t *cctx) {
     http_res res = {.version = "1.1", .status = http_get_status(501), .hdr.field_num = 0, .hdr.last_field_num = -1};
     http_status_ctx ctx = {.status = 0, .origin = NONE, .ws_key = NULL};
 
+    logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, cctx->s_addr, cctx->log_prefix);
     clock_gettime(CLOCK_MONOTONIC, &begin);
 
     //ret = sock_poll_read(&client, NULL, NULL, 1, NULL, NULL, CLIENT_TIMEOUT * 1000);
