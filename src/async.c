@@ -37,11 +37,11 @@ static pthread_t thread = -1;
 static int async_add_to_queue(evt_listen_t *evt) {
     // TODO locking
     memcpy(&listen->q[listen->n++], evt, sizeof(*evt));
-    if (thread != -1) pthread_kill(thread, SIGUSR1);
     return 0;
 }
 
 int async(int fd, short events, int flags, void cb(void *), void *arg, void err_cb(void *), void *err_arg) {
+    struct pollfd fds[1] = {{.fd = fd, .events = events}};
     evt_listen_t evt = {
             .fd = fd,
             .events = events,
@@ -51,7 +51,28 @@ int async(int fd, short events, int flags, void cb(void *), void *arg, void err_
             .err_cb = err_cb,
             .err_arg = err_arg,
     };
-    return async_add_to_queue(&evt);
+
+    // check, if fd is already ready
+    if (poll(fds, 1, 0) == 1) {
+        // fd already read
+        if (fds[0].revents & events) {
+            // specified event(s) occurred
+            cb(arg);
+
+            if (!(flags & ASYNC_KEEP))
+                return 0;
+        } else if (fds[0].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+            // error occurred
+            err_cb(err_arg);
+            return 0;
+        }
+    }
+
+    int ret = async_add_to_queue(&evt);
+    if (ret == 0 && thread != -1)
+        pthread_kill(thread, SIGUSR1);
+
+    return ret;
 }
 
 void async_thread(void) {
