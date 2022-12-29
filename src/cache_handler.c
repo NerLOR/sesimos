@@ -207,9 +207,11 @@ static void *cache_thread(void *arg) {
         pthread_testcancel();
         if (sem_wait(&sem_used) != 0) {
             if (errno == EINTR) {
+                errno = 0;
                 continue;
             } else {
                 error("Unable to lock semaphore");
+                errno = 0;
                 break;
             }
         }
@@ -294,9 +296,11 @@ static void cache_mark_entry_dirty(cache_entry_t *entry) {
     try_again_free:
     if (sem_wait(&sem_free) != 0) {
         if (errno == EINTR) {
+            errno = 0;
             goto try_again_free;
         } else {
             error("Unable to lock semaphore");
+            errno = 0;
         }
         return;
     }
@@ -305,9 +309,11 @@ static void cache_mark_entry_dirty(cache_entry_t *entry) {
     try_again_lock:
     if (sem_wait(&sem_lock) != 0) {
         if (errno == EINTR) {
+            errno = 0;
             goto try_again_lock;
         } else {
             error("Unable to lock semaphore");
+            errno = 0;
         }
         return;
     }

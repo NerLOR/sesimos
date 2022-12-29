@@ -54,6 +54,7 @@ int mpmc_queue(mpmc_t *ctx, void *obj) {
     try_again_1:
     if (sem_wait(&ctx->free) != 0) {
         if (errno == EINTR) {
+            errno = 0;
             goto try_again_1;
         } else {
             return -1;
@@ -64,6 +65,7 @@ int mpmc_queue(mpmc_t *ctx, void *obj) {
     try_again_2:
     if (sem_wait(&ctx->lck_rd) != 0) {
         if (errno == EINTR) {
+            errno = 0;
             goto try_again_2;
         } else {
             sem_post(&ctx->free);
@@ -92,9 +94,11 @@ static void *mpmc_worker(void *arg) {
         // wait for buffer to be filled
         if (sem_wait(&ctx->used) != 0) {
             if (errno == EINTR) {
+                errno = 0;
                 continue;
             } else {
                 critical("Unable to lock semaphore");
+                errno = 0;
                 break;
             }
         }
@@ -102,10 +106,12 @@ static void *mpmc_worker(void *arg) {
         // lock wr field
         if (sem_wait(&ctx->lck_wr) != 0) {
             if (errno == EINTR) {
+                errno = 0;
                 sem_post(&ctx->used);
                 continue;
             } else {
                 critical("Unable to lock semaphore");
+                errno = 0;
                 sem_post(&ctx->used);
                 break;
             }

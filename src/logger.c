@@ -93,9 +93,11 @@ void logmsgf(log_lvl_t level, const char *restrict format, ...) {
         try_again_free:
         if (sem_wait(&sem_buf_free) != 0) {
             if (errno == EINTR) {
+                errno = 0;
                 goto try_again_free;
             } else {
                 err("Unable to lock semaphore");
+                errno = 0;
             }
             // cleanup
             va_end(args);
@@ -106,9 +108,11 @@ void logmsgf(log_lvl_t level, const char *restrict format, ...) {
         try_again_buf:
         if (sem_wait(&sem_buf) != 0) {
             if (errno == EINTR) {
+                errno = 0;
                 goto try_again_buf;
             } else {
                 err("Unable to lock semaphore");
+                errno = 0;
             }
             // cleanup
             sem_post(&sem_buf_free);
@@ -204,9 +208,11 @@ static void *logger_thread(void *arg) {
         // wait for buffer to be filled
         if (sem_wait(&sem_buf_used) != 0) {
             if (errno == EINTR) {
+                errno = 0;
                 continue;
             } else {
                 err("Unable to lock semaphore");
+                errno = 0;
                 break;
             }
         }
