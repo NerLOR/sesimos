@@ -52,7 +52,8 @@ void client_terminate(int _) {
 }
 */
 
-int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long client_num, unsigned int req_num, const char *restrict log_client_prefix) {
+int client_request_handler(client_ctx_t *cctx) {
+    sock *client = &cctx->socket;
     struct timespec begin, end;
     long ret;
 
@@ -140,7 +141,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
         strcpy(host, host_ptr);
     }
 
-    sprintf(log_req_prefix, "[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, host, CLR_STR, log_client_prefix);
+    sprintf(log_req_prefix, "[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, host, CLR_STR, cctx->log_prefix);
     logger_set_prefix(log_req_prefix);
     info(BLD_STR "%s %s", req.method, req.uri);
 
@@ -378,7 +379,7 @@ int client_request_handler(client_ctx_t *cctx, sock *client, unsigned long clien
             http_add_header_field(&res.hdr, "Last-Modified", last_modified);
 
             res.status = http_get_status(200);
-            if (fastcgi_init(&fcgi_conn, mode, client_num, req_num, client, &req, &uri) != 0) {
+            if (fastcgi_init(&fcgi_conn, mode, 0 /* TODO */, cctx->req_num, client, &req, &uri) != 0) {
                 res.status = http_get_status(503);
                 sprintf(err_msg, "Unable to communicate with FastCGI socket.");
                 goto respond;
@@ -783,7 +784,7 @@ int client_connection_handler(client_ctx_t *ctx, unsigned long client_num, const
     ctx->s_keep_alive = 1;
     ctx->c_keep_alive = 1;
     while (ctx->c_keep_alive && ctx->s_keep_alive && req_num < REQ_PER_CONNECTION) {
-        ret = client_request_handler(ctx, client, client_num, req_num++, log_client_prefix);
+        ret = client_request_handler(ctx);
         logger_set_prefix(log_conn_prefix);
     }
 

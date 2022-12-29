@@ -27,6 +27,6 @@ typedef struct {
 
 host_config_t *get_host_config(const char *host);
 
-void *client_handler(client_ctx_t *client);
+int client_request_handler(client_ctx_t *cctx);
 
 #endif //SESIMOS_CLIENT_H

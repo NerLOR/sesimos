@@ -4,6 +4,8 @@
 #include "../lib/mpmc.h"
 #include "../lib/utils.h"
 #include "tcp_closer.h"
+#include "../async.h"
+#include "../server.h"
 
 static mpmc_t mpmc_ctx;
 
@@ -26,6 +28,12 @@ void request_handler_destroy(void) {
 }
 
 static void request_handler_func(client_ctx_t *ctx) {
-    // TODO
-    tcp_close(ctx);
+    client_request_handler(ctx);
+
+    if (ctx->c_keep_alive && ctx->s_keep_alive && ctx->req_num < REQ_PER_CONNECTION) {
+        async(ctx->socket.socket, POLLIN, 0, (void (*)(void *)) handle_request, ctx, (void (*)(void *)) tcp_close, ctx);
+        logger_set_prefix(ctx->log_prefix);
+    } else {
+        tcp_close(ctx);
+    }
 }
