@@ -53,7 +53,7 @@ char *fastcgi_add_param(char *buf, const char *key, const char *value) {
     return ptr;
 }
 
-int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned int req_num, const sock *client, const http_req *req, const http_uri *uri) {
+int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int client_num, unsigned int req_num, const sock *client, const http_req *req, const http_uri *uri) {
     unsigned short req_id = (client_num & 0xFFF) << 4;
     if (client_num == 0) {
         req_id |= (req_num + 1) & 0xF;
@@ -201,7 +201,7 @@ int fastcgi_init(fastcgi_conn *conn, int mode, unsigned int client_num, unsigned
     return 0;
 }
 
-int fastcgi_close_stdin(fastcgi_conn *conn) {
+int fastcgi_close_stdin(fastcgi_cnx_t *conn) {
     FCGI_Header header = {
             .version = FCGI_VERSION_1,
             .type = FCGI_STDIN,
@@ -221,7 +221,7 @@ int fastcgi_close_stdin(fastcgi_conn *conn) {
     return 0;
 }
 
-int fastcgi_php_error(const fastcgi_conn *conn, const char *msg, int msg_len, char *err_msg) {
+int fastcgi_php_error(const fastcgi_cnx_t *conn, const char *msg, int msg_len, char *err_msg) {
     char *msg_str = malloc(msg_len + 1);
     char *ptr0 = msg_str;
     memcpy(msg_str, msg, msg_len);
@@ -288,7 +288,7 @@ int fastcgi_php_error(const fastcgi_conn *conn, const char *msg, int msg_len, ch
     return err;
 }
 
-int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
+int fastcgi_header(fastcgi_cnx_t *conn, http_res *res, char *err_msg) {
     FCGI_Header header;
     char *content;
     unsigned short content_len, req_id;
@@ -399,7 +399,7 @@ int fastcgi_header(fastcgi_conn *conn, http_res *res, char *err_msg) {
     return 0;
 }
 
-int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
+int fastcgi_send(fastcgi_cnx_t *conn, sock *client, int flags) {
     FCGI_Header header;
     long ret;
     char buf0[256];
@@ -517,7 +517,7 @@ int fastcgi_send(fastcgi_conn *conn, sock *client, int flags) {
     }
 }
 
-int fastcgi_dump(fastcgi_conn *conn, char *buf, long len) {
+int fastcgi_dump(fastcgi_cnx_t *conn, char *buf, long len) {
     FCGI_Header header;
     long ret;
     char buf0[256];
@@ -582,7 +582,7 @@ int fastcgi_dump(fastcgi_conn *conn, char *buf, long len) {
     }
 }
 
-int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len) {
+int fastcgi_receive(fastcgi_cnx_t *conn, sock *client, unsigned long len) {
     unsigned long rcv_len = 0;
     char *buf[16384];
     long ret;
@@ -617,7 +617,7 @@ int fastcgi_receive(fastcgi_conn *conn, sock *client, unsigned long len) {
     return 0;
 }
 
-int fastcgi_receive_chunked(fastcgi_conn *conn, sock *client) {
+int fastcgi_receive_chunked(fastcgi_cnx_t *conn, sock *client) {
     long ret;
     unsigned long next_len;
 

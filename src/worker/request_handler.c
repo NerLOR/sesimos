@@ -87,7 +87,7 @@ static void request_handler(client_ctx_t *cctx) {
     int use_proxy = 0;
     int p_len;
 
-    fastcgi_conn fcgi_conn = {.socket = 0, .req_id = 0, .ctx = cctx};
+    fastcgi_cnx_t fcgi_cnx = {.socket = 0, .req_id = 0, .ctx = cctx};
     http_status custom_status;
 
     http_res res = {.version = "1.1", .status = http_get_status(501), .hdr.field_num = 0, .hdr.last_field_num = -1};
@@ -388,7 +388,7 @@ static void request_handler(client_ctx_t *cctx) {
             http_add_header_field(&res.hdr, "Last-Modified", last_modified);
 
             res.status = http_get_status(200);
-            if (fastcgi_init(&fcgi_conn, mode, 0 /* TODO */, cctx->req_num, client, &req, &uri) != 0) {
+            if (fastcgi_init(&fcgi_cnx, mode, 0 /* TODO */, cctx->req_num, client, &req, &uri) != 0) {
                 res.status = http_get_status(503);
                 sprintf(err_msg, "Unable to communicate with FastCGI socket.");
                 goto respond;
@@ -398,9 +398,9 @@ static void request_handler(client_ctx_t *cctx) {
             const char *client_transfer_encoding = http_get_header_field(&req.hdr, "Transfer-Encoding");
             if (client_content_length != NULL) {
                 unsigned long client_content_len = strtoul(client_content_length, NULL, 10);
-                ret = fastcgi_receive(&fcgi_conn, client, client_content_len);
+                ret = fastcgi_receive(&fcgi_cnx, client, client_content_len);
             } else if (client_transfer_encoding != NULL && strstr(client_transfer_encoding, "chunked") != NULL) {
-                ret = fastcgi_receive_chunked(&fcgi_conn, client);
+                ret = fastcgi_receive_chunked(&fcgi_cnx, client);
             } else {
                 ret = 0;
             }
@@ -413,9 +413,9 @@ static void request_handler(client_ctx_t *cctx) {
                 res.status = http_get_status(502);
                 goto respond;
             }
-            fastcgi_close_stdin(&fcgi_conn);
+            fastcgi_close_stdin(&fcgi_cnx);
 
-            ret = fastcgi_header(&fcgi_conn, &res, err_msg);
+            ret = fastcgi_header(&fcgi_cnx, &res, err_msg);
             if (ret != 0) {
                 if (ret < 0) goto abort;
                 goto respond;
@@ -449,7 +449,7 @@ static void request_handler(client_ctx_t *cctx) {
                 content_length != -1 &&
                 content_length <= sizeof(msg_content) - 1)
             {
-                fastcgi_dump(&fcgi_conn, msg_content, sizeof(msg_content));
+                fastcgi_dump(&fcgi_cnx, msg_content, sizeof(msg_content));
                 goto respond;
             }
 
@@ -685,7 +685,7 @@ static void request_handler(client_ctx_t *cctx) {
             int chunked = (transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL);
 
             int flags = (chunked ? FASTCGI_CHUNKED : 0) | (use_fastcgi & (FASTCGI_COMPRESS | FASTCGI_COMPRESS_HOLD));
-            ret = fastcgi_send(&fcgi_conn, client, flags);
+            ret = fastcgi_send(&fcgi_cnx, client, flags);
         } else if (use_proxy) {
             const char *transfer_encoding = http_get_header_field(&res.hdr, "Transfer-Encoding");
             int chunked = transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL;
@@ -716,9 +716,9 @@ static void request_handler(client_ctx_t *cctx) {
 
     uri_free(&uri);
     abort:
-    if (fcgi_conn.socket != 0) {
-        close(fcgi_conn.socket);
-        fcgi_conn.socket = 0;
+    if (fcgi_cnx.socket != 0) {
+        close(fcgi_cnx.socket);
+        fcgi_cnx.socket = 0;
     }
     http_free_req(&req);
     http_free_res(&res);
