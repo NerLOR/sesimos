@@ -11,12 +11,6 @@
 
 #include "../server.h"
 
-int responder_init(int n_workers, int buf_size);
-
-int respond(client_ctx_t *ctx);
-
-void responder_stop(void);
-
-void responder_destroy(void);
+void responder_func(client_ctx_t *ctx);
 
 #endif //SESIMOS_RESPONDER_H

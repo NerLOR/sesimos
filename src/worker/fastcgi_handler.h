@@ -11,12 +11,6 @@
 
 #include "../server.h"
 
-int fastcgi_handler_init(int n_workers, int buf_size);
-
-int fastcgi_handle(client_ctx_t *ctx);
-
-void fastcgi_handler_stop(void);
-
-void fastcgi_handler_destroy(void);
+void fastcgi_handler_func(client_ctx_t *ctx);
 
 #endif //SESIMOS_FASTCGI_HANDLER_H

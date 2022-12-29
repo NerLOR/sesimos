@@ -8,52 +8,23 @@
 
 #include "../defs.h"
 #include "request_handler.h"
+#include "../workers.h"
 #include "../lib/mpmc.h"
-#include "tcp_closer.h"
-#include "../async.h"
-
-#include "../server.h"
 #include "../logger.h"
 
 #include "../lib/utils.h"
-#include "../lib/config.h"
-#include "../lib/sock.h"
-#include "../lib/http.h"
 #include "../lib/proxy.h"
 #include "../lib/fastcgi.h"
-#include "../cache_handler.h"
 #include "../lib/compress.h"
 #include "../lib/websocket.h"
-#include "responder.h"
 
 #include <string.h>
-#include <errno.h>
-#include <unistd.h>
 #include <openssl/err.h>
 #include <arpa/inet.h>
 
-static mpmc_t mpmc_ctx;
-
-static void request_handler_func(client_ctx_t *ctx);
 static int request_handler(client_ctx_t *ctx);
 
-int request_handler_init(int n_workers, int buf_size) {
-    return mpmc_init(&mpmc_ctx, n_workers, buf_size, (void (*)(void *)) request_handler_func, "req");
-}
-
-int handle_request(client_ctx_t *ctx) {
-    return mpmc_queue(&mpmc_ctx, ctx);
-}
-
-void request_handler_stop(void) {
-    mpmc_stop(&mpmc_ctx);
-}
-
-void request_handler_destroy(void) {
-    mpmc_destroy(&mpmc_ctx);
-}
-
-static void request_handler_func(client_ctx_t *ctx) {
+void request_handler_func(client_ctx_t *ctx) {
     logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->s_addr, ctx->log_prefix);
 
     if (request_handler(ctx) == 0) {

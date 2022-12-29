@@ -11,12 +11,6 @@
 
 #include "../server.h"
 
-int tcp_closer_init(int n_workers, int buf_size);
-
-int tcp_close(client_ctx_t *ctx);
-
-void tcp_closer_stop(void);
-
-void tcp_closer_destroy(void);
+void tcp_closer_func(client_ctx_t *ctx);
 
 #endif //SESIMOS_TCP_CLOSER_H

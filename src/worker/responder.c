@@ -8,48 +8,23 @@
 
 #include "../defs.h"
 #include "responder.h"
-#include "../lib/mpmc.h"
-#include "tcp_closer.h"
 #include "../async.h"
 #include "../logger.h"
 
 #include "../lib/utils.h"
-#include "../lib/config.h"
-#include "../lib/sock.h"
-#include "../lib/http.h"
 #include "../lib/proxy.h"
 #include "../lib/fastcgi.h"
-#include "../lib/compress.h"
 #include "../lib/websocket.h"
-#include "request_handler.h"
+#include "../workers.h"
 
 #include <string.h>
 #include <unistd.h>
 #include <openssl/err.h>
 #include <arpa/inet.h>
 
-static mpmc_t mpmc_ctx;
-
-static void responder_func(client_ctx_t *ctx);
 static void responder(client_ctx_t *ctx);
 
-int responder_init(int n_workers, int buf_size) {
-    return mpmc_init(&mpmc_ctx, n_workers, buf_size, (void (*)(void *)) responder_func, "res");
-}
-
-int respond(client_ctx_t *ctx) {
-    return mpmc_queue(&mpmc_ctx, ctx);
-}
-
-void responder_stop(void) {
-    mpmc_stop(&mpmc_ctx);
-}
-
-void responder_destroy(void) {
-    mpmc_destroy(&mpmc_ctx);
-}
-
-static void responder_func(client_ctx_t *ctx) {
+void responder_func(client_ctx_t *ctx) {
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
     responder(ctx);
 

@@ -6,43 +6,20 @@
  * @date 2022-12-28
  */
 
-#include "../server.h"
+#include "tcp_acceptor.h"
 #include "../async.h"
 #include "../logger.h"
 #include "../lib/mpmc.h"
 #include "../lib/utils.h"
 #include "../lib/geoip.h"
-#include "../lib/config.h"
-#include "tcp_closer.h"
-#include "request_handler.h"
-#include "tcp_acceptor.h"
+#include "../workers.h"
 
 #include <string.h>
 #include <errno.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
-static mpmc_t mpmc_ctx;
-
-static void tcp_acceptor_func(client_ctx_t *ctx);
-
-int tcp_acceptor_init(int n_workers, int buf_size) {
-    return mpmc_init(&mpmc_ctx, n_workers, buf_size, (void (*)(void *)) tcp_acceptor_func, "tcp_a");
-}
-
-int tcp_accept(client_ctx_t *ctx) {
-    return mpmc_queue(&mpmc_ctx, ctx);
-}
-
-void tcp_acceptor_stop(void) {
-    mpmc_stop(&mpmc_ctx);
-}
-
-void tcp_acceptor_destroy(void) {
-    mpmc_destroy(&mpmc_ctx);
-}
-
-static void tcp_acceptor_func(client_ctx_t *ctx) {
+void tcp_acceptor_func(client_ctx_t *ctx) {
     struct sockaddr_in6 server_addr;
 
     inet_ntop(ctx->socket.addr.ipv6.sin6_family, &ctx->socket.addr.ipv6.sin6_addr, ctx->_c_addr, sizeof(ctx->_c_addr));

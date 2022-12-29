@@ -10,15 +10,12 @@
 #include "server.h"
 #include "logger.h"
 #include "async.h"
-#include "worker/tcp_acceptor.h"
 
 #include "cache_handler.h"
 #include "lib/config.h"
 #include "lib/proxy.h"
 #include "lib/geoip.h"
-#include "worker/tcp_closer.h"
-#include "worker/request_handler.h"
-#include "worker/responder.h"
+#include "workers.h"
 
 #include <stdio.h>
 #include <getopt.h>
@@ -27,7 +24,6 @@
 #include <unistd.h>
 #include <poll.h>
 #include <string.h>
-#include <errno.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <openssl/err.h>
@@ -111,15 +107,8 @@ static void terminate_gracefully(int sig) {
     signal(SIGINT, terminate_forcefully);
     signal(SIGTERM, terminate_forcefully);
 
-    tcp_acceptor_stop();
-    request_handler_stop();
-    tcp_closer_stop();
-    responder_stop();
-
-    tcp_acceptor_destroy();
-    request_handler_destroy();
-    tcp_closer_destroy();
-    responder_destroy();
+    workers_stop();
+    workers_destroy();
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         close(sockets[i]);
@@ -264,10 +253,7 @@ int main(int argc, char *const argv[]) {
         }
     }
 
-    tcp_acceptor_init(CNX_HANDLER_WORKERS, 64);
-    tcp_closer_init(CNX_HANDLER_WORKERS, 64);
-    request_handler_init(REQ_HANDLER_WORKERS, 64);
-    responder_init(REQ_HANDLER_WORKERS, 64);
+    workers_init();
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         async(sockets[i], POLLIN, ASYNC_KEEP, accept_cb, &sockets[i], accept_err_cb, &sockets[i]);
