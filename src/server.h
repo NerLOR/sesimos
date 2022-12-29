@@ -14,7 +14,6 @@
 #include <signal.h>
 
 #define NUM_SOCKETS 2
-#define MAX_CHILDREN 64
 #define LISTEN_BACKLOG 16
 #define REQ_PER_CONNECTION 200
 #define CLIENT_TIMEOUT 3600
@@ -25,6 +24,6 @@
 #define CNX_HANDLER_WORKERS 8
 #define REQ_HANDLER_WORKERS 16
 
-extern volatile sig_atomic_t alive;
+extern volatile sig_atomic_t server_alive;
 
 #endif //SESIMOS_SERVER_H

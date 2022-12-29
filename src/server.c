@@ -11,11 +11,14 @@
 #include "client.h"
 #include "logger.h"
 #include "async.h"
+#include "worker/tcp_acceptor.h"
 
 #include "cache_handler.h"
 #include "lib/config.h"
 #include "lib/proxy.h"
 #include "lib/geoip.h"
+#include "worker/tcp_closer.h"
+#include "worker/request_handler.h"
 
 #include <stdio.h>
 #include <getopt.h>
@@ -33,11 +36,10 @@
 #include <openssl/conf.h>
 
 
-volatile sig_atomic_t alive = 1;
+volatile sig_atomic_t server_alive = 1;
 const char *config_file;
 
 static int sockets[NUM_SOCKETS];
-static pthread_t children[MAX_CHILDREN];
 static SSL_CTX *contexts[CONFIG_MAX_CERT_CONFIG];
 
 static client_ctx_t clients[MAX_CLIENTS];  // TODO dynamic
@@ -62,10 +64,11 @@ static void accept_cb(void *arg) {
     int fd = sockets[i];
 
     int j;
-    for (j = 0; j < MAX_CHILDREN; j++) {
-        if (children[j] == 0) break;
+    for (j = 0; j < MAX_CLIENTS; j++) {
+        if (clients[j].in_use == 0) break;
     }
     client_ctx_t *client_ctx = &clients[j];
+    client_ctx->in_use = 1;
     sock *client = &client_ctx->socket;
 
     client->ctx = contexts[0];
@@ -78,11 +81,8 @@ static void accept_cb(void *arg) {
 
     client->socket = client_fd;
     client->enc = (i == 1);
-    pthread_t ret = pthread_create(&children[j], NULL, (void *(*)(void *)) &client_handler, client);
-    if (ret != 0) {
-        errno = (int) ret;
-        critical("Unable to create thread");
-    }
+
+    tcp_accept(client_ctx);
 }
 
 static void accept_err_cb(void *arg) {
@@ -95,18 +95,9 @@ static void terminate_forcefully(int sig) {
     fprintf(stderr, "\n");
     notice("Terminating forcefully!");
 
-    int ret;
-    for (int i = 0; i < MAX_CHILDREN; i++) {
-        if (children[i] != 0) {
-            if ((ret = pthread_kill(children[i], SIGKILL)) < 0) {
-                errno = ret;
-                error("Unable to wait for child process (PID %i)", children[i]);
-                errno = 0;
-            }
-        }
-    }
-
     geoip_free();
+
+    notice("Goodbye");
     exit(2);
 }
 
@@ -114,38 +105,37 @@ static void terminate_gracefully(int sig) {
     fprintf(stderr, "\n");
     notice("Terminating gracefully...");
 
-    alive = 0;
+    server_alive = 0;
     signal(SIGINT, terminate_forcefully);
     signal(SIGTERM, terminate_forcefully);
+
+    tcp_acceptor_stop();
+    request_handler_stop();
+    tcp_closer_stop();
+
+    tcp_acceptor_destroy();
+    request_handler_destroy();
+    tcp_closer_destroy();
+
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         shutdown(sockets[i], SHUT_RDWR);
         close(sockets[i]);
     }
 
-    int ret;
-    for (int i = 0; i < MAX_CHILDREN; i++) {
-        if (children[i] != 0) {
-            ret = pthread_kill(children[i], SIGKILL);
-            if (ret < 0) {
-                critical("Unable to wait for child process (PID %i)", children[i]);
-            } else if (ret == children[i]) {
-                children[i] = 0;
-            }
-        }
-    }
-
-    info("Goodbye");
+    notice("Goodbye");
     geoip_free();
     exit(0);
 }
+
+static void nothing(int sig) {}
 
 int main(int argc, char *const argv[]) {
     const int YES = 1;
     int ret;
 
     memset(sockets, 0, sizeof(sockets));
-    memset(children, 0, sizeof(children));
+    memset(clients, 0, sizeof(clients));
 
     const struct sockaddr_in6 addresses[2] = {
             {.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_ANY_INIT, .sin6_port = htons(80)},
@@ -221,6 +211,7 @@ int main(int argc, char *const argv[]) {
 
     signal(SIGINT, terminate_gracefully);
     signal(SIGTERM, terminate_gracefully);
+    signal(SIGUSR1, nothing);
 
     if ((ret = geoip_init(config.geoip_dir)) != 0) {
         if (ret == -1) {
@@ -271,11 +262,14 @@ int main(int argc, char *const argv[]) {
         }
     }
 
+    tcp_acceptor_init(CNX_HANDLER_WORKERS, 64);
+    tcp_closer_init(CNX_HANDLER_WORKERS, 64);
+    request_handler_init(REQ_HANDLER_WORKERS, 64);
+
     for (int i = 0; i < NUM_SOCKETS; i++) {
         async(sockets[i], POLLIN, ASYNC_KEEP, accept_cb, &sockets[i], accept_err_cb, &sockets[i]);
     }
 
-    errno = 0;
     notice("Ready to accept connections");
 
     async_thread();

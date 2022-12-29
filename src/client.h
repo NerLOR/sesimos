@@ -16,14 +16,13 @@
 
 typedef struct {
     sock socket;
-    char *addr;
-    char *s_addr;
-    unsigned char s_keep_alive:1;
-    unsigned char c_keep_alive:1;
-    char cc[3];
-    char host[256];
-    char _c_addr[INET6_ADDRSTRLEN + 1];
-    char _s_addr[INET6_ADDRSTRLEN + 1];
+    int req_num;
+    char *addr, *s_addr;
+    unsigned char in_use: 1, s_keep_alive:1, c_keep_alive:1;
+    char cc[3], host[256];
+    char log_prefix[512];
+    char _c_addr[INET6_ADDRSTRLEN + 1], _s_addr[INET6_ADDRSTRLEN + 1];
+    struct timespec begin, end;
 } client_ctx_t;
 
 host_config_t *get_host_config(const char *host);

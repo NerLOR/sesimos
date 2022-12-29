@@ -203,7 +203,7 @@ static void cache_process_entry(cache_entry_t *entry) {
 static void *cache_thread(void *arg) {
     logger_set_name("cache");
 
-    while (alive) {
+    while (server_alive) {
         pthread_testcancel();
         if (sem_wait(&sem_used) != 0) {
             if (errno == EINTR) {
@@ -257,10 +257,14 @@ int cache_init(void) {
         }
 
         close(fd);
+        errno = 0;
     }
 
     // try to initialize all three semaphores
-    if (sem_init(&sem_lock, 0, 1) != 0|| sem_init(&sem_free, 0, 1) != 0 || sem_init(&sem_used, 0, 0) != 0) {
+    if (sem_init(&sem_lock, 0, 1) != 0 ||
+        sem_init(&sem_free, 0, 1) != 0 ||
+        sem_init(&sem_used, 0, 0) != 0)
+    {
         critical("Unable to initialize semaphore");
         return -1;
     }

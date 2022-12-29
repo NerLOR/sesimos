@@ -13,6 +13,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <memory.h>
+#include <pthread.h>
 
 typedef struct {
     int fd;
@@ -31,10 +32,12 @@ typedef struct {
 
 static listen_queue_t listen1, listen2, *listen = &listen1;
 static volatile sig_atomic_t alive = 1;
+static pthread_t thread = -1;
 
 static int async_add_to_queue(evt_listen_t *evt) {
     // TODO locking
     memcpy(&listen->q[listen->n++], evt, sizeof(*evt));
+    if (thread != -1) pthread_kill(thread, SIGUSR1);
     return 0;
 }
 
@@ -55,6 +58,8 @@ void async_thread(void) {
     int num_fds;
     struct pollfd fds[256];  // TODO dynamic
 
+    thread = pthread_self();
+
     // main event loop
     while (alive) {
         // swap listen queue
@@ -70,6 +75,7 @@ void async_thread(void) {
         if (poll(fds, num_fds, -1) < 0) {
             if (errno == EINTR) {
                 // interrupt
+                errno = 0;
             } else {
                 // other error
                 critical("Unable to poll for events");
@@ -100,4 +106,8 @@ void async_thread(void) {
         // reset size of queue
         l->n = 0;
     }
+}
+
+void async_stop(void) {
+    alive = 0;
 }
