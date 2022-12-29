@@ -1,8 +1,15 @@
+/**
+ * sesimos - secure, simple, modern web server
+ * @brief TCP acceptor (header file)
+ * @file src/worker/tcp_acceptor.h
+ * @author Lorenz Stechauner
+ * @date 2022-12-28
+ */
 
 #ifndef SESIMOS_TCP_ACCEPTOR_H
 #define SESIMOS_TCP_ACCEPTOR_H
 
-#include "../client.h"
+#include "../server.h"
 
 int tcp_acceptor_init(int n_workers, int buf_size);
 

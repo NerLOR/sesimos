@@ -1,13 +1,21 @@
+/**
+ * sesimos - secure, simple, modern web server
+ * @brief TCP acceptor
+ * @file src/worker/tcp_acceptor.c
+ * @author Lorenz Stechauner
+ * @date 2022-12-28
+ */
 
-#include "tcp_acceptor.h"
+#include "../server.h"
+#include "../async.h"
 #include "../logger.h"
 #include "../lib/mpmc.h"
 #include "../lib/utils.h"
-#include "../server.h"
 #include "../lib/geoip.h"
-#include "../async.h"
+#include "../lib/config.h"
 #include "tcp_closer.h"
 #include "request_handler.h"
+#include "tcp_acceptor.h"
 
 #include <string.h>
 #include <errno.h>

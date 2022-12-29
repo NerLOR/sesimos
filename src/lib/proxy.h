@@ -20,7 +20,7 @@
 
 #include "http.h"
 #include "config.h"
-#include "../client.h"
+#include "../server.h"
 
 extern sock proxy;
 

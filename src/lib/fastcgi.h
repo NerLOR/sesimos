@@ -12,7 +12,7 @@
 #include "include/fastcgi.h"
 #include "http.h"
 #include "uri.h"
-#include "../client.h"
+#include "../server.h"
 
 #define FASTCGI_CHUNKED 1
 #define FASTCGI_COMPRESS_GZ 2

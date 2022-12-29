@@ -45,7 +45,7 @@ bin/lib/%.o: src/lib/%.c
 bin/worker/%.o: src/worker/%.c
 	$(CC) -c -o $@ $(CFLAGS) $<
 
-bin/sesimos: bin/server.o bin/client.o bin/logger.o bin/cache_handler.o bin/async.o \
+bin/sesimos: bin/server.o bin/logger.o bin/cache_handler.o bin/async.o \
 			 bin/worker/request_handler.o bin/worker/tcp_acceptor.o bin/worker/tcp_closer.o \
 			 bin/lib/compress.o bin/lib/config.o bin/lib/fastcgi.o bin/lib/geoip.o \
 			 bin/lib/http.o bin/lib/http_static.o bin/lib/proxy.o bin/lib/sock.o bin/lib/uri.o \
@@ -53,12 +53,8 @@ bin/sesimos: bin/server.o bin/client.o bin/logger.o bin/cache_handler.o bin/asyn
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
 
 
-bin/server.o: src/server.h src/defs.h src/client.h src/cache_handler.h src/lib/config.h src/lib/sock.h \
+bin/server.o: src/server.h src/defs.h src/cache_handler.h src/lib/config.h src/lib/sock.h \
               src/lib/proxy.h src/lib/geoip.h src/lib/utils.h src/logger.h
-
-bin/client.o: src/client.h src/defs.h src/server.h src/lib/utils.h src/lib/config.h src/lib/sock.h \
-              src/lib/http.h src/lib/proxy.h src/lib/fastcgi.h src/cache_handler.h src/lib/geoip.h src/lib/compress.h \
-              src/lib/websocket.h src/logger.h
 
 bin/logger.o: src/logger.h
 

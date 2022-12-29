@@ -60,4 +60,6 @@ extern config_t config;
 
 int config_load(const char *filename);
 
+host_config_t *get_host_config(const char *host);
+
 #endif //SESIMOS_CONFIG_H

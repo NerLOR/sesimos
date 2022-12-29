@@ -208,3 +208,16 @@ int config_load(const char *filename) {
 
     return 0;
 }
+
+host_config_t *get_host_config(const char *host) {
+    for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
+        host_config_t *hc = &config.hosts[i];
+        if (hc->type == CONFIG_TYPE_UNSET) break;
+        if (strcmp(hc->name, host) == 0) return hc;
+        if (hc->name[0] == '*' && hc->name[1] == '.') {
+            const char *pos = strstr(host, hc->name + 1);
+            if (pos != NULL && strlen(pos) == strlen(hc->name + 1)) return hc;
+        }
+    }
+    return NULL;
+}
