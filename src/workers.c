@@ -9,11 +9,7 @@
 #include "workers.h"
 #include "lib/mpmc.h"
 
-#include "worker/tcp_acceptor.h"
-#include "worker/tcp_closer.h"
-#include "worker/responder.h"
-#include "worker/request_handler.h"
-#include "worker/fastcgi_handler.h"
+#include "worker/func.h"
 
 static mpmc_t tcp_acceptor_ctx, tcp_closer_ctx, request_handler_ctx, responder_ctx, fastcgi_handler_cxt;
 

@@ -7,7 +7,7 @@
  */
 
 #include "../defs.h"
-#include "request_handler.h"
+#include "func.h"
 #include "../workers.h"
 #include "../lib/mpmc.h"
 #include "../logger.h"

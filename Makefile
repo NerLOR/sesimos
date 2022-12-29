@@ -65,15 +65,15 @@ bin/async.o: src/async.h src/logger.h
 
 bin/workers.o: src/workers.h src/lib/mpmc.h src/worker/*.h
 
-bin/worker/request_handler.o: src/worker/request_handler.h
+bin/worker/request_handler.o: src/worker/func.h
 
-bin/worker/tcp_acceptor.o: src/worker/tcp_acceptor.h
+bin/worker/tcp_acceptor.o: src/worker/func.h
 
-bin/worker/tcp_closer.o: src/worker/tcp_closer.h
+bin/worker/tcp_closer.o: src/worker/func.h
 
-bin/worker/fastcgi_handler.o: src/worker/fastcgi_handler.h
+bin/worker/fastcgi_handler.o: src/worker/func.h
 
-bin/worker/responder.o: src/worker/responder.h
+bin/worker/responder.o: src/worker/func.h
 
 bin/lib/compress.o: src/lib/compress.h
 

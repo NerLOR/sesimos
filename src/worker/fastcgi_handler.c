@@ -6,7 +6,7 @@
  * @date 2022-12-28
  */
 
-#include "fastcgi_handler.h"
+#include "func.h"
 #include "../logger.h"
 #include "../lib/utils.h"
 

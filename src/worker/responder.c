@@ -7,7 +7,7 @@
  */
 
 #include "../defs.h"
-#include "responder.h"
+#include "func.h"
 #include "../async.h"
 #include "../logger.h"
 
