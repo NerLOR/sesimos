@@ -162,10 +162,13 @@ static int logger_remaining(void) {
     return val;
 }
 
-void logger_set_name(const char *restrict name) {
+void logger_set_name(const char *restrict format, ...) {
+    va_list args;
+
     if (key_name == -1) {
         // not initialized
-        strncpy(global_name, name, sizeof(global_name));
+        va_start(args, format);
+        vsnprintf(global_name, sizeof(global_name), format, args);
     } else {
         int ret;
         void *ptr = pthread_getspecific(key_name);
@@ -177,14 +180,22 @@ void logger_set_name(const char *restrict name) {
                 return;
             }
         }
-        strncpy(ptr, name, LOG_NAME_LEN);
+
+        va_start(args, format);
+        vsnprintf(ptr, LOG_NAME_LEN, format, args);
     }
+
+    // cleanup
+    va_end(args);
 }
 
-void logger_set_prefix(const char *restrict prefix) {
+void logger_set_prefix(const char *restrict format, ...) {
+    va_list args;
+
     if (key_prefix == -1) {
         // not initialized
-        strncpy(global_prefix, prefix, sizeof(global_prefix));
+        va_start(args, format);
+        vsnprintf(global_prefix, sizeof(global_prefix), format, args);
     } else {
         int ret;
         void *ptr = pthread_getspecific(key_prefix);
@@ -196,8 +207,12 @@ void logger_set_prefix(const char *restrict prefix) {
                 return;
             }
         }
-        strncpy(ptr, prefix, LOG_PREFIX_LEN);
+        va_start(args, format);
+        vsnprintf(ptr, LOG_PREFIX_LEN, format, args);
     }
+
+    // cleanup
+    va_end(args);
 }
 
 static void *logger_thread(void *arg) {

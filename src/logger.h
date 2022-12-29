@@ -29,9 +29,9 @@ typedef unsigned char log_lvl_t;
 
 void logmsgf(log_lvl_t level, const char *restrict format, ...);
 
-void logger_set_name(const char *restrict name);
+void logger_set_name(const char *restrict format, ...);
 
-void logger_set_prefix(const char *restrict prefix);
+void logger_set_prefix(const char *restrict format, ...);
 
 int logger_init(void);
 

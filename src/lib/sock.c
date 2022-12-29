@@ -130,6 +130,7 @@ int sock_close(sock *s) {
     close(s->socket);
     s->socket = 0;
     s->enc = 0;
+    errno = 0;
     return 0;
 }
 

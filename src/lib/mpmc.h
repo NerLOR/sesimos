@@ -13,9 +13,10 @@ typedef struct {
     void **buffer;
     pthread_t *workers;
     void (*consumer)(void *obj);
+    const char* name;
 } mpmc_t;
 
-int mpmc_init(mpmc_t *ctx, int n_workers, int buf_size, void (*consumer)(void *obj), const char *prefix);
+int mpmc_init(mpmc_t *ctx, int n_workers, int buf_size, void (*consumer)(void *obj), const char *name);
 
 int mpmc_queue(mpmc_t *ctx, void *obj);
 

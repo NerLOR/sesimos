@@ -11,7 +11,7 @@ static mpmc_t mpmc_ctx;
 static void tcp_closer_func(client_ctx_t *ctx);
 
 int tcp_closer_init(int n_workers, int buf_size) {
-    return mpmc_init(&mpmc_ctx, n_workers, buf_size, (void (*)(void *)) tcp_closer_func, "tcp/c");
+    return mpmc_init(&mpmc_ctx, n_workers, buf_size, (void (*)(void *)) tcp_closer_func, "tcp_c");
 }
 
 int tcp_close(client_ctx_t *ctx) {
@@ -27,7 +27,7 @@ void tcp_closer_destroy(void) {
 }
 
 static void tcp_closer_func(client_ctx_t *ctx) {
-    logger_set_prefix(ctx->log_prefix);
+    logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->s_addr, ctx->log_prefix);
 
     sock_close(&ctx->socket);
 

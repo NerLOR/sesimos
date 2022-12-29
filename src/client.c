@@ -141,8 +141,7 @@ int client_request_handler(client_ctx_t *cctx) {
         strcpy(host, host_ptr);
     }
 
-    sprintf(log_req_prefix, "[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, host, CLR_STR, cctx->log_prefix);
-    logger_set_prefix(log_req_prefix);
+    logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, host, CLR_STR, cctx->log_prefix);
     info(BLD_STR "%s %s", req.method, req.uri);
 
     conf = get_host_config(host);

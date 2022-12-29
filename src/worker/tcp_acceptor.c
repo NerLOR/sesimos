@@ -19,7 +19,7 @@ static mpmc_t mpmc_ctx;
 static void tcp_acceptor_func(client_ctx_t *ctx);
 
 int tcp_acceptor_init(int n_workers, int buf_size) {
-    return mpmc_init(&mpmc_ctx, n_workers, buf_size, (void (*)(void *)) tcp_acceptor_func, "tcp/a");
+    return mpmc_init(&mpmc_ctx, n_workers, buf_size, (void (*)(void *)) tcp_acceptor_func, "tcp_a");
 }
 
 int tcp_accept(client_ctx_t *ctx) {
@@ -36,7 +36,6 @@ void tcp_acceptor_destroy(void) {
 
 static void tcp_acceptor_func(client_ctx_t *ctx) {
     struct sockaddr_in6 server_addr;
-    char log_client_prefix[256];
 
     inet_ntop(ctx->socket.addr.ipv6.sin6_family, &ctx->socket.addr.ipv6.sin6_addr, ctx->_c_addr, sizeof(ctx->_c_addr));
     if (strncmp(ctx->_c_addr, "::ffff:", 7) == 0) {
@@ -54,12 +53,11 @@ static void tcp_acceptor_func(client_ctx_t *ctx) {
         ctx->s_addr = ctx->_s_addr;
     }
 
-    sprintf(log_client_prefix, "[%s%4i%s]%s[%*s][%5i]%s", (int) ctx->socket.enc ? HTTPS_STR : HTTP_STR,
+    sprintf(ctx->log_prefix, "[%s%4i%s]%s[%*s][%5i]%s", (int) ctx->socket.enc ? HTTPS_STR : HTTP_STR,
             ntohs(server_addr.sin6_port), CLR_STR, /*color_table[0]*/ "", INET6_ADDRSTRLEN, ctx->addr,
             ntohs(ctx->socket.addr.ipv6.sin6_port), CLR_STR);
 
-    sprintf(ctx->log_prefix, "[%*s]%s", INET6_ADDRSTRLEN, ctx->s_addr, log_client_prefix);
-    logger_set_prefix(ctx->log_prefix);
+    logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->s_addr, ctx->log_prefix);
     
     int ret;
     char buf[1024];
@@ -117,7 +115,7 @@ static void tcp_acceptor_func(client_ctx_t *ctx) {
         client->_errno = errno;
         client->_ssl_error = ERR_get_error();
         if (ret <= 0) {
-            error("Unable to perform handshake: %s", sock_strerror(client));
+            info("Unable to perform handshake: %s", sock_strerror(client));
             tcp_close(ctx);
             return;
         }
