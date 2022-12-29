@@ -22,7 +22,7 @@
 #include <openssl/err.h>
 #include <arpa/inet.h>
 
-static void responder(client_ctx_t *ctx);
+static int responder(client_ctx_t *ctx);
 
 void responder_func(client_ctx_t *ctx) {
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
@@ -35,7 +35,7 @@ void responder_func(client_ctx_t *ctx) {
     }
 }
 
-static void responder(client_ctx_t *ctx) {
+static int responder(client_ctx_t *ctx) {
     sock *client = &ctx->socket;
     long ret = 0;
 
@@ -223,4 +223,6 @@ static void responder(client_ctx_t *ctx) {
     }
     http_free_req(req);
     http_free_res(res);
+
+    return 0;
 }

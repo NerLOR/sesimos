@@ -19,7 +19,17 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
+static int tcp_acceptor(client_ctx_t *ctx);
+
 void tcp_acceptor_func(client_ctx_t *ctx) {
+    if (tcp_acceptor(ctx) == 0) {
+        async(ctx->socket.socket, POLLIN, 0, (void (*)(void *)) handle_request, ctx, (void (*)(void *)) tcp_close, ctx);
+    } else {
+        tcp_close(ctx);
+    }
+}
+
+static int tcp_acceptor(client_ctx_t *ctx) {
     struct sockaddr_in6 server_addr;
 
     inet_ntop(ctx->socket.addr.ipv6.sin6_family, &ctx->socket.addr.ipv6.sin6_addr, ctx->_c_addr, sizeof(ctx->_c_addr));
@@ -86,8 +96,7 @@ void tcp_acceptor_func(client_ctx_t *ctx) {
         setsockopt(client->socket, SOL_SOCKET, SO_SNDTIMEO, &client_timeout, sizeof(client_timeout)) == -1)
     {
         error("Unable to set timeout for socket");
-        tcp_close(ctx);
-        return;
+        return -1;
     }
 
     if (client->enc) {
@@ -101,8 +110,7 @@ void tcp_acceptor_func(client_ctx_t *ctx) {
         client->_ssl_error = ERR_get_error();
         if (ret <= 0) {
             info("Unable to perform handshake: %s", sock_strerror(client));
-            tcp_close(ctx);
-            return;
+            return - 1;
         }
     }
 
@@ -110,5 +118,5 @@ void tcp_acceptor_func(client_ctx_t *ctx) {
     ctx->s_keep_alive = 1;
     ctx->c_keep_alive = 1;
 
-    async(ctx->socket.socket, POLLIN, 0, (void (*)(void *)) handle_request, ctx, (void (*)(void *)) tcp_close, ctx);
+    return 0;
 }
