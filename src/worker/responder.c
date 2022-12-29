@@ -34,7 +34,7 @@ static void responder_func(client_ctx_t *ctx);
 static void responder(client_ctx_t *ctx);
 
 int responder_init(int n_workers, int buf_size) {
-    return mpmc_init(&mpmc_ctx, n_workers, buf_size, (void (*)(void *)) responder_func, "req");
+    return mpmc_init(&mpmc_ctx, n_workers, buf_size, (void (*)(void *)) responder_func, "res");
 }
 
 int respond(client_ctx_t *ctx) {
