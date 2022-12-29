@@ -132,8 +132,8 @@ int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int client_num, unsigne
     addr = (struct sockaddr_in6 *) &addr_storage;
     sprintf(buf0, "%i", addr->sin6_port);
     param_ptr = fastcgi_add_param(param_ptr, "REMOTE_PORT", buf0);
-    param_ptr = fastcgi_add_param(param_ptr, "REMOTE_ADDR", conn->ctx->addr);
-    param_ptr = fastcgi_add_param(param_ptr, "REMOTE_HOST", conn->ctx->host[0] != 0 ? conn->ctx->host : conn->ctx->addr);
+    param_ptr = fastcgi_add_param(param_ptr, "REMOTE_ADDR", conn->r_addr);
+    param_ptr = fastcgi_add_param(param_ptr, "REMOTE_HOST", conn->r_host != NULL ? conn->r_host : conn->r_addr);
     //param_ptr = fastcgi_add_param(param_ptr, "REMOTE_IDENT", "");
     //param_ptr = fastcgi_add_param(param_ptr, "REMOTE_USER", "");
 

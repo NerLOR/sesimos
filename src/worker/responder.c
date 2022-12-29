@@ -36,23 +36,17 @@ void responder_func(client_ctx_t *ctx) {
 }
 
 static int responder(client_ctx_t *ctx) {
-    sock *client = &ctx->socket;
-    long ret = 0;
-
-    char buf0[1024];
-    char msg_buf[8192], msg_pre_buf_1[4096], msg_pre_buf_2[4096], err_msg[256];
-    char msg_content[1024];
-    char buffer[CHUNK_SIZE];
-
-    msg_buf[0] = 0;
-    err_msg[0] = 0;
-    msg_content[0] = 0;
-
-    fastcgi_cnx_t fcgi_cnx = {.socket = 0, .req_id = 0, .ctx = ctx};
-
     http_req *req = &ctx->req;
     http_res *res = &ctx->res;
-    http_status_ctx status = {.status = 0, .origin = NONE, .ws_key = NULL};
+    sock *client = &ctx->socket;
+    http_status_ctx *status = &ctx->status;
+    fastcgi_cnx_t *fcgi_cnx = &ctx->fcgi_cnx;
+    char *err_msg = ctx->err_msg;
+
+    long ret = 0;
+    char buf0[1024];
+    char msg_pre_buf_1[4096], msg_pre_buf_2[4096];
+    char buffer[CHUNK_SIZE];
 
     if (!ctx->use_proxy) {
         if (ctx->conf != NULL && ctx->conf->type == CONFIG_TYPE_LOCAL && ctx->uri.is_static && res->status->code == 405) {
@@ -76,45 +70,45 @@ static int responder(client_ctx_t *ctx) {
             const http_doc_info *info = http_get_status_info(res->status);
             const http_status_msg *http_msg = http_get_error_msg(res->status);
 
-            if (msg_content[0] == 0) {
+            if (ctx->msg_content[0] == 0) {
                 if (res->status->code >= 300 && res->status->code < 400) {
                     const char *location = http_get_header_field(&res->hdr, "Location");
                     if (location != NULL) {
-                        snprintf(msg_content, sizeof(msg_content), "<ul>\n\t<li><a href=\"%s\">%s</a></li>\n</ul>\n", location, location);
+                        snprintf(ctx->msg_content, sizeof(ctx->msg_content), "<ul>\n\t<li><a href=\"%s\">%s</a></li>\n</ul>\n", location, location);
                     }
                 }
-            } else if (strncmp(msg_content, "<!DOCTYPE html>", 15) == 0 || strncmp(msg_content, "<html", 5) == 0) {
-                msg_content[0] = 0;
+            } else if (strncmp(ctx->msg_content, "<!DOCTYPE html>", 15) == 0 || strncmp(ctx->msg_content, "<html", 5) == 0) {
+                ctx->msg_content[0] = 0;
                 // TODO let relevant information pass?
             }
 
             char *proxy_doc = "";
             if (ctx->conf != NULL && ctx->conf->type == CONFIG_TYPE_REVERSE_PROXY) {
-                const http_status *status_hdr = http_get_status(status.status);
+                const http_status *status_hdr = http_get_status(status->status);
                 char stat_str[8];
-                sprintf(stat_str, "%03i", status.status);
+                sprintf(stat_str, "%03i", status->status);
                 sprintf(msg_pre_buf_2, http_proxy_document,
                         " success",
-                        (status.origin == CLIENT_REQ) ? " error" : " success",
-                        (status.origin == INTERNAL) ? " error" : " success",
-                        (status.origin == SERVER_REQ) ? " error" : (status.status == 0 ? "" : " success"),
-                        (status.origin == CLIENT_RES) ? " error" : " success",
-                        (status.origin == SERVER) ? " error" : (status.status == 0 ? "" : " success"),
-                        (status.origin == SERVER_RES) ? " error" : (status.status == 0 ? "" : " success"),
-                        (status.origin == INTERNAL) ? " error" : " success",
-                        (status.origin == INTERNAL || status.origin == SERVER) ? " error" : " success",
+                        (status->origin == CLIENT_REQ) ? " error" : " success",
+                        (status->origin == INTERNAL) ? " error" : " success",
+                        (status->origin == SERVER_REQ) ? " error" : (status->status == 0 ? "" : " success"),
+                        (status->origin == CLIENT_RES) ? " error" : " success",
+                        (status->origin == SERVER) ? " error" : (status->status == 0 ? "" : " success"),
+                        (status->origin == SERVER_RES) ? " error" : (status->status == 0 ? "" : " success"),
+                        (status->origin == INTERNAL) ? " error" : " success",
+                        (status->origin == INTERNAL || status->origin == SERVER) ? " error" : " success",
                         res->status->code,
                         res->status->msg,
-                        (status.status == 0) ? "???" : stat_str,
+                        (status->status == 0) ? "???" : stat_str,
                         (status_hdr != NULL) ? status_hdr->msg : "",
                         ctx->req_host);
                 proxy_doc = msg_pre_buf_2;
             }
 
             sprintf(msg_pre_buf_1, info->doc, res->status->code, res->status->msg, http_msg != NULL ? http_msg->msg : "", err_msg[0] != 0 ? err_msg : "");
-            ctx->content_length = snprintf(msg_buf, sizeof(msg_buf), http_default_document, res->status->code,
+            ctx->content_length = snprintf(ctx->msg_buf, sizeof(ctx->msg_buf), http_default_document, res->status->code,
                                       res->status->msg, msg_pre_buf_1, info->mode, info->icon, info->color, ctx->req_host,
-                                      proxy_doc, msg_content[0] != 0 ? msg_content : "");
+                                      proxy_doc, ctx->msg_content[0] != 0 ? ctx->msg_content : "");
         }
         if (ctx->content_length >= 0) {
             sprintf(buf0, "%li", ctx->content_length);
@@ -163,8 +157,8 @@ static int responder(client_ctx_t *ctx) {
         // default response
         unsigned long snd_len = 0;
         unsigned long len;
-        if (msg_buf[0] != 0) {
-            ret = sock_send(client, msg_buf, ctx->content_length, 0);
+        if (ctx->msg_buf[0] != 0) {
+            ret = sock_send(client, ctx->msg_buf, ctx->content_length, 0);
             if (ret <= 0) {
                 error("Unable to send: %s", sock_strerror(client));
             }
@@ -187,7 +181,7 @@ static int responder(client_ctx_t *ctx) {
             int chunked = (transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL);
 
             int flags = (chunked ? FASTCGI_CHUNKED : 0) | (ctx->use_fastcgi & (FASTCGI_COMPRESS | FASTCGI_COMPRESS_HOLD));
-            ret = fastcgi_send(&fcgi_cnx, client, flags);
+            ret = fastcgi_send(fcgi_cnx, client, flags);
         } else if (ctx->use_proxy) {
             const char *transfer_encoding = http_get_header_field(&res->hdr, "Transfer-Encoding");
             int chunked = transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL;
@@ -217,9 +211,9 @@ static int responder(client_ctx_t *ctx) {
     info("Transfer complete: %s", format_duration(micros, buf0));
 
     uri_free(&ctx->uri);
-    if (fcgi_cnx.socket != 0) {
-        close(fcgi_cnx.socket);
-        fcgi_cnx.socket = 0;
+    if (fcgi_cnx->socket != 0) {
+        close(fcgi_cnx->socket);
+        fcgi_cnx->socket = 0;
     }
     http_free_req(req);
     http_free_res(res);

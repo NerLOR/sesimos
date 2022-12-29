@@ -19,6 +19,10 @@ void request_handler_func(client_ctx_t *ctx);
 
 void responder_func(client_ctx_t *ctx);
 
+void local_handler_func(client_ctx_t *ctx);
+
 void fastcgi_handler_func(client_ctx_t *ctx);
+
+void proxy_handler_func(client_ctx_t *ctx);
 
 #endif //SESIMOS_FUNC_H

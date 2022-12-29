@@ -47,7 +47,7 @@ bin/worker/%.o: src/worker/%.c
 
 bin/sesimos: bin/server.o bin/logger.o bin/cache_handler.o bin/async.o bin/workers.o \
 			 bin/worker/request_handler.o bin/worker/tcp_acceptor.o bin/worker/tcp_closer.o bin/worker/responder.o \
-			 bin/worker/fastcgi_handler.o \
+			 bin/worker/fastcgi_handler.o bin/worker/local_handler.o bin/worker/proxy_handler.o \
 			 bin/lib/compress.o bin/lib/config.o bin/lib/fastcgi.o bin/lib/geoip.o \
 			 bin/lib/http.o bin/lib/http_static.o bin/lib/proxy.o bin/lib/sock.o bin/lib/uri.o \
 		     bin/lib/utils.o bin/lib/websocket.o bin/lib/mpmc.o
@@ -74,6 +74,10 @@ bin/worker/tcp_closer.o: src/worker/func.h
 bin/worker/fastcgi_handler.o: src/worker/func.h
 
 bin/worker/responder.o: src/worker/func.h
+
+bin/worker/local_handler.o: src/worker/func.h
+
+bin/worker/proxy_handler.o: src/worker/func.h
 
 bin/lib/compress.o: src/lib/compress.h
 

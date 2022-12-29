@@ -25,6 +25,10 @@ int handle_request(client_ctx_t *ctx);
 
 int respond(client_ctx_t *ctx);
 
+int local_handle(client_ctx_t *ctx);
+
 int fastcgi_handle(client_ctx_t *ctx);
+
+int proxy_handle(client_ctx_t *ctx);
 
 #endif //SESIMOS_WORKERS_H
