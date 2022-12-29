@@ -120,7 +120,6 @@ static void terminate_gracefully(int sig) {
 
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
-        shutdown(sockets[i], SHUT_RDWR);
         close(sockets[i]);
     }
 

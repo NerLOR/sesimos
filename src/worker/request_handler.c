@@ -72,7 +72,6 @@ static void request_handler(client_ctx_t *cctx) {
     char msg_buf[8192], msg_pre_buf_1[4096], msg_pre_buf_2[4096], err_msg[256];
     char msg_content[1024];
     char buffer[CHUNK_SIZE];
-    char host[256];
     const char *host_ptr, *hdr_connection;
 
     msg_buf[0] = 0;
@@ -135,27 +134,27 @@ static void request_handler(client_ctx_t *cctx) {
     cctx->c_keep_alive = (hdr_connection != NULL && (strstr(hdr_connection, "keep-alive") != NULL || strstr(hdr_connection, "Keep-Alive") != NULL));
     host_ptr = http_get_header_field(&req.hdr, "Host");
     if (host_ptr != NULL && strlen(host_ptr) > 255) {
-        host[0] = 0;
+        cctx->req_host[0] = 0;
         res.status = http_get_status(400);
         sprintf(err_msg, "Host header field is too long.");
         goto respond;
     } else if (host_ptr == NULL || strchr(host_ptr, '/') != NULL) {
         if (strchr(cctx->addr, ':') == NULL) {
-            strcpy(host, cctx->addr);
+            strcpy(cctx->req_host, cctx->addr);
         } else {
-            sprintf(host, "[%s]", cctx->addr);
+            sprintf(cctx->req_host, "[%s]", cctx->addr);
         }
         res.status = http_get_status(400);
         sprintf(err_msg, "The client provided no or an invalid Host header field.");
         goto respond;
     } else {
-        strcpy(host, host_ptr);
+        strcpy(cctx->req_host, host_ptr);
     }
 
-    logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, host, CLR_STR, cctx->log_prefix);
+    logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, cctx->req_host, CLR_STR, cctx->log_prefix);
     info(BLD_STR "%s %s", req.method, req.uri);
 
-    conf = get_host_config(host);
+    conf = get_host_config(cctx->req_host);
     if (conf == NULL) {
         info("Unknown host, redirecting to default");
         res.status = http_get_status(307);
@@ -191,7 +190,7 @@ static void request_handler(client_ctx_t *cctx) {
             res.status = http_get_status(308);
             size = url_encode(uri.uri, strlen(uri.uri), buf0, sizeof(buf0));
             if (change_proto) {
-                p_len = snprintf(buf1, sizeof(buf1), "https://%s%s", host, buf0);
+                p_len = snprintf(buf1, sizeof(buf1), "https://%s%s", cctx->req_host, buf0);
                 if (p_len < 0 || p_len >= sizeof(buf1)) {
                     res.status = http_get_status(500);
                     error("Header field 'Location' too long");
@@ -205,7 +204,7 @@ static void request_handler(client_ctx_t *cctx) {
         }
     } else if (!client->enc) {
         res.status = http_get_status(308);
-        sprintf(buf0, "https://%s%s", host, req.uri);
+        sprintf(buf0, "https://%s%s", cctx->req_host, req.uri);
         http_add_header_field(&res.hdr, "Location", buf0);
         goto respond;
     }
@@ -606,13 +605,13 @@ static void request_handler(client_ctx_t *cctx) {
                         res.status->msg,
                         (ctx.status == 0) ? "???" : stat_str,
                         (status != NULL) ? status->msg : "",
-                        host);
+                        cctx->req_host);
                 proxy_doc = msg_pre_buf_2;
             }
 
             sprintf(msg_pre_buf_1, info->doc, res.status->code, res.status->msg, http_msg != NULL ? http_msg->msg : "", err_msg[0] != 0 ? err_msg : "");
             content_length = snprintf(msg_buf, sizeof(msg_buf), http_default_document, res.status->code,
-                                      res.status->msg, msg_pre_buf_1, info->mode, info->icon, info->color, host,
+                                      res.status->msg, msg_pre_buf_1, info->mode, info->icon, info->color, cctx->req_host,
                                       proxy_doc, msg_content[0] != 0 ? msg_content : "");
         }
         if (content_length >= 0) {
@@ -718,7 +717,6 @@ static void request_handler(client_ctx_t *cctx) {
     uri_free(&uri);
     abort:
     if (fcgi_conn.socket != 0) {
-        shutdown(fcgi_conn.socket, SHUT_RDWR);
         close(fcgi_conn.socket);
         fcgi_conn.socket = 0;
     }

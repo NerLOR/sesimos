@@ -33,6 +33,7 @@ typedef struct {
     char *addr, *s_addr;
     unsigned char in_use: 1, s_keep_alive:1, c_keep_alive:1;
     char cc[3], host[256];
+    char req_host[256];
     char log_prefix[512];
     char _c_addr[INET6_ADDRSTRLEN + 1], _s_addr[INET6_ADDRSTRLEN + 1];
     struct timespec begin, end;

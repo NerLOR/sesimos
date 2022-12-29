@@ -126,7 +126,6 @@ int sock_close(sock *s) {
         SSL_free(s->ssl);
         s->ssl = NULL;
     }
-    shutdown(s->socket, SHUT_RDWR);
     close(s->socket);
     s->socket = 0;
     s->enc = 0;
