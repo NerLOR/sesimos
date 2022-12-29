@@ -46,7 +46,7 @@ bin/worker/%.o: src/worker/%.c
 	$(CC) -c -o $@ $(CFLAGS) $<
 
 bin/sesimos: bin/server.o bin/logger.o bin/cache_handler.o bin/async.o \
-			 bin/worker/request_handler.o bin/worker/tcp_acceptor.o bin/worker/tcp_closer.o \
+			 bin/worker/request_handler.o bin/worker/tcp_acceptor.o bin/worker/tcp_closer.o bin/worker/responder.o \
 			 bin/lib/compress.o bin/lib/config.o bin/lib/fastcgi.o bin/lib/geoip.o \
 			 bin/lib/http.o bin/lib/http_static.o bin/lib/proxy.o bin/lib/sock.o bin/lib/uri.o \
 		     bin/lib/utils.o bin/lib/websocket.o bin/lib/mpmc.o
@@ -67,6 +67,10 @@ bin/worker/request_handler.o: src/worker/request_handler.h
 bin/worker/tcp_acceptor.o: src/worker/tcp_acceptor.h
 
 bin/worker/tcp_closer.o: src/worker/tcp_closer.h
+
+bin/worker/fastcgi_handler.o: src/worker/fastcgi_handler.h
+
+bin/worker/responder.o: src/worker/responder.h
 
 bin/lib/compress.o: src/lib/compress.h
 

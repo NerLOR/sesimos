@@ -10,6 +10,9 @@
 #define SESIMOS_SERVER_H
 
 #include "lib/sock.h"
+#include "lib/http.h"
+#include "lib/uri.h"
+#include "lib/config.h"
 
 #include <sys/time.h>
 #include <maxminddb.h>
@@ -37,6 +40,14 @@ typedef struct {
     char log_prefix[512];
     char _c_addr[INET6_ADDRSTRLEN + 1], _s_addr[INET6_ADDRSTRLEN + 1];
     struct timespec begin, end;
+    http_req req;
+    http_res res;
+    http_uri uri;
+    http_status_ctx status;
+    int use_fastcgi, use_proxy;
+    host_config_t *conf;
+    FILE *file;
+    long content_length;
 } client_ctx_t;
 
 extern volatile sig_atomic_t server_alive;
