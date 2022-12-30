@@ -9,7 +9,7 @@
 #ifndef SESIMOS_WORKERS_H
 #define SESIMOS_WORKERS_H
 
-#include "server.h"
+#include "worker/func.h"
 
 int workers_init(void);
 

@@ -14,6 +14,7 @@
 #define SERVER_STR_HTML "Sesimos&nbsp;web&nbsp;server&nbsp;" SERVER_VERSION
 
 #define CHUNK_SIZE 8192
+#define MAX_PROXY_CNX_PER_HOST 16
 
 #ifndef DEFAULT_HOST
 #   define DEFAULT_HOST "www.necronda.net"

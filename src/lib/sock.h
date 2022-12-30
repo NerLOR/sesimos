@@ -19,7 +19,8 @@ typedef struct {
     union {
         struct sockaddr sock;
         struct sockaddr_in6 ipv6;
-    } addr;
+    } _addr;
+    char *addr, *s_addr;
     SSL_CTX *ctx;
     SSL *ssl;
     long _last_ret;

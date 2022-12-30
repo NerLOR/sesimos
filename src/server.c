@@ -16,6 +16,7 @@
 #include "lib/proxy.h"
 #include "lib/geoip.h"
 #include "workers.h"
+#include "worker/func.h"
 
 #include <stdio.h>
 #include <getopt.h>
@@ -70,8 +71,8 @@ static void accept_cb(void *arg) {
     sock *client = &client_ctx->socket;
 
     client->ctx = contexts[0];
-    socklen_t addr_len = sizeof(client->addr);
-    int client_fd = accept(fd, &client->addr.sock, &addr_len);
+    socklen_t addr_len = sizeof(client->_addr);
+    int client_fd = accept(fd, &client->_addr.sock, &addr_len);
     if (client_fd < 0) {
         critical("Unable to accept connection");
         return;

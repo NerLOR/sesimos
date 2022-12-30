@@ -12,18 +12,17 @@
 #include "../lib/mpmc.h"
 #include "../logger.h"
 #include "../lib/utils.h"
-#include "../lib/proxy.h"
 #include "../lib/websocket.h"
+#include "../server.h"
 
 #include <string.h>
 #include <openssl/err.h>
 #include <arpa/inet.h>
-#include <unistd.h>
 
 static int request_handler(client_ctx_t *ctx);
 
 void request_handler_func(client_ctx_t *ctx) {
-    logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->s_addr, ctx->log_prefix);
+    logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->socket.s_addr, ctx->log_prefix);
 
     switch (request_handler(ctx)) {
         case 0:
@@ -51,8 +50,15 @@ static int request_handler(client_ctx_t *ctx) {
 
     err_msg[0] = 0;
 
+    ctx->file = NULL;
+    ctx->proxy = NULL;
     ctx->use_fastcgi = 0;
     ctx->use_proxy = 0;
+    ctx->proxy = NULL;
+    ctx->msg_content[0] = 0;
+    ctx->msg_buf[0] = 0;
+    ctx->req_host[0] = 0;
+    ctx->err_msg[0] = 0;
 
     http_res *res = &ctx->res;
     res->status = http_get_status(501);
@@ -67,18 +73,19 @@ static int request_handler(client_ctx_t *ctx) {
 
     clock_gettime(CLOCK_MONOTONIC, &ctx->begin);
 
-    //ret = sock_poll_read(&client, NULL, NULL, 1, NULL, NULL, CLIENT_TIMEOUT * 1000);
+    // FIXME async poll
+    ret = sock_poll_read(&client, NULL, NULL, 1, NULL, NULL, CLIENT_TIMEOUT * 1000);
 
     http_add_header_field(&res->hdr, "Date", http_get_date(buf0, sizeof(buf0)));
     http_add_header_field(&res->hdr, "Server", SERVER_STR);
-    /*if (ret <= 0) {
+    if (ret <= 0) {
         if (errno != 0) return 0;
 
         ctx->c_keep_alive = 0;
         res->status = http_get_status(408);
         return 0;
-    }*/
-    //clock_gettime(CLOCK_MONOTONIC, &begin);
+    }
+    clock_gettime(CLOCK_MONOTONIC, &ctx->begin);
 
     http_req *req = &ctx->req;
     ret = http_receive_request(client, req);
@@ -110,10 +117,10 @@ static int request_handler(client_ctx_t *ctx) {
         sprintf(err_msg, "Host header field is too long.");
         return 0;
     } else if (host_ptr == NULL || strchr(host_ptr, '/') != NULL) {
-        if (strchr(ctx->addr, ':') == NULL) {
-            strcpy(ctx->req_host, ctx->addr);
+        if (strchr(ctx->socket.addr, ':') == NULL) {
+            strcpy(ctx->req_host, ctx->socket.addr);
         } else {
-            sprintf(ctx->req_host, "[%s]", ctx->addr);
+            sprintf(ctx->req_host, "[%s]", ctx->socket.addr);
         }
         res->status = http_get_status(400);
         sprintf(err_msg, "The client provided no or an invalid Host header field.");
@@ -303,7 +310,7 @@ int respond(client_ctx_t *ctx) {
     if (ctx->use_proxy == 2) {
         // WebSocket
         info("Upgrading connection to WebSocket connection");
-        ret = ws_handle_connection(client, &proxy);
+        ret = ws_handle_connection(client, &ctx->proxy->proxy);
         if (ret != 0) {
             ctx->c_keep_alive = 0;
             close_proxy = 1;
@@ -335,7 +342,7 @@ int respond(client_ctx_t *ctx) {
         } else if (ctx->use_fastcgi) {
             return 2;
         } else if (ctx->use_proxy) {
-           return 3;
+            return 3;
         }
 
         if (ret < 0) {

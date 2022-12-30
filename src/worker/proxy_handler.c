@@ -31,11 +31,7 @@ void proxy_handler_func(client_ctx_t *ctx) {
 
 static int proxy_handler_1(client_ctx_t *ctx) {
     http_res *res = &ctx->res;
-    http_req *req = &ctx->req;
-    http_uri *uri = &ctx->uri;
     http_status_ctx *status = &ctx->status;
-    sock *client = &ctx->socket;
-    char *err_msg = ctx->err_msg;
 
     char buf[1024];
 
@@ -43,8 +39,8 @@ static int proxy_handler_1(client_ctx_t *ctx) {
     http_remove_header_field(&res->hdr, "Date", HTTP_REMOVE_ALL);
     http_remove_header_field(&res->hdr, "Server", HTTP_REMOVE_ALL);
 
-    int ret = proxy_init(req, res, status, ctx->conf, client, ctx, &ctx->custom_status, err_msg);
-    ctx->use_proxy = (ret == 0);
+    ctx->proxy = proxy_init(&ctx->req, res, status, ctx->conf, &ctx->socket, &ctx->custom_status, ctx->err_msg);
+    ctx->use_proxy = (ctx->proxy != NULL);
 
     if (res->status->code == 101) {
         const char *connection = http_get_header_field(&res->hdr, "Connection");
@@ -77,7 +73,7 @@ static int proxy_handler_1(client_ctx_t *ctx) {
                     status->origin = res->status->code >= 400 ? SERVER : NONE;
                 }
                 ctx->use_proxy = 0;
-                proxy_dump(ctx->msg_content, content_len);
+                proxy_dump(ctx->proxy, ctx->msg_content, content_len);
             }
         }
     }
@@ -120,7 +116,9 @@ static int proxy_handler_2(client_ctx_t *ctx) {
     }
 
     int flags = (chunked ? PROXY_CHUNKED : 0) | (ctx->use_proxy & PROXY_COMPRESS);
-    int ret = proxy_send(&ctx->socket, len_to_send, flags);
+    int ret = proxy_send(ctx->proxy, &ctx->socket, len_to_send, flags);
+    ctx->proxy->in_use = 0;
+    ctx->proxy = NULL;
 
     if (ret < 0) {
         ctx->c_keep_alive = 0;

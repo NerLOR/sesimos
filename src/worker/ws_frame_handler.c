@@ -8,12 +8,12 @@
 
 #include "func.h"
 
-static int ws_frame_handler(client_ctx_t *ctx);
+static int ws_frame_handler(ws_ctx_t *ctx);
 
-void ws_frame_handler_func(client_ctx_t *ctx) {
+void ws_frame_handler_func(ws_ctx_t *ctx) {
 
 }
 
-static int ws_frame_handler(client_ctx_t *ctx) {
+static int ws_frame_handler(ws_ctx_t *ctx) {
     return 0;
 }

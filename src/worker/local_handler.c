@@ -44,6 +44,7 @@ static int local_handler(client_ctx_t *ctx) {
     int accept_if_modified_since = 0;
 
     if (strcmp(req->method, "TRACE") == 0) {
+        // FIXME not working?
         res->status = http_get_status(200);
         http_add_header_field(&res->hdr, "Content-Type", "message/http");
 

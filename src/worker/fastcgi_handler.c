@@ -11,6 +11,7 @@
 #include "../lib/utils.h"
 #include "../lib/compress.h"
 #include "../workers.h"
+#include "../lib/fastcgi.h"
 
 #include <string.h>
 
@@ -39,7 +40,7 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
 
     fcgi_cnx->socket = 0;
     fcgi_cnx->req_id = 0;
-    fcgi_cnx->r_addr = ctx->addr;
+    fcgi_cnx->r_addr = ctx->socket.addr;
     fcgi_cnx->r_host = (ctx->host[0] != 0) ? ctx->host : NULL;
 
     char buf[1024];

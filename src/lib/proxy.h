@@ -18,22 +18,30 @@
 #   define SERVER_NAME "reverse proxy"
 #endif
 
+#define PROXY_ARRAY_SIZE (MAX_PROXY_CNX_PER_HOST * sizeof(proxy_ctx_t))
+
 #include "http.h"
 #include "config.h"
-#include "../server.h"
 
-extern sock proxy;
+typedef struct {
+    unsigned char initialized:1;
+    unsigned char in_use:1;
+    sock proxy;
+    char *host;
+} proxy_ctx_t;
 
 int proxy_preload(void);
 
-int proxy_request_header(http_req *req, int enc, client_ctx_t *ctx);
+void proxy_unload(void);
+
+int proxy_request_header(http_req *req, sock *sock);
 
 int proxy_response_header(http_req *req, http_res *res, host_config_t *conf);
 
-int proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config_t *conf, sock *client, client_ctx_t *cctx, http_status *custom_status, char *err_msg);
+proxy_ctx_t *proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config_t *conf, sock *client, http_status *custom_status, char *err_msg);
 
-int proxy_send(sock *client, unsigned long len_to_send, int flags);
+int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int flags);
 
-int proxy_dump(char *buf, long len);
+int proxy_dump(proxy_ctx_t *proxy, char *buf, long len);
 
 #endif //SESIMOS_PROXY_H

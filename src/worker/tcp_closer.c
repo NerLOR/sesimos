@@ -13,7 +13,7 @@
 #include <memory.h>
 
 void tcp_closer_func(client_ctx_t *ctx) {
-    logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->s_addr, ctx->log_prefix);
+    logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->socket.s_addr, ctx->log_prefix);
 
     sock_close(&ctx->socket);
 

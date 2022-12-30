@@ -13,6 +13,7 @@
 #include "../lib/utils.h"
 #include "../lib/geoip.h"
 #include "../workers.h"
+#include "../server.h"
 
 #include <string.h>
 #include <errno.h>
@@ -32,27 +33,27 @@ void tcp_acceptor_func(client_ctx_t *ctx) {
 static int tcp_acceptor(client_ctx_t *ctx) {
     struct sockaddr_in6 server_addr;
 
-    inet_ntop(ctx->socket.addr.ipv6.sin6_family, &ctx->socket.addr.ipv6.sin6_addr, ctx->_c_addr, sizeof(ctx->_c_addr));
+    inet_ntop(ctx->socket._addr.ipv6.sin6_family, &ctx->socket._addr.ipv6.sin6_addr, ctx->_c_addr, sizeof(ctx->_c_addr));
     if (strncmp(ctx->_c_addr, "::ffff:", 7) == 0) {
-        ctx->addr = ctx->_c_addr + 7;
+        ctx->socket.addr = ctx->_c_addr + 7;
     } else {
-        ctx->addr = ctx->_c_addr;
+        ctx->socket.addr = ctx->_c_addr;
     }
 
     socklen_t len = sizeof(server_addr);
     getsockname(ctx->socket.socket, (struct sockaddr *) &server_addr, &len);
     inet_ntop(server_addr.sin6_family, (void *) &server_addr.sin6_addr, ctx->_s_addr, sizeof(ctx->_s_addr));
     if (strncmp(ctx->_s_addr, "::ffff:", 7) == 0) {
-        ctx->s_addr = ctx->_s_addr + 7;
+        ctx->socket.s_addr = ctx->_s_addr + 7;
     } else {
-        ctx->s_addr = ctx->_s_addr;
+        ctx->socket.s_addr = ctx->_s_addr;
     }
 
     sprintf(ctx->log_prefix, "[%s%4i%s]%s[%*s][%5i]%s", (int) ctx->socket.enc ? HTTPS_STR : HTTP_STR,
-            ntohs(server_addr.sin6_port), CLR_STR, /*color_table[0]*/ "", INET6_ADDRSTRLEN, ctx->addr,
-            ntohs(ctx->socket.addr.ipv6.sin6_port), CLR_STR);
+            ntohs(server_addr.sin6_port), CLR_STR, /*color_table[0]*/ "", INET6_ADDRSTRLEN, ctx->socket.addr,
+            ntohs(ctx->socket._addr.ipv6.sin6_port), CLR_STR);
 
-    logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->s_addr, ctx->log_prefix);
+    logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->socket.s_addr, ctx->log_prefix);
     
     int ret;
     char buf[1024];
@@ -61,7 +62,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
     clock_gettime(CLOCK_MONOTONIC, &ctx->begin);
 
     if (config.dns_server[0] != 0) {
-        sprintf(buf, "dig @%s +short +time=1 -x %s", config.dns_server, ctx->addr);
+        sprintf(buf, "dig @%s +short +time=1 -x %s", config.dns_server, ctx->socket.addr);
         FILE *dig = popen(buf, "r");
         if (dig == NULL) {
             error("Unable to start dig: %s", strerror(errno));
@@ -85,9 +86,9 @@ static int tcp_acceptor(client_ctx_t *ctx) {
     }
 
     ctx->cc[0] = 0;
-    geoip_lookup_country(&client->addr.sock, ctx->cc);
+    geoip_lookup_country(&client->_addr.sock, ctx->cc);
 
-    info("Connection accepted from %s %s%s%s[%s]", ctx->addr, ctx->host[0] != 0 ? "(" : "",
+    info("Connection accepted from %s %s%s%s[%s]", ctx->socket.addr, ctx->host[0] != 0 ? "(" : "",
          ctx->host[0] != 0 ? ctx->host : "", ctx->host[0] != 0 ? ") " : "",
          ctx->cc[0] != 0 ? ctx->cc : "N/A");
 

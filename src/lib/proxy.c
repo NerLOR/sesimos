@@ -12,6 +12,7 @@
 #include "proxy.h"
 #include "utils.h"
 #include "compress.h"
+#include "config.h"
 
 #include <openssl/ssl.h>
 #include <string.h>
@@ -19,18 +20,55 @@
 #include <openssl/err.h>
 #include <arpa/inet.h>
 #include <sys/time.h>
+#include <netdb.h>
 
-
-sock proxy;
-char *proxy_host = NULL;
-struct timeval server_timeout = {.tv_sec = SERVER_TIMEOUT, .tv_usec = 0};
+static SSL_CTX *proxy_ctx = NULL;
+static void *proxies = NULL;
 
 int proxy_preload(void) {
-    proxy.ctx = SSL_CTX_new(TLS_client_method());
+    int n = 0;
+    for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
+        host_config_t *hc = &config.hosts[i];
+        if (hc->type == CONFIG_TYPE_UNSET) break;
+        if (hc->type != CONFIG_TYPE_REVERSE_PROXY) continue;
+        n++;
+    }
+
+    // FIXME return value check
+    proxy_ctx = SSL_CTX_new(TLS_client_method());
+    proxies = malloc(n * PROXY_ARRAY_SIZE);
+    memset(proxies, 0, n * PROXY_ARRAY_SIZE);
+
     return 0;
 }
 
-int proxy_request_header(http_req *req, int enc, client_ctx_t *ctx) {
+void proxy_unload(void) {
+    SSL_CTX_free(proxy_ctx);
+    free(proxies);
+}
+
+static proxy_ctx_t *proxy_get_by_conf(host_config_t *conf) {
+    int n = 0;
+    for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
+        host_config_t *hc = &config.hosts[i];
+        if (hc->type == CONFIG_TYPE_UNSET) break;
+        if (hc->type != CONFIG_TYPE_REVERSE_PROXY) continue;
+        if (hc == conf) break;
+        n++;
+    }
+
+    void *ptr = proxies + n * PROXY_ARRAY_SIZE;
+    for (int i = 0; i < MAX_PROXY_CNX_PER_HOST; i++, ptr += PROXY_ARRAY_SIZE) {
+        proxy_ctx_t *ctx = ptr;
+        if (!ctx->in_use) {
+            return ctx;
+        }
+    }
+
+    return NULL;
+}
+
+int proxy_request_header(http_req *req, sock *sock) {
     char buf1[256], buf2[256];
     int p_len;
 
@@ -50,13 +88,13 @@ int proxy_request_header(http_req *req, int enc, client_ctx_t *ctx) {
 
     const char *host = http_get_header_field(&req->hdr, "Host");
     const char *forwarded = http_get_header_field(&req->hdr, "Forwarded");
-    int client_ipv6 = strchr(ctx->addr, ':') != NULL;
-    int server_ipv6 = strchr(ctx->s_addr, ':') != NULL;
+    int client_ipv6 = strchr(sock->addr, ':') != NULL;
+    int server_ipv6 = strchr(sock->s_addr, ':') != NULL;
 
     p_len = snprintf(buf1, sizeof(buf1), "by=%s%s%s;for=%s%s%s;host=%s;proto=%s",
-                     server_ipv6 ? "\"[" : "", ctx->s_addr, server_ipv6 ? "]\"" : "",
-                     client_ipv6 ? "\"[" : "", ctx->addr, client_ipv6 ? "]\"" : "",
-                     host, enc ? "https" : "http");
+                     server_ipv6 ? "\"[" : "", sock->s_addr, server_ipv6 ? "]\"" : "",
+                     client_ipv6 ? "\"[" : "", sock->addr, client_ipv6 ? "]\"" : "",
+                     host, sock->enc ? "https" : "http");
     if (p_len < 0 || p_len >= sizeof(buf1)) {
         error("Appended part of header field 'Forwarded' too long");
         return -1;
@@ -76,9 +114,9 @@ int proxy_request_header(http_req *req, int enc, client_ctx_t *ctx) {
 
     const char *xff = http_get_header_field(&req->hdr, "X-Forwarded-For");
     if (xff == NULL) {
-        http_add_header_field(&req->hdr, "X-Forwarded-For", ctx->addr);
+        http_add_header_field(&req->hdr, "X-Forwarded-For", sock->addr);
     } else {
-        sprintf(buf1, "%s, %s", xff, ctx->addr);
+        sprintf(buf1, "%s, %s", xff, sock->addr);
         http_remove_header_field(&req->hdr, "X-Forwarded-For", HTTP_REMOVE_ALL);
         http_add_header_field(&req->hdr, "X-Forwarded-For", buf1);
     }
@@ -107,7 +145,7 @@ int proxy_request_header(http_req *req, int enc, client_ctx_t *ctx) {
     const char *xfp = http_get_header_field(&req->hdr, "X-Forwarded-Proto");
     if (xfp == NULL) {
         if (forwarded == NULL) {
-            http_add_header_field(&req->hdr, "X-Forwarded-Proto", enc ? "https" : "http");
+            http_add_header_field(&req->hdr, "X-Forwarded-Proto", sock->enc ? "https" : "http");
         } else {
             char *ptr = strchr(forwarded, ',');
             unsigned long len;
@@ -180,36 +218,41 @@ int proxy_response_header(http_req *req, http_res *res, host_config_t *conf) {
     return 0;
 }
 
-int proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config_t *conf, sock *client, client_ctx_t *cctx, http_status *custom_status, char *err_msg) {
+proxy_ctx_t *proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config_t *conf, sock *client, http_status *custom_status, char *err_msg) {
     char buffer[CHUNK_SIZE];
     const char *connection, *upgrade, *ws_version;
     long ret;
     int tries = 0, retry = 0;
+    struct timeval server_timeout = {.tv_sec = SERVER_TIMEOUT, .tv_usec = 0};
 
-    if (proxy.socket != 0 && strcmp(proxy_host, conf->name) == 0 && sock_check(&proxy) == 0)
+    proxy_ctx_t *proxy = proxy_get_by_conf(conf);
+    proxy->in_use = 1;
+
+    if (proxy->initialized && sock_check(&proxy->proxy) == 0)
         goto proxy;
 
     retry:
-    if (proxy.socket != 0) {
+    if (proxy->initialized) {
         info(BLUE_STR "Closing proxy connection");
-        sock_close(&proxy);
+        sock_close(&proxy->proxy);
+        proxy->initialized = 0;
     }
     retry = 0;
     tries++;
 
-    proxy.socket = socket(AF_INET6, SOCK_STREAM, 0);
-    if (proxy.socket  < 0) {
+    proxy->proxy.socket = socket(AF_INET6, SOCK_STREAM, 0);
+    if (proxy->proxy.socket < 0) {
         error("Unable to create socket");
         res->status = http_get_status(500);
         ctx->origin = INTERNAL;
-        return -1;
+        return NULL;
     }
 
     server_timeout.tv_sec = SERVER_TIMEOUT_INIT;
     server_timeout.tv_usec = 0;
-    if (setsockopt(proxy.socket, SOL_SOCKET, SO_RCVTIMEO, &server_timeout, sizeof(server_timeout)) < 0)
+    if (setsockopt(proxy->proxy.socket, SOL_SOCKET, SO_RCVTIMEO, &server_timeout, sizeof(server_timeout)) < 0)
         goto proxy_timeout_err;
-    if (setsockopt(proxy.socket, SOL_SOCKET, SO_SNDTIMEO, &server_timeout, sizeof(server_timeout)) < 0)
+    if (setsockopt(proxy->proxy.socket, SOL_SOCKET, SO_SNDTIMEO, &server_timeout, sizeof(server_timeout)) < 0)
         goto proxy_timeout_err;
 
     struct hostent *host_ent = gethostbyname2(conf->proxy.hostname, AF_INET6);
@@ -236,7 +279,7 @@ int proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config_t
     inet_ntop(address.sin6_family, (void *) &address.sin6_addr, buffer, sizeof(buffer));
 
     info(BLUE_STR "Connecting to " BLD_STR "[%s]:%i" CLR_STR BLUE_STR "...", buffer, conf->proxy.port);
-    if (connect(proxy.socket, (struct sockaddr *) &address, sizeof(address)) < 0) {
+    if (connect(proxy->proxy.socket, (struct sockaddr *) &address, sizeof(address)) < 0) {
         if (errno == ETIMEDOUT || errno == EINPROGRESS) {
             res->status = http_get_status(504);
             ctx->origin = SERVER_REQ;
@@ -254,9 +297,9 @@ int proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config_t
 
     server_timeout.tv_sec = SERVER_TIMEOUT;
     server_timeout.tv_usec = 0;
-    if (setsockopt(proxy.socket, SOL_SOCKET, SO_RCVTIMEO, &server_timeout, sizeof(server_timeout)) < 0)
+    if (setsockopt(proxy->proxy.socket, SOL_SOCKET, SO_RCVTIMEO, &server_timeout, sizeof(server_timeout)) < 0)
         goto proxy_timeout_err;
-    if (setsockopt(proxy.socket, SOL_SOCKET, SO_SNDTIMEO, &server_timeout, sizeof(server_timeout)) < 0) {
+    if (setsockopt(proxy->proxy.socket, SOL_SOCKET, SO_SNDTIMEO, &server_timeout, sizeof(server_timeout)) < 0) {
         proxy_timeout_err:
         res->status = http_get_status(500);
         ctx->origin = INTERNAL;
@@ -266,25 +309,26 @@ int proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config_t
     }
 
     if (conf->proxy.enc) {
-        proxy.ssl = SSL_new(proxy.ctx);
-        SSL_set_fd(proxy.ssl, proxy.socket);
-        SSL_set_connect_state(proxy.ssl);
+        proxy->proxy.ssl = SSL_new(proxy_ctx);
+        SSL_set_fd(proxy->proxy.ssl, proxy->proxy.socket);
+        SSL_set_connect_state(proxy->proxy.ssl);
 
-        ret = SSL_do_handshake(proxy.ssl);
-        proxy._last_ret = ret;
-        proxy._errno = errno;
-        proxy._ssl_error = ERR_get_error();
-        proxy.enc = 1;
+        ret = SSL_do_handshake(proxy->proxy.ssl);
+        proxy->proxy._last_ret = ret;
+        proxy->proxy._errno = errno;
+        proxy->proxy._ssl_error = ERR_get_error();
+        proxy->proxy.enc = 1;
         if (ret < 0) {
             res->status = http_get_status(502);
             ctx->origin = SERVER_REQ;
-            error("Unable to perform handshake: %s", sock_strerror(&proxy));
-            sprintf(err_msg, "Unable to perform handshake: %s.", sock_strerror(&proxy));
+            error("Unable to perform handshake: %s", sock_strerror(&proxy->proxy));
+            sprintf(err_msg, "Unable to perform handshake: %s.", sock_strerror(&proxy->proxy));
             goto proxy_err;
         }
     }
 
-    proxy_host = conf->name;
+    proxy->initialized = 1;
+    proxy->host = conf->name;
     info(BLUE_STR "Established new connection with " BLD_STR "[%s]:%i", buffer, conf->proxy.port);
 
     proxy:
@@ -297,26 +341,26 @@ int proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config_t
         } else {
             res->status = http_get_status(501);
             ctx->origin = INTERNAL;
-            return -1;
+            return NULL;
         }
     } else {
         http_remove_header_field(&req->hdr, "Connection", HTTP_REMOVE_ALL);
         http_add_header_field(&req->hdr, "Connection", "keep-alive");
     }
 
-    ret = proxy_request_header(req, (int) client->enc, cctx);
+    ret = proxy_request_header(req, client);
     if (ret != 0) {
         res->status = http_get_status(500);
         ctx->origin = INTERNAL;
-        return -1;
+        return NULL;
     }
 
-    ret = http_send_request(&proxy, req);
+    ret = http_send_request(&proxy->proxy, req);
     if (ret < 0) {
         res->status = http_get_status(502);
         ctx->origin = SERVER_REQ;
-        error("Unable to send request to server (1): %s", sock_strerror(&proxy));
-        sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&proxy));
+        error("Unable to send request to server (1): %s", sock_strerror(&proxy->proxy));
+        sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&proxy->proxy));
         retry = tries < 4;
         goto proxy_err;
     }
@@ -327,17 +371,17 @@ int proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config_t
 
     ret = 0;
     if (content_len > 0) {
-        ret = sock_splice(&proxy, client, buffer, sizeof(buffer), content_len);
+        ret = sock_splice(&proxy->proxy, client, buffer, sizeof(buffer), content_len);
     } else if (transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL) {
-        ret = sock_splice_chunked(&proxy, client, buffer, sizeof(buffer));
+        ret = sock_splice_chunked(&proxy->proxy, client, buffer, sizeof(buffer));
     }
 
     if (ret < 0 || (content_len != 0 && ret != content_len)) {
         if (ret == -1) {
             res->status = http_get_status(502);
             ctx->origin = SERVER_REQ;
-            error("Unable to send request to server (2): %s", sock_strerror(&proxy));
-            sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&proxy));
+            error("Unable to send request to server (2): %s", sock_strerror(&proxy->proxy));
+            sprintf(err_msg, "Unable to send request to server: %s.", sock_strerror(&proxy->proxy));
             retry = tries < 4;
             goto proxy_err;
         } else if (ret == -2) {
@@ -345,17 +389,17 @@ int proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config_t
             ctx->origin = CLIENT_REQ;
             error("Unable to receive request from client: %s", sock_strerror(client));
             sprintf(err_msg, "Unable to receive request from client: %s.", sock_strerror(client));
-            return -1;
+            return NULL;
         }
         res->status = http_get_status(500);
         ctx->origin = INTERNAL;
         error("Unknown Error");
-        return -1;
+        return NULL;
     }
 
-    ret = sock_recv(&proxy, buffer, sizeof(buffer), MSG_PEEK);
+    ret = sock_recv(&proxy->proxy, buffer, sizeof(buffer), MSG_PEEK);
     if (ret <= 0) {
-        int enc_err = sock_enc_error(&proxy);
+        int enc_err = sock_enc_error(&proxy->proxy);
         if (errno == EAGAIN || errno == EINPROGRESS || enc_err == SSL_ERROR_WANT_READ ||
             enc_err == SSL_ERROR_WANT_WRITE)
         {
@@ -365,8 +409,8 @@ int proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config_t
             res->status = http_get_status(502);
             ctx->origin = SERVER_RES;
         }
-        error("Unable to receive response from server: %s", sock_strerror(&proxy));
-        sprintf(err_msg, "Unable to receive response from server: %s.", sock_strerror(&proxy));
+        error("Unable to receive response from server: %s", sock_strerror(&proxy->proxy));
+        sprintf(err_msg, "Unable to receive response from server: %s.", sock_strerror(&proxy->proxy));
         retry = tries < 4;
         goto proxy_err;
     }
@@ -440,23 +484,24 @@ int proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config_t
         }
         ptr = pos0 + 2;
     }
-    sock_recv(&proxy, buffer, header_len, 0);
+    sock_recv(&proxy->proxy, buffer, header_len, 0);
 
     ret = proxy_response_header(req, res, conf);
     if (ret != 0) {
         res->status = http_get_status(500);
         ctx->origin = INTERNAL;
-        return -1;
+        return NULL;
     }
 
-    return 0;
+    return proxy;
 
     proxy_err:
+    errno = 0;
     if (retry) goto retry;
-    return -1;
+    return NULL;
 }
 
-int proxy_send(sock *client, unsigned long len_to_send, int flags) {
+int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int flags) {
     char buffer[CHUNK_SIZE], comp_out[CHUNK_SIZE], buf[256], *ptr;
     long ret = 0, len, snd_len;
     int finish_comp = 0;
@@ -479,12 +524,12 @@ int proxy_send(sock *client, unsigned long len_to_send, int flags) {
     do {
         snd_len = 0;
         if (flags & PROXY_CHUNKED) {
-            ret = sock_get_chunk_header(&proxy);
+            ret = sock_get_chunk_header(&proxy->proxy);
             if (ret < 0) {
                 if (ret == -1) {
                     error("Unable to receive from server: Malformed chunk header");
                 } else {
-                    error("Unable to receive from server: %s", sock_strerror(&proxy));
+                    error("Unable to receive from server: %s", sock_strerror(&proxy->proxy));
                 }
                 break;
             }
@@ -502,9 +547,9 @@ int proxy_send(sock *client, unsigned long len_to_send, int flags) {
         }
         while (snd_len < len_to_send) {
             unsigned long avail_in, avail_out;
-            ret = sock_recv(&proxy, buffer, CHUNK_SIZE < (len_to_send - snd_len) ? CHUNK_SIZE : len_to_send - snd_len, 0);
+            ret = sock_recv(&proxy->proxy, buffer, CHUNK_SIZE < (len_to_send - snd_len) ? CHUNK_SIZE : len_to_send - snd_len, 0);
             if (ret <= 0) {
-                error("Unable to receive from server: %s", sock_strerror(&proxy));
+                error("Unable to receive from server: %s", sock_strerror(&proxy->proxy));
                 break;
             }
             len = ret;
@@ -544,7 +589,7 @@ int proxy_send(sock *client, unsigned long len_to_send, int flags) {
             if (finish_comp) goto finish;
         }
         if (ret <= 0) break;
-        if (flags & PROXY_CHUNKED) sock_recv(&proxy, buffer, 2, 0);
+        if (flags & PROXY_CHUNKED) sock_recv(&proxy->proxy, buffer, 2, 0);
     } while ((flags & PROXY_CHUNKED) && len_to_send > 0);
 
     if (ret <= 0) return -1;
@@ -560,8 +605,7 @@ int proxy_send(sock *client, unsigned long len_to_send, int flags) {
     return 0;
 }
 
-int proxy_dump(char *buf, long len) {
-    sock_recv(&proxy, buf, len, 0);
-    sock_close(&proxy);
+int proxy_dump(proxy_ctx_t *proxy, char *buf, long len) {
+    sock_recv(&proxy->proxy, buf, len, 0);
     return 0;
 }
