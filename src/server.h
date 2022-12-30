@@ -50,7 +50,6 @@ typedef struct {
     host_config_t *conf;
     FILE *file;
     long content_length;
-    fastcgi_cnx_t fcgi_cnx;
     char msg_buf[8192], msg_content[1024];
 } client_ctx_t;
 

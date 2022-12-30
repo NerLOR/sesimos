@@ -22,6 +22,7 @@ void local_handler_func(client_ctx_t *ctx) {
     switch (local_handler(ctx)) {
         case 0:
             respond(ctx);
+            request_complete(ctx);
             handle_request(ctx);
             break;
         case 1:

@@ -14,23 +14,33 @@
 
 #include <string.h>
 
-static int fastcgi_handler(client_ctx_t *ctx);
+static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx);
+static int fastcgi_handler_2(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx);
 
 void fastcgi_handler_func(client_ctx_t *ctx) {
+    fastcgi_cnx_t fcgi_cnx;
+
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
     // TODO
-    fastcgi_handler(ctx);
+    fastcgi_handler_1(ctx, &fcgi_cnx);
     respond(ctx);
+    fastcgi_handler_2(ctx, &fcgi_cnx);
+    request_complete(ctx);
+
     handle_request(ctx);
 }
 
-static int fastcgi_handler(client_ctx_t *ctx) {
+static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
     http_res *res = &ctx->res;
     http_req *req = &ctx->req;
     http_uri *uri = &ctx->uri;
     sock *client = &ctx->socket;
-    fastcgi_cnx_t *fcgi_cnx = &ctx->fcgi_cnx;
     char *err_msg = ctx->err_msg;
+
+    fcgi_cnx->socket = 0;
+    fcgi_cnx->req_id = 0;
+    fcgi_cnx->r_addr = ctx->addr;
+    fcgi_cnx->r_host = (ctx->host[0] != 0) ? ctx->host : NULL;
 
     char buf[1024];
 
@@ -142,4 +152,23 @@ static int fastcgi_handler(client_ctx_t *ctx) {
     }
 
     return 0;
+}
+
+static int fastcgi_handler_2(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
+    const char *transfer_encoding = http_get_header_field(&ctx->res.hdr, "Transfer-Encoding");
+    int chunked = (transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL);
+
+    int flags = (chunked ? FASTCGI_CHUNKED : 0) | (ctx->use_fastcgi & (FASTCGI_COMPRESS | FASTCGI_COMPRESS_HOLD));
+    int ret = fastcgi_send(fcgi_cnx, &ctx->socket, flags);
+
+    if (ret < 0) {
+        ctx->c_keep_alive = 0;
+    }
+
+    if (fcgi_cnx->socket != 0) {
+        close(fcgi_cnx->socket);
+        fcgi_cnx->socket = 0;
+    }
+
+    return ret;
 }

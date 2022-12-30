@@ -1,7 +1,7 @@
 /**
  * sesimos - secure, simple, modern web server
  * @brief Proxy handler
- * @file src/worker/proxy_handler.c
+ * @file src/worker/proxy_handler_1.c
  * @author Lorenz Stechauner
  * @date 2022-12-29
  */
@@ -15,17 +15,21 @@
 
 #include <string.h>
 
-static int proxy_handler(client_ctx_t *ctx);
+static int proxy_handler_1(client_ctx_t *ctx);
+static int proxy_handler_2(client_ctx_t *ctx);
 
 void proxy_handler_func(client_ctx_t *ctx) {
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
 
-    proxy_handler(ctx);
+    proxy_handler_1(ctx);
     respond(ctx);
+    proxy_handler_2(ctx);
+    request_complete(ctx);
+
     handle_request(ctx);
 }
 
-static int proxy_handler(client_ctx_t *ctx) {
+static int proxy_handler_1(client_ctx_t *ctx) {
     http_res *res = &ctx->res;
     http_req *req = &ctx->req;
     http_uri *uri = &ctx->uri;
@@ -103,4 +107,24 @@ static int proxy_handler(client_ctx_t *ctx) {
     */
 
     return 0;
+}
+
+static int proxy_handler_2(client_ctx_t *ctx) {
+    const char *transfer_encoding = http_get_header_field(&ctx->res.hdr, "Transfer-Encoding");
+    int chunked = transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL;
+
+    const char *content_len = http_get_header_field(&ctx->res.hdr, "Content-Length");
+    unsigned long len_to_send = 0;
+    if (content_len != NULL) {
+        len_to_send = strtol(content_len, NULL, 10);
+    }
+
+    int flags = (chunked ? PROXY_CHUNKED : 0) | (ctx->use_proxy & PROXY_COMPRESS);
+    int ret = proxy_send(&ctx->socket, len_to_send, flags);
+
+    if (ret < 0) {
+        ctx->c_keep_alive = 0;
+    }
+
+    return ret;
 }

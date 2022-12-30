@@ -65,11 +65,6 @@ static int request_handler(client_ctx_t *ctx) {
     status->origin = NONE;
     status->ws_key = NULL;
 
-    ctx->fcgi_cnx.socket = 0;
-    ctx->fcgi_cnx.req_id = 0;
-    ctx->fcgi_cnx.r_addr = ctx->addr;
-    ctx->fcgi_cnx.r_host = (ctx->host[0] != 0) ? ctx->host : NULL;
-
     clock_gettime(CLOCK_MONOTONIC, &ctx->begin);
 
     //ret = sock_poll_read(&client, NULL, NULL, 1, NULL, NULL, CLIENT_TIMEOUT * 1000);
@@ -202,7 +197,6 @@ int respond(client_ctx_t *ctx) {
     http_res *res = &ctx->res;
     sock *client = &ctx->socket;
     http_status_ctx *status = &ctx->status;
-    fastcgi_cnx_t *fcgi_cnx = &ctx->fcgi_cnx;
     char *err_msg = ctx->err_msg;
 
     long ret = 0;
@@ -339,23 +333,9 @@ int respond(client_ctx_t *ctx) {
                 snd_len += ret;
             }
         } else if (ctx->use_fastcgi) {
-            const char *transfer_encoding = http_get_header_field(&res->hdr, "Transfer-Encoding");
-            int chunked = (transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL);
-
-            int flags = (chunked ? FASTCGI_CHUNKED : 0) | (ctx->use_fastcgi & (FASTCGI_COMPRESS | FASTCGI_COMPRESS_HOLD));
-            ret = fastcgi_send(fcgi_cnx, client, flags);
+            return 2;
         } else if (ctx->use_proxy) {
-            const char *transfer_encoding = http_get_header_field(&res->hdr, "Transfer-Encoding");
-            int chunked = transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL;
-
-            const char *content_len = http_get_header_field(&res->hdr, "Content-Length");
-            unsigned long len_to_send = 0;
-            if (content_len != NULL) {
-                len_to_send = strtol(content_len, NULL, 10);
-            }
-
-            int flags = (chunked ? PROXY_CHUNKED : 0) | (ctx->use_proxy & PROXY_COMPRESS);
-            ret = proxy_send(client, len_to_send, flags);
+           return 3;
         }
 
         if (ret < 0) {
@@ -363,22 +343,24 @@ int respond(client_ctx_t *ctx) {
         }
     }
 
-    if (close_proxy && proxy.socket != 0) {
-        info(BLUE_STR "Closing proxy connection");
-        sock_close(&proxy);
-    }
+    return 0;
+}
 
+int request_complete(client_ctx_t *ctx) {
+    // FIXME
+    //if (close_proxy && proxy.socket != 0) {
+    //    info(BLUE_STR "Closing proxy connection");
+    //    sock_close(&proxy);
+    //}
+
+    char buf[32];
     clock_gettime(CLOCK_MONOTONIC, &ctx->end);
-    micros = (ctx->end.tv_nsec - ctx->begin.tv_nsec) / 1000 + (ctx->end.tv_sec - ctx->begin.tv_sec) * 1000000;
-    info("Transfer complete: %s", format_duration(micros, buf0));
+    long micros = (ctx->end.tv_nsec - ctx->begin.tv_nsec) / 1000 + (ctx->end.tv_sec - ctx->begin.tv_sec) * 1000000;
+    info("Transfer complete: %s", format_duration(micros, buf));
 
     uri_free(&ctx->uri);
-    if (fcgi_cnx->socket != 0) {
-        close(fcgi_cnx->socket);
-        fcgi_cnx->socket = 0;
-    }
-    http_free_req(req);
-    http_free_res(res);
+    http_free_req(&ctx->req);
+    http_free_res(&ctx->res);
 
     return 0;
 }
