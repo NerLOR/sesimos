@@ -23,8 +23,6 @@ int tcp_close(client_ctx_t *ctx);
 
 int handle_request(client_ctx_t *ctx);
 
-int respond(client_ctx_t *ctx);
-
 int local_handle(client_ctx_t *ctx);
 
 int fastcgi_handle(client_ctx_t *ctx);

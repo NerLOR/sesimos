@@ -21,6 +21,7 @@ void fastcgi_handler_func(client_ctx_t *ctx) {
     // TODO
     fastcgi_handler(ctx);
     respond(ctx);
+    handle_request(ctx);
 }
 
 static int fastcgi_handler(client_ctx_t *ctx) {

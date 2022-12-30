@@ -11,14 +11,13 @@
 
 #include "worker/func.h"
 
-static mpmc_t tcp_acceptor_ctx, tcp_closer_ctx, request_handler_ctx, responder_ctx,
+static mpmc_t tcp_acceptor_ctx, tcp_closer_ctx, request_handler_ctx,
               local_handler_ctx, fastcgi_handler_cxt, proxy_handler_ctx;
 
 int workers_init(void) {
     mpmc_init(&tcp_acceptor_ctx,     8, 64, (void (*)(void *)) tcp_acceptor_func,    "tcp_a");
     mpmc_init(&tcp_closer_ctx,       8, 64, (void (*)(void *)) tcp_closer_func,      "tcp_c");
     mpmc_init(&request_handler_ctx, 16, 64, (void (*)(void *)) request_handler_func, "req");
-    mpmc_init(&responder_ctx,       16, 64, (void (*)(void *)) responder_func,       "res");
     mpmc_init(&local_handler_ctx,   16, 64, (void (*)(void *)) local_handler_func,   "local");
     mpmc_init(&fastcgi_handler_cxt, 16, 64, (void (*)(void *)) fastcgi_handler_func, "fcgi");
     mpmc_init(&proxy_handler_ctx,   16, 64, (void (*)(void *)) proxy_handler_func,   "proxy");
@@ -31,7 +30,6 @@ void workers_stop(void) {
     mpmc_stop(&fastcgi_handler_cxt);
     mpmc_stop(&proxy_handler_ctx);
     mpmc_stop(&request_handler_ctx);
-    mpmc_stop(&responder_ctx);
     mpmc_stop(&tcp_closer_ctx);
 }
 
@@ -41,7 +39,6 @@ void workers_destroy(void) {
     mpmc_destroy(&fastcgi_handler_cxt);
     mpmc_destroy(&proxy_handler_ctx);
     mpmc_destroy(&request_handler_ctx);
-    mpmc_destroy(&responder_ctx);
     mpmc_destroy(&tcp_closer_ctx);
 }
 
@@ -55,10 +52,6 @@ int tcp_close(client_ctx_t *ctx) {
 
 int handle_request(client_ctx_t *ctx) {
     return mpmc_queue(&request_handler_ctx, ctx);
-}
-
-int respond(client_ctx_t *ctx) {
-    return mpmc_queue(&responder_ctx, ctx);
 }
 
 int local_handle(client_ctx_t *ctx) {

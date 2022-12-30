@@ -22,6 +22,7 @@ void proxy_handler_func(client_ctx_t *ctx) {
 
     proxy_handler(ctx);
     respond(ctx);
+    handle_request(ctx);
 }
 
 static int proxy_handler(client_ctx_t *ctx) {

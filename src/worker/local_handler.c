@@ -20,9 +20,16 @@ void local_handler_func(client_ctx_t *ctx) {
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
 
     switch (local_handler(ctx)) {
-        case 0: respond(ctx); break;
-        case 1: fastcgi_handle(ctx); break;
-        default: tcp_close(ctx); break;
+        case 0:
+            respond(ctx);
+            handle_request(ctx);
+            break;
+        case 1:
+            fastcgi_handle(ctx);
+            break;
+        default:
+            tcp_close(ctx);
+            break;
     }
 }
 
