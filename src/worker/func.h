@@ -23,7 +23,7 @@ typedef struct {
     char req_host[256], err_msg[256];
     char log_prefix[512];
     char _c_addr[INET6_ADDRSTRLEN + 1], _s_addr[INET6_ADDRSTRLEN + 1];
-    struct timespec begin, end;
+    long cnx_s, cnx_e, req_s, res_ts, req_e;
     http_req req;
     http_res res;
     http_uri uri;

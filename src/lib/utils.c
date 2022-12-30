@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 
 static const char base64_encode_table[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -202,4 +203,10 @@ int base64_encode(void *data, unsigned long data_len, char *output, unsigned lon
     output[out_len] = 0;
 
     return 0;
+}
+
+long clock_micros(void) {
+    struct timespec time;
+    clock_gettime(CLOCK_MONOTONIC, &time);
+    return time.tv_sec * 10000000 + time.tv_nsec / 1000;
 }

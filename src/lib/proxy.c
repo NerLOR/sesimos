@@ -19,7 +19,6 @@
 #include <errno.h>
 #include <openssl/err.h>
 #include <arpa/inet.h>
-#include <sys/time.h>
 #include <netdb.h>
 
 static SSL_CTX *proxy_ctx = NULL;

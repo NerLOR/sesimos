@@ -17,10 +17,9 @@ void tcp_closer_func(client_ctx_t *ctx) {
 
     sock_close(&ctx->socket);
 
+    ctx->cnx_e = clock_micros();
     char buf[32];
-    clock_gettime(CLOCK_MONOTONIC, &ctx->end);
-    unsigned long micros = (ctx->end.tv_nsec - ctx->begin.tv_nsec) / 1000 + (ctx->end.tv_sec - ctx->begin.tv_sec) * 1000000;
-    info("Connection closed (%s)", format_duration(micros, buf));
+    info("Connection closed (%s)", format_duration(ctx->cnx_e - ctx->cnx_s, buf));
 
     memset(ctx, 0, sizeof(*ctx));
 }

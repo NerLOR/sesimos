@@ -59,7 +59,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
     char buf[1024];
     sock *client = &ctx->socket;
 
-    clock_gettime(CLOCK_MONOTONIC, &ctx->begin);
+    ctx->cnx_s = clock_micros();
 
     if (config.dns_server[0] != 0) {
         sprintf(buf, "dig @%s +short +time=1 -x %s", config.dns_server, ctx->socket.addr);

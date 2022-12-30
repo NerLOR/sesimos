@@ -37,4 +37,6 @@ int str_trim_lws(char **start, char **end);
 
 int base64_encode(void *data, unsigned long data_len, char *output, unsigned long *output_len);
 
+long clock_micros(void);
+
 #endif //SESIMOS_UTILS_H

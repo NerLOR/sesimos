@@ -71,7 +71,7 @@ static int request_handler(client_ctx_t *ctx) {
     status->origin = NONE;
     status->ws_key = NULL;
 
-    clock_gettime(CLOCK_MONOTONIC, &ctx->begin);
+    ctx->req_s = clock_micros();
 
     // FIXME async poll
     ret = sock_poll_read(&client, NULL, NULL, 1, NULL, NULL, CLIENT_TIMEOUT * 1000);
@@ -85,7 +85,8 @@ static int request_handler(client_ctx_t *ctx) {
         res->status = http_get_status(408);
         return 0;
     }
-    clock_gettime(CLOCK_MONOTONIC, &ctx->begin);
+
+    ctx->req_s = clock_micros();
 
     http_req *req = &ctx->req;
     ret = http_receive_request(client, req);
@@ -298,12 +299,11 @@ int respond(client_ctx_t *ctx) {
     }
 
     http_send_response(client, res);
-    clock_gettime(CLOCK_MONOTONIC, &ctx->end);
+    ctx->res_ts = clock_micros();
     const char *location = http_get_header_field(&res->hdr, "Location");
-    unsigned long micros = (ctx->end.tv_nsec - ctx->begin.tv_nsec) / 1000 + (ctx->end.tv_sec - ctx->begin.tv_sec) * 1000000;
     info("%s%s%03i %s%s%s (%s)%s", http_get_status_color(res->status), ctx->use_proxy ? "-> " : "", res->status->code,
          res->status->msg, location != NULL ? " -> " : "", location != NULL ? location : "",
-         format_duration(micros, buf0), CLR_STR);
+         format_duration(ctx->res_ts - ctx->req_s, buf0), CLR_STR);
 
     // TODO access/error log file
 
@@ -361,9 +361,8 @@ int request_complete(client_ctx_t *ctx) {
     //}
 
     char buf[32];
-    clock_gettime(CLOCK_MONOTONIC, &ctx->end);
-    long micros = (ctx->end.tv_nsec - ctx->begin.tv_nsec) / 1000 + (ctx->end.tv_sec - ctx->begin.tv_sec) * 1000000;
-    info("Transfer complete: %s", format_duration(micros, buf));
+    ctx->req_e = clock_micros();
+    info("Transfer complete: %s", format_duration(ctx->req_e - ctx->req_s, buf));
 
     uri_free(&ctx->uri);
     http_free_req(&ctx->req);
