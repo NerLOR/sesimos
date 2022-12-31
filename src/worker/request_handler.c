@@ -73,20 +73,15 @@ static int request_handler(client_ctx_t *ctx) {
 
     ctx->req_s = clock_micros();
 
-    // FIXME async poll
-    ret = sock_poll_read(&client, NULL, NULL, 1, NULL, NULL, CLIENT_TIMEOUT * 1000);
-
     http_add_header_field(&res->hdr, "Date", http_get_date(buf0, sizeof(buf0)));
     http_add_header_field(&res->hdr, "Server", SERVER_STR);
-    if (ret <= 0) {
+    /*if (ret <= 0) {
         if (errno != 0) return 0;
 
         ctx->c_keep_alive = 0;
         res->status = http_get_status(408);
         return 0;
-    }
-
-    ctx->req_s = clock_micros();
+    }*/
 
     http_req *req = &ctx->req;
     ret = http_receive_request(client, req);

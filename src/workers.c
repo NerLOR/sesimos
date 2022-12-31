@@ -10,6 +10,7 @@
 #include "lib/mpmc.h"
 
 #include "worker/func.h"
+#include "async.h"
 
 static mpmc_t tcp_acceptor_ctx, tcp_closer_ctx, request_handler_ctx,
               local_handler_ctx, fastcgi_handler_cxt, proxy_handler_ctx;
@@ -50,8 +51,12 @@ int tcp_close(client_ctx_t *ctx) {
     return mpmc_queue(&tcp_closer_ctx, ctx);
 }
 
-int handle_request(client_ctx_t *ctx) {
+static int handle_request_cb(client_ctx_t *ctx) {
     return mpmc_queue(&request_handler_ctx, ctx);
+}
+
+int handle_request(client_ctx_t *ctx) {
+    return async(ctx->socket.socket, POLLIN, 0, (void (*)(void *)) handle_request_cb, ctx, (void (*)(void *)) tcp_close, ctx);
 }
 
 int local_handle(client_ctx_t *ctx) {
@@ -65,4 +70,3 @@ int fastcgi_handle(client_ctx_t *ctx) {
 int proxy_handle(client_ctx_t *ctx) {
     return mpmc_queue(&proxy_handler_ctx, ctx);
 }
-

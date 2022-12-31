@@ -7,9 +7,7 @@
  */
 
 #include "func.h"
-#include "../async.h"
 #include "../logger.h"
-#include "../lib/mpmc.h"
 #include "../lib/utils.h"
 #include "../lib/geoip.h"
 #include "../workers.h"
@@ -24,7 +22,7 @@ static int tcp_acceptor(client_ctx_t *ctx);
 
 void tcp_acceptor_func(client_ctx_t *ctx) {
     if (tcp_acceptor(ctx) == 0) {
-        async(ctx->socket.socket, POLLIN, 0, (void (*)(void *)) handle_request, ctx, (void (*)(void *)) tcp_close, ctx);
+        handle_request(ctx);
     } else {
         tcp_close(ctx);
     }
