@@ -56,7 +56,11 @@ static int handle_request_cb(client_ctx_t *ctx) {
 }
 
 int handle_request(client_ctx_t *ctx) {
-    return async(ctx->socket.socket, POLLIN, 0, (void (*)(void *)) handle_request_cb, ctx, (void (*)(void *)) tcp_close, ctx);
+    if (ctx->c_keep_alive && ctx->s_keep_alive) {
+        return async(ctx->socket.socket, POLLIN, 0, (void (*)(void *)) handle_request_cb, ctx, (void (*)(void *)) tcp_close, ctx);
+    } else {
+        return tcp_close(ctx);
+    }
 }
 
 int local_handle(client_ctx_t *ctx) {

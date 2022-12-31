@@ -16,7 +16,6 @@
 #include "../server.h"
 
 #include <string.h>
-#include <openssl/err.h>
 #include <arpa/inet.h>
 
 static int request_handler(client_ctx_t *ctx);
@@ -27,6 +26,7 @@ void request_handler_func(client_ctx_t *ctx) {
     switch (request_handler(ctx)) {
         case 0:
             respond(ctx);
+            request_complete(ctx);
             handle_request(ctx);
             break;
         case 1:
