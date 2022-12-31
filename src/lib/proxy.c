@@ -22,7 +22,7 @@
 #include <netdb.h>
 
 static SSL_CTX *proxy_ctx = NULL;
-static void *proxies = NULL;
+static proxy_ctx_t *proxies = NULL;
 
 int proxy_preload(void) {
     int n = 0;
@@ -35,8 +35,8 @@ int proxy_preload(void) {
 
     // FIXME return value check
     proxy_ctx = SSL_CTX_new(TLS_client_method());
-    proxies = malloc(n * PROXY_ARRAY_SIZE);
-    memset(proxies, 0, n * PROXY_ARRAY_SIZE);
+    proxies = malloc(n * MAX_PROXY_CNX_PER_HOST * sizeof(proxy_ctx_t));
+    memset(proxies, 0, n * MAX_PROXY_CNX_PER_HOST * sizeof(proxy_ctx_t));
 
     return 0;
 }
@@ -57,11 +57,10 @@ static proxy_ctx_t *proxy_get_by_conf(host_config_t *conf) {
         n++;
     }
 
-    void *ptr = proxies + n * PROXY_ARRAY_SIZE;
-    for (int i = 0; i < MAX_PROXY_CNX_PER_HOST; i++, ptr += PROXY_ARRAY_SIZE) {
-        proxy_ctx_t *ctx = ptr;
-        if (!ctx->in_use) {
-            return ctx;
+    proxy_ctx_t *ptr = proxies + n * MAX_PROXY_CNX_PER_HOST;
+    for (int i = 0; i < MAX_PROXY_CNX_PER_HOST; i++, ptr++) {
+        if (!ptr->in_use) {
+            return ptr;
         }
     }
 

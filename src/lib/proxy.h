@@ -18,8 +18,6 @@
 #   define SERVER_NAME "reverse proxy"
 #endif
 
-#define PROXY_ARRAY_SIZE (MAX_PROXY_CNX_PER_HOST * sizeof(proxy_ctx_t))
-
 #include "http.h"
 #include "config.h"
 
