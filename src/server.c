@@ -142,7 +142,7 @@ int main(int argc, char *const argv[]) {
         critical("Unable to set stdout/stderr to line-buffered mode");
         return 1;
     }
-    printf("Sesimos web server " SERVER_VERSION "\n");
+    printf("sesimos web server " SERVER_VERSION "\n");
 
     static const struct option long_opts[] = {
             {"help",    no_argument,        0, 'h'},

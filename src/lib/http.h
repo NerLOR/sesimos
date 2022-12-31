@@ -40,11 +40,11 @@
 #define HTTP_MAX_HEADER_FIELD_NUM 64
 
 #ifndef SERVER_STR
-#   define SERVER_STR "Sesimos"
+#   define SERVER_STR "sesimos"
 #endif
 
 #ifndef SERVER_STR_HTML
-#   define SERVER_STR_HTML "Sesimos&nbsp;web&nbsp;server"
+#   define SERVER_STR_HTML "sesimos&nbsp;web&nbsp;server"
 #endif
 
 typedef struct {

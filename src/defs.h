@@ -10,8 +10,8 @@
 #define SESIMOS_DEF_H
 
 #define SERVER_VERSION "4.6"
-#define SERVER_STR "Sesimos/" SERVER_VERSION
-#define SERVER_STR_HTML "Sesimos&nbsp;web&nbsp;server&nbsp;" SERVER_VERSION
+#define SERVER_STR "sesimos/" SERVER_VERSION
+#define SERVER_STR_HTML "sesimos&nbsp;web&nbsp;server&nbsp;" SERVER_VERSION
 
 #define CHUNK_SIZE 8192
 #define MAX_PROXY_CNX_PER_HOST 16
