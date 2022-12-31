@@ -350,7 +350,7 @@ int respond(client_ctx_t *ctx) {
     return 0;
 }
 
-int request_complete(client_ctx_t *ctx) {
+void request_complete(client_ctx_t *ctx) {
     // FIXME
     //if (close_proxy && proxy.socket != 0) {
     //    info(BLUE_STR "Closing proxy connection");
@@ -364,6 +364,4 @@ int request_complete(client_ctx_t *ctx) {
     uri_free(&ctx->uri);
     http_free_req(&ctx->req);
     http_free_res(&ctx->res);
-
-    return 0;
 }

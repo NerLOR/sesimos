@@ -19,8 +19,6 @@ void workers_destroy(void);
 
 int tcp_accept(client_ctx_t *ctx);
 
-int tcp_close(client_ctx_t *ctx);
-
 int handle_request(client_ctx_t *ctx);
 
 int local_handle(client_ctx_t *ctx);
