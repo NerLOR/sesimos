@@ -63,7 +63,7 @@ bin/cache_handler.o: src/cache_handler.h src/lib/utils.h src/lib/uri.h src/lib/c
 
 bin/async.o: src/async.h src/logger.h
 
-bin/workers.o: src/workers.h src/lib/mpmc.h src/worker/*.h
+bin/workers.o: src/workers.h src/lib/mpmc.h src/worker/func.h
 
 bin/worker/request_handler.o: src/worker/func.h
 
