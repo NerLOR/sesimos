@@ -57,6 +57,23 @@ const char *sock_strerror(sock *s) {
     }
 }
 
+int sock_set_timeout_micros(sock *s, long recv_micros, long send_micros) {
+    struct timeval recv_to = {.tv_sec = recv_micros / 1000000, .tv_usec = recv_micros % 1000000},
+                   send_to = {.tv_sec = send_micros / 1000000, .tv_usec = send_micros % 1000000};
+
+    if (setsockopt(s->socket, SOL_SOCKET, SO_RCVTIMEO, &recv_to, sizeof(recv_to)) != 0)
+        return -1;
+
+    if (setsockopt(s->socket, SOL_SOCKET, SO_SNDTIMEO, &send_to, sizeof(send_to)) != 0)
+        return -1;
+
+    return 0;
+}
+
+int sock_set_timeout(sock *s, int sec) {
+    return sock_set_timeout_micros(s, sec * 1000000L, sec * 1000000L);
+}
+
 long sock_send(sock *s, void *buf, unsigned long len, int flags) {
     long ret;
     if (s->enc) {

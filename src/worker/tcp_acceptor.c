@@ -92,10 +92,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
          ctx->host[0] != 0 ? ctx->host : "", ctx->host[0] != 0 ? ") " : "",
          ctx->cc[0] != 0 ? ctx->cc : "N/A");
 
-    struct timeval client_timeout = {.tv_sec = CLIENT_TIMEOUT, .tv_usec = 0};
-    if (setsockopt(client->socket, SOL_SOCKET, SO_RCVTIMEO, &client_timeout, sizeof(client_timeout)) == -1 ||
-        setsockopt(client->socket, SOL_SOCKET, SO_SNDTIMEO, &client_timeout, sizeof(client_timeout)) == -1)
-    {
+    if (sock_set_timeout(client, CLIENT_TIMEOUT)) {
         error("Unable to set timeout for socket");
         return -1;
     }

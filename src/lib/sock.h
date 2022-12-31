@@ -32,6 +32,10 @@ int sock_enc_error(sock *s);
 
 const char *sock_strerror(sock *s);
 
+int sock_set_timeout_micros(sock *s, long recv_micros, long send_micros);
+
+int sock_set_timeout(sock *s, int sec);
+
 long sock_send(sock *s, void *buf, unsigned long len, int flags);
 
 long sock_recv(sock *s, void *buf, unsigned long len, int flags);

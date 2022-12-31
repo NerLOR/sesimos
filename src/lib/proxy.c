@@ -47,6 +47,7 @@ void proxy_unload(void) {
 }
 
 static proxy_ctx_t *proxy_get_by_conf(host_config_t *conf) {
+    // TODO locking void *proxies
     int n = 0;
     for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
         host_config_t *hc = &config.hosts[i];
@@ -222,7 +223,6 @@ proxy_ctx_t *proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host
     const char *connection, *upgrade, *ws_version;
     long ret;
     int tries = 0, retry = 0;
-    struct timeval server_timeout = {.tv_sec = SERVER_TIMEOUT, .tv_usec = 0};
 
     proxy_ctx_t *proxy = proxy_get_by_conf(conf);
     proxy->in_use = 1;
@@ -247,11 +247,7 @@ proxy_ctx_t *proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host
         return NULL;
     }
 
-    server_timeout.tv_sec = SERVER_TIMEOUT_INIT;
-    server_timeout.tv_usec = 0;
-    if (setsockopt(proxy->proxy.socket, SOL_SOCKET, SO_RCVTIMEO, &server_timeout, sizeof(server_timeout)) < 0)
-        goto proxy_timeout_err;
-    if (setsockopt(proxy->proxy.socket, SOL_SOCKET, SO_SNDTIMEO, &server_timeout, sizeof(server_timeout)) < 0)
+    if (sock_set_timeout(&proxy->proxy, SERVER_TIMEOUT_INIT) != 0)
         goto proxy_timeout_err;
 
     struct hostent *host_ent = gethostbyname2(conf->proxy.hostname, AF_INET6);
@@ -294,11 +290,7 @@ proxy_ctx_t *proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host
         goto proxy_err;
     }
 
-    server_timeout.tv_sec = SERVER_TIMEOUT;
-    server_timeout.tv_usec = 0;
-    if (setsockopt(proxy->proxy.socket, SOL_SOCKET, SO_RCVTIMEO, &server_timeout, sizeof(server_timeout)) < 0)
-        goto proxy_timeout_err;
-    if (setsockopt(proxy->proxy.socket, SOL_SOCKET, SO_SNDTIMEO, &server_timeout, sizeof(server_timeout)) < 0) {
+    if (sock_set_timeout(&proxy->proxy, SERVER_TIMEOUT) != 0) {
         proxy_timeout_err:
         res->status = http_get_status(500);
         ctx->origin = INTERNAL;
