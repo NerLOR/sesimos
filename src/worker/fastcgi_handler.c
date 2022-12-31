@@ -19,10 +19,9 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx);
 static int fastcgi_handler_2(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx);
 
 void fastcgi_handler_func(client_ctx_t *ctx) {
-    fastcgi_cnx_t fcgi_cnx;
-
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
-    // TODO
+
+    fastcgi_cnx_t fcgi_cnx;
     fastcgi_handler_1(ctx, &fcgi_cnx);
     respond(ctx);
     fastcgi_handler_2(ctx, &fcgi_cnx);
