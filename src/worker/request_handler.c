@@ -156,10 +156,12 @@ static int request_handler(client_ctx_t *ctx) {
         return 0;
     }
 
-    if (dir_mode != URI_DIR_MODE_NO_VALIDATION) {
+    if (ctx->conf->type == CONFIG_TYPE_LOCAL && strcmp(req->method, "TRACE") == 0) {
+        return 1;
+    } else if (dir_mode != URI_DIR_MODE_NO_VALIDATION) {
         ssize_t size = sizeof(buf0);
         url_decode(req->uri, buf0, &size);
-        int change_proto = strncmp(uri->uri, "/.well-known/", 13) != 0 && !client->enc;
+        int change_proto = (!client->enc && strncmp(uri->uri, "/.well-known/", 13) != 0);
         if (strcmp(uri->uri, buf0) != 0 || change_proto) {
             res->status = http_get_status(308);
             size = url_encode(uri->uri, strlen(uri->uri), buf0, sizeof(buf0));
