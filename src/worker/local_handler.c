@@ -13,6 +13,7 @@
 #include "../workers.h"
 
 #include <string.h>
+#include <errno.h>
 
 static int local_handler(client_ctx_t *ctx);
 
@@ -112,6 +113,7 @@ static int local_handler(client_ctx_t *ctx) {
                 ctx->file = fopen(uri->meta->filename_comp_br, "rb");
                 if (ctx->file == NULL) {
                     cache_mark_dirty(ctx->conf->cache, uri->filename);
+                    errno = 0;
                 } else {
                     http_add_header_field(&res->hdr, "Content-Encoding", "br");
                     enc = COMPRESS_BR;
@@ -120,6 +122,7 @@ static int local_handler(client_ctx_t *ctx) {
                 ctx->file = fopen(uri->meta->filename_comp_gz, "rb");
                 if (ctx->file == NULL) {
                     cache_mark_dirty(ctx->conf->cache, uri->filename);
+                    errno = 0;
                 } else {
                     http_add_header_field(&res->hdr, "Content-Encoding", "gzip");
                     enc = COMPRESS_GZ;

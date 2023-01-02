@@ -37,7 +37,7 @@
 #define HTTP_COLOR_ERROR   "#C00000"
 
 #define CLIENT_MAX_HEADER_SIZE 8192
-#define HTTP_MAX_HEADER_FIELD_NUM 64
+#define HTTP_MAX_HEADER_FIELD_NUM 32
 
 #ifndef SERVER_STR
 #   define SERVER_STR "sesimos"
@@ -69,11 +69,11 @@ typedef struct {
     char type;
     union {
         struct {
-            char name[64];
-            char value[192];
+            char name[32];
+            char value[32];
         } normal;
         struct {
-            char name[192];
+            char name[64 - sizeof(char *)];
             char *value;
         } ex_value;
         struct {

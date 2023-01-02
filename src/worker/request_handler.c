@@ -375,6 +375,7 @@ void request_complete(client_ctx_t *ctx) {
     ctx->req_e = clock_micros();
     info("Transfer complete: %s", format_duration(ctx->req_e - ctx->req_s, buf));
 
+    if (ctx->file) fclose(ctx->file);
     free(ctx->msg_buf_ptr);
     uri_free(&ctx->uri);
     http_free_req(&ctx->req);
