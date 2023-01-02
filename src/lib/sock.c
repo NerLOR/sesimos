@@ -151,8 +151,8 @@ int sock_close(sock *s) {
     return 0;
 }
 
-int sock_check(sock *s) {
-    char buf;
+int sock_has_pending(sock *s) {
+    char buf[1];
     int e = errno;
     long ret = sock_recv(s, &buf, 1, MSG_PEEK | MSG_DONTWAIT);
     errno = e;

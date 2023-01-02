@@ -46,7 +46,7 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len)
 
 int sock_close(sock *s);
 
-int sock_check(sock *s);
+int sock_has_pending(sock *s);
 
 int sock_poll(sock *sockets[], sock *ready[], sock *error[], int n_sock, int *n_ready, int *n_error, short events, int timeout_ms);
 

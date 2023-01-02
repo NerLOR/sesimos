@@ -226,7 +226,7 @@ proxy_ctx_t *proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host
     proxy_ctx_t *proxy = proxy_get_by_conf(conf);
     proxy->in_use = 1;
 
-    if (proxy->initialized && sock_check(&proxy->proxy) == 0)
+    if (proxy->initialized && sock_has_pending(&proxy->proxy) == 0)
         goto proxy;
 
     retry:
