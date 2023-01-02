@@ -54,7 +54,7 @@ void *list_insert(void *list_ptr, void *elem, int n) {
         }
     }
 
-    unsigned char *array = list_ptr;
+    unsigned char *array = (unsigned char *) list + sizeof(list_meta_t);
 
     if (n < list->size)
         memmove(array + (n + 1) * list->elem_size, array + n * list->elem_size, (list->size - n) * list->elem_size);

@@ -60,19 +60,28 @@ Test(list, resize) {
         list = list_append(list, &v);
         cr_assert_not_null(list);
         cr_assert_eq(list_size(list), i + 1);
+        for (int j = 0; j <= i; j++) {
+            cr_assert_eq(list[j], 9182 - j);
+        }
     }
 
     for (int i = 0; i < 4096; i++) {
         list = list_remove(list, -1);
         cr_assert_not_null(list);
         cr_assert_eq(list_size(list), 4096 - i - 1);
+        for (int j = 0; j < 4096 - i; j++) {
+            cr_assert_eq(list[j], 9182 - j);
+        }
     }
 
     for (int i = 0; i < 4096; i++) {
-        v = 9182 - i;
+        v = 47391 - i;
         list = list_append(list, &v);
         cr_assert_not_null(list);
         cr_assert_eq(list_size(list), i + 1);
+        for (int j = 0; j <= i; j++) {
+            cr_assert_eq(list[j], 47391 - j);
+        }
     }
 
     list = list_clear(list);
