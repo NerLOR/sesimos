@@ -257,7 +257,7 @@ int main(int argc, char *const argv[]) {
     workers_init();
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
-        async(sockets[i], POLLIN, ASYNC_KEEP, accept_cb, &sockets[i], accept_err_cb, &sockets[i]);
+        async_fd(sockets[i], POLLIN, ASYNC_KEEP, accept_cb, &sockets[i], accept_err_cb, &sockets[i]);
     }
 
     notice("Ready to accept connections");

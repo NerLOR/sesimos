@@ -9,11 +9,15 @@
 #ifndef SESIMOS_ASYNC_H
 #define SESIMOS_ASYNC_H
 
+#include "lib/sock.h"
+
 #include <poll.h>
 
 #define ASYNC_KEEP 1
 
-int async(int fd, short events, int flags, void cb(void *), void *arg, void err_cb(void *), void *err_arg);
+int async(sock *s, short events, int flags, void cb(void *), void *arg, void err_cb(void *), void *err_arg);
+
+int async_fd(int fd, short events, int flags, void cb(void *), void *arg, void err_cb(void *), void *err_arg);
 
 void async_thread(void);
 
