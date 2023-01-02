@@ -327,17 +327,17 @@ int respond(client_ctx_t *ctx) {
             close_proxy = 1;
         }
         info("WebSocket connection closed");
+    } else if (ctx->use_proxy) {
+        return 3;
     } else if (strcmp(req->method, "HEAD") != 0) {
         // default response
-        unsigned long snd_len = 0;
-        unsigned long len;
         if (ctx->msg_buf != NULL) {
             ret = sock_send(client, ctx->msg_buf, ctx->content_length, 0);
             if (ret <= 0) {
                 error("Unable to send: %s", sock_strerror(client));
             }
-            snd_len += ret;
         } else if (ctx->file != NULL) {
+            unsigned long len, snd_len = 0;
             while (snd_len < ctx->content_length) {
                 len = fread(buffer, 1, CHUNK_SIZE, ctx->file);
                 if (snd_len + len > ctx->content_length) {
@@ -352,8 +352,6 @@ int respond(client_ctx_t *ctx) {
             }
         } else if (ctx->use_fastcgi) {
             return 2;
-        } else if (ctx->use_proxy) {
-            return 3;
         }
 
         if (ret < 0) {
