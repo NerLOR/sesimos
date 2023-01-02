@@ -136,6 +136,9 @@ int async_init(void) {
         return -1;
     }
 
+    listen1.n = 0;
+    listen2.n = 0;
+
     return 0;
 }
 
@@ -146,27 +149,38 @@ void async_free(void) {
 }
 
 void async_thread(void) {
-    int num_fds;
+    listen_queue_t local_q;
     struct pollfd fds[256];  // TODO dynamic
 
     thread = pthread_self();
+    local_q.n = 0;
 
     // main event loop
     while (alive) {
         // swap listen queue
         listen_queue_t *l = listen_q;
         listen_q = (listen_q == &listen1) ? &listen2 : &listen1;
+        int num_fds = 0;
+
+        // fill fds with previously added queue entries
+        for (int i = 0; i < l->n; i++, local_q.n++) {
+            memcpy(&local_q.q[local_q.n], &l->q[i], sizeof(evt_listen_t));
+        }
+
+        // reset size of queue
+        l->n = 0;
 
         // fill fds with newly added queue entries
-        for (num_fds = 0; num_fds < l->n; num_fds++) {
-            fds[num_fds].fd = l->q[num_fds].fd;
-            fds[num_fds].events = l->q[num_fds].events;
+        for (int i = 0; i < local_q.n; i++, num_fds++) {
+            fds[num_fds].fd = local_q.q[i].fd;
+            fds[num_fds].events = local_q.q[i].events;
         }
 
         if (poll(fds, num_fds, -1) < 0) {
             if (errno == EINTR) {
                 // interrupt
                 errno = 0;
+                continue;
             } else {
                 // other error
                 critical("Unable to poll for events");
@@ -174,14 +188,12 @@ void async_thread(void) {
             }
         }
 
+        local_q.n = 0;
         for (int i = 0; i < num_fds; i++) {
-            evt_listen_t *e = &l->q[i];
-            if (async_exec(e, fds[i].revents) != 0)
-                async_add_to_queue(e);
+            evt_listen_t *evt = &local_q.q[i];
+            if (async_exec(evt, fds[i].revents) != 0)
+                memcpy(&local_q.q[local_q.n++], evt, sizeof(*evt));
         }
-
-        // reset size of queue
-        l->n = 0;
     }
 }
 
