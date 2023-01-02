@@ -22,6 +22,9 @@ int sock_enc_error(sock *s) {
 }
 
 const char *sock_strerror(sock *s) {
+    // FIXME sock_strerror not Thread Safe!
+    //       (and ugly)
+    errno = 0;
     if (s->_last_ret == 0) {
         return "closed";
     } else if (s->enc) {
@@ -29,7 +32,7 @@ const char *sock_strerror(sock *s) {
             return NULL;
         }
         const char *err1 = ERR_reason_error_string(s->_ssl_error);
-        const char *err2 = strerror(errno);
+        const char *err2 = strerror(s->_errno);
         switch (sock_enc_error(s)) {
             case SSL_ERROR_NONE:
                 return NULL;
