@@ -26,7 +26,7 @@ char *format_duration(unsigned long micros, char *buf) {
     } else if (micros < 60000000 - 1000000) {
         sprintf(buf, "%.1f s", (double) micros / 1000000);
     } else if (micros < 6000000000) {
-        sprintf(buf, "%.1f min", (double) micros / 1000000 / 60);
+        sprintf(buf, "%li:%02li min", micros / 1000000 / 60, micros / 1000000 % 60);
     } else {
         sprintf(buf, "%.0f min", (double) micros / 1000000 / 60);
     }

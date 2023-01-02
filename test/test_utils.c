@@ -72,9 +72,9 @@ ParameterizedTestParameters(utils, format_duration) {
             {999999, "1.0 s"},
             {1000000, "1.0 s"},
             {3000000, "3.0 s"},
-            {1000000 * 60, "1.0 min"},
-            {1000000 * 60 * 30L - 30000000, "29.5 min"},
-            {1000000 * 60 * 60L, "60.0 min"},
+            {1000000 * 60, "1:00 min"},
+            {1000000 * 60 * 30L - 30000000, "29:30 min"},
+            {1000000 * 60 * 60L, "60:00 min"},
             {1000000 * 60 * 120L, "120 min"},
     };
     return cr_make_param_array(struct format_duration_t, params, sizeof(params) / sizeof(struct format_duration_t));
