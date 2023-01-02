@@ -62,7 +62,7 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
     http_add_header_field(&res->hdr, "Last-Modified", last_modified);
 
     res->status = http_get_status(200);
-    if (fastcgi_init(fcgi_cnx, mode, 0 /* TODO */, ctx->req_num, client, req, uri) != 0) {
+    if (fastcgi_init(fcgi_cnx, mode, ctx->req_num, client, req, uri) != 0) {
         res->status = http_get_status(503);
         sprintf(err_msg, "Unable to communicate with FastCGI socket.");
         return 2;

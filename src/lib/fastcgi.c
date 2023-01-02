@@ -53,15 +53,9 @@ char *fastcgi_add_param(char *buf, const char *key, const char *value) {
     return ptr;
 }
 
-int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int client_num, unsigned int req_num, const sock *client, const http_req *req, const http_uri *uri) {
-    unsigned short req_id = (client_num & 0xFFF) << 4;
-    if (client_num == 0) {
-        req_id |= (req_num + 1) & 0xF;
-    } else {
-        req_id |= req_num & 0xF;
-    }
+int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int req_num, const sock *client, const http_req *req, const http_uri *uri) {
     conn->mode = mode;
-    conn->req_id = req_id;
+    conn->req_id = (req_num + 1) & 0xFFFF;
     conn->out_buf = NULL;
     conn->out_off = 0;
     conn->webroot = uri->webroot;
@@ -87,8 +81,8 @@ int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int client_num, unsigne
 
     FCGI_Header header = {
             .version = FCGI_VERSION_1,
-            .requestIdB1 = req_id >> 8,
-            .requestIdB0 = req_id & 0xFF,
+            .requestIdB1 = conn->req_id >> 8,
+            .requestIdB0 = conn->req_id & 0xFF,
             .paddingLength = 0,
             .reserved = 0
     };

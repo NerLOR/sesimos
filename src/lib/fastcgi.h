@@ -42,8 +42,7 @@ typedef struct {
 
 char *fastcgi_add_param(char *buf, const char *key, const char *value);
 
-int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int client_num, unsigned int req_num, const sock *client,
-                 const http_req *req, const http_uri *uri);
+int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int req_num, const sock *client, const http_req *req, const http_uri *uri);
 
 int fastcgi_close_stdin(fastcgi_cnx_t *conn);
 
