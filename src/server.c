@@ -204,6 +204,7 @@ int main(int argc, char *const argv[]) {
     signal(SIGINT, terminate_gracefully);
     signal(SIGTERM, terminate_gracefully);
     signal(SIGUSR1, nothing);
+    signal(SIGPIPE, nothing);
 
     if ((ret = geoip_init(config.geoip_dir)) != 0) {
         if (ret == -1) {
