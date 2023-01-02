@@ -57,7 +57,8 @@ static int request_handler(client_ctx_t *ctx) {
     ctx->use_proxy = 0;
     ctx->proxy = NULL;
     ctx->msg_content[0] = 0;
-    ctx->msg_buf[0] = 0;
+    ctx->msg_buf = NULL;
+    ctx->msg_buf_ptr = NULL;
     ctx->req_host[0] = 0;
     ctx->err_msg[0] = 0;
 
@@ -130,7 +131,7 @@ static int request_handler(client_ctx_t *ctx) {
     info(BLD_STR "%s %s", req->method, req->uri);
 
     if (strcmp(req->uri, "/.sesimos/style.css") == 0 && (strcmp(req->method, "GET") == 0 || strcmp(req->method, "HEAD") == 0)) {
-        memcpy(ctx->msg_buf, http_style_doc, http_style_doc_size);
+        ctx->msg_buf = (char *) http_style_doc;
         ctx->content_length = http_style_doc_size;
         res->status= http_get_status(200);
         http_add_header_field(&res->hdr, "Content-Type", "text/css; charset=UTF-8");
@@ -226,7 +227,7 @@ int respond(client_ctx_t *ctx) {
         if (http_get_header_field(&res->hdr, "Accept-Ranges") == NULL) {
             http_add_header_field(&res->hdr, "Accept-Ranges", "none");
         }
-        if (!ctx->use_fastcgi && ctx->file == NULL && ctx->msg_buf[0] == 0) {
+        if (!ctx->use_fastcgi && ctx->file == NULL && ctx->msg_buf == NULL) {
             http_remove_header_field(&res->hdr, "Date", HTTP_REMOVE_ALL);
             http_remove_header_field(&res->hdr, "Server", HTTP_REMOVE_ALL);
             http_remove_header_field(&res->hdr, "Cache-Control", HTTP_REMOVE_ALL);
@@ -276,9 +277,11 @@ int respond(client_ctx_t *ctx) {
                 proxy_doc = msg_pre_buf_2;
             }
 
+            ctx->msg_buf_ptr = malloc(4096);
+            ctx->msg_buf = ctx->msg_buf_ptr;
             snprintf(msg_pre_buf_1, sizeof(msg_pre_buf_1), http_info->doc,
                      res->status->code, res->status->msg, http_msg != NULL ? http_msg->msg : "", err_msg[0] != 0 ? err_msg : "");
-            ctx->content_length = snprintf(ctx->msg_buf, sizeof(ctx->msg_buf), http_default_doc, res->status->code,
+            ctx->content_length = snprintf(ctx->msg_buf, 4096, http_default_doc, res->status->code,
                                            res->status->msg, msg_pre_buf_1, http_info->mode, http_info->icon, http_info->color, ctx->req_host,
                                            proxy_doc, ctx->msg_content[0] != 0 ? ctx->msg_content : "", SERVER_STR_HTML);
         }
@@ -328,7 +331,7 @@ int respond(client_ctx_t *ctx) {
         // default response
         unsigned long snd_len = 0;
         unsigned long len;
-        if (ctx->msg_buf[0] != 0) {
+        if (ctx->msg_buf != NULL) {
             ret = sock_send(client, ctx->msg_buf, ctx->content_length, 0);
             if (ret <= 0) {
                 error("Unable to send: %s", sock_strerror(client));
@@ -372,6 +375,7 @@ void request_complete(client_ctx_t *ctx) {
     ctx->req_e = clock_micros();
     info("Transfer complete: %s", format_duration(ctx->req_e - ctx->req_s, buf));
 
+    free(ctx->msg_buf_ptr);
     uri_free(&ctx->uri);
     http_free_req(&ctx->req);
     http_free_res(&ctx->res);

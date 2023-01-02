@@ -21,7 +21,7 @@ typedef struct {
     unsigned char in_use: 1, s_keep_alive:1, c_keep_alive:1;
     char cc[3], host[256];
     char req_host[256], err_msg[256];
-    char log_prefix[512];
+    char log_prefix[128];
     char _c_addr[INET6_ADDRSTRLEN + 1], _s_addr[INET6_ADDRSTRLEN + 1];
     long cnx_s, cnx_e, req_s, res_ts, req_e;
     http_req req;
@@ -33,7 +33,7 @@ typedef struct {
     host_config_t *conf;
     FILE *file;
     long content_length;
-    char msg_buf[8192], msg_content[1024];
+    char *msg_buf, *msg_buf_ptr, msg_content[1024];
     proxy_ctx_t *proxy;
 } client_ctx_t;
 

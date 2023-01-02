@@ -47,10 +47,12 @@ static int local_handler(client_ctx_t *ctx) {
         res->status = http_get_status(200);
         http_add_header_field(&res->hdr, "Content-Type", "message/http");
 
-        ctx->content_length = snprintf(ctx->msg_buf, sizeof(ctx->msg_buf) - ctx->content_length, "%s %s HTTP/%s\r\n", req->method, req->uri, req->version);
+        ctx->msg_buf_ptr = malloc(4096);
+        ctx->msg_buf = ctx->msg_buf_ptr;
+        ctx->content_length = snprintf(ctx->msg_buf, 4096 - ctx->content_length, "%s %s HTTP/%s\r\n", req->method, req->uri, req->version);
         for (int i = 0; i < req->hdr.field_num; i++) {
             const http_field *f = &req->hdr.fields[i];
-            ctx->content_length += snprintf(ctx->msg_buf + ctx->content_length, sizeof(ctx->msg_buf) - ctx->content_length, "%s: %s\r\n", http_field_get_name(f), http_field_get_value(f));
+            ctx->content_length += snprintf(ctx->msg_buf + ctx->content_length, 4096 - ctx->content_length, "%s: %s\r\n", http_field_get_name(f), http_field_get_value(f));
         }
 
         return 0;
