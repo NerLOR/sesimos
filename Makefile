@@ -7,7 +7,7 @@ DEBIAN_OPTS=-D CACHE_MAGIC_FILE="\"/usr/share/file/magic.mgc\"" -D PHP_FPM_SOCKE
 
 .PHONY: all prod debug default debian permit clean test
 all: prod
-default: bin bin/lib bin/worker bin/sesimos
+default: bin bin/lib bin/worker bin/res bin/sesimos
 
 prod: CFLAGS += -O3
 prod: default
@@ -32,6 +32,9 @@ bin/lib:
 bin/worker:
 	mkdir -p bin/worker
 
+bin/res:
+	mkdir -p bin/res
+
 bin/test: test/mock_*.c test/test_*.c src/lib/utils.c src/lib/sock.c
 	$(CC) -o $@ $(CFLAGS) $^ -lcriterion
 
@@ -45,11 +48,19 @@ bin/lib/%.o: src/lib/%.c
 bin/worker/%.o: src/worker/%.c
 	$(CC) -c -o $@ $(CFLAGS) $<
 
+bin/res/%.o: bin/res/%.txt
+	objcopy -I binary --rename-section .data=.rodata -O elf64-x86-64 $^ $@
+
+bin/res/%.txt: res/%.*
+	cp $^ $@
+	echo -ne "\x00" >> $@
+
 bin/sesimos: bin/server.o bin/logger.o bin/cache_handler.o bin/async.o bin/workers.o \
 			 bin/worker/request_handler.o bin/worker/tcp_acceptor.o \
 			 bin/worker/fastcgi_handler.o bin/worker/local_handler.o bin/worker/proxy_handler.o \
+			 bin/lib/http_static.o bin/res/default.o bin/res/proxy.o bin/res/style.o \
 			 bin/lib/compress.o bin/lib/config.o bin/lib/fastcgi.o bin/lib/geoip.o \
-			 bin/lib/http.o bin/lib/http_static.o bin/lib/proxy.o bin/lib/sock.o bin/lib/uri.o \
+			 bin/lib/http.o  bin/lib/proxy.o bin/lib/sock.o bin/lib/uri.o \
 		     bin/lib/utils.o bin/lib/websocket.o bin/lib/mpmc.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
 

@@ -6,9 +6,7 @@
  * @date 2021-05-03
  */
 
-#include "../defs.h"
 #include "http.h"
-
 
 const http_status http_statuses[] = {
         {100, "Informational", "Continue"},
@@ -105,201 +103,56 @@ const http_status_msg http_status_messages[] = {
         {505, "The server does not support, or refuses to support, the HTTP protocol version that was used in the request message."}
 };
 
-const char http_default_document[] =
-        "<!DOCTYPE html>\n"
-        "<html lang=\"en\">\n"
-        "<head>\n"
-        "\t<title>%1$i %2$s - %7$s</title>\n"
-        "\t<meta charset=\"UTF-8\"/>\n"
-        "\t<meta name=\"theme-color\" content=\"%6$s\"/>\n"
-        "\t<meta name=\"color-scheme\" content=\"light dark\"/>\n"
-        "\t<meta name=\"apple-mobile-web-app-status-bar-style\" content=\"black-translucent\"/>\n"
-        "\t<meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"/>\n"
-        "\t<link rel=\"shortcut icon\" type=\"image/x-icon\" href=\"/favicon.ico\"/>\n"
-        "%5$s"
-        "\t<style>\n"
-        "\t\thtml{font-family:\"Arial\",sans-serif;--error:" HTTP_COLOR_ERROR ";--warning:" HTTP_COLOR_WARNING ";--success:" HTTP_COLOR_SUCCESS ";--info:" HTTP_COLOR_INFO ";--soft:#808080;--color:var(--%4$s);}\n"
-        "\t\tbody{background-color:#F0F0F0;margin:0;}\n"
-        "\t\tmain{max-width:650px;margin:2em auto;}\n"
-        "\t\tsection{margin:2em 1em;background-color:#FFFFFF;border: 1px solid var(--color);border-radius:4px;padding:1em;}\n"
-        "\t\th1,h2,h3,h4,h5,h6{text-align:center;color:var(--color);font-weight:normal;}\n"
-        "\t\th1{font-size:3em;margin:0.125em 0;}\n"
-        "\t\th2{font-size:1.5em;margin:0.25em 0 1em 0;}\n"
-        "\t\tp{text-align:center;font-size:0.875em;}\n"
-        "\t\tdiv.footer{color:var(--soft);font-size:0.75em;text-align:center;margin:2em 0 0.5em 0;}\n"
-        "\t\tdiv.footer a{color:var(--soft);}\n"
-        "\t\tul,ol{width:fit-content;margin:auto;}\n"
-        "\t\tpre{width:fit-content;margin:2em auto 0 auto;}\n"
-        "\n"
-        "\t\tsection.error-ctx{display:flex;padding:0;border:none;}\n"
-        "\t\tdiv.box{flex:100%% 1 1;border:1px solid var(--info);color:var(--info);position:relative;padding:1em;box-sizing:border-box;text-align:center;}\n"
-        "\t\tdiv.box.error{border-color:var(--error);color:var(--error);}\n"
-        "\t\tdiv.box.success{border-color:var(--success);color:var(--success);}\n"
-        "\t\tdiv.arrow{position:absolute;height:20px;width:30px;z-index:10;background-repeat:no-repeat;background-size:contain;}\n"
-        "\t\tdiv.arrow.response{left:-17.5px;bottom:calc(33.3333%% - 10px);}\n"
-        "\t\tdiv.arrow.request{right:-17.5px;top:calc(33.3333%% - 10px);}\n"
-        "\t\tdiv.border{flex:1px 0 0;background-color:var(--info);}\n"
-        "\t\tdiv.border.error{background-color:var(--error);}\n"
-        "\t\tdiv.border.success{background-color:var(--success);}\n"
-        "\t\tdiv.content>span{display:block;color:var(--soft);font-size:0.75em;}\n"
-        "\t\tdiv.content>img{height:3.75rem;margin:0.75rem auto;display:block;}\n"
-        "\t\th3{font-size:2.25em;margin:0.75rem 0 0 0;color:unset;height:2.5rem;}\n"
-        "\t\th4{font-size:1em;margin:0 0 0.75rem 0;color:unset;height:1.25rem;}\n"
-        "\n"
-        "\t\tdiv.arrow.request.success{background-image:url('data:image/svg+xml;base64,"
-        "PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
-        "L3N2ZyI+PHBhdGggZD0iTTEsMSBMMjUsMSBMMjksMTAgTDI1LDE5IEwxLDE5IiBmaWxsPSIjRkZG"
-        "RkZGIiBzdHJva2U9IiMwMDgwMDAiIHN0cm9rZS13aWR0aD0iMiIvPjwvc3ZnPgo=');}\n"
-        "\t\tdiv.arrow.request.error{background-image:url('data:image/svg+xml;base64,"
-        "PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
-        "L3N2ZyI+PHBhdGggZD0iTTEsMSBMMjUsMSBMMjksMTAgTDI1LDE5IEwxLDE5IiBmaWxsPSIjRkZG"
-        "RkZGIiBzdHJva2U9IiNDMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIvPjwvc3ZnPgo=');}\n"
-        "\t\tdiv.arrow.response.success{background-image:url('data:image/svg+xml;base64,"
-        "PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
-        "L3N2ZyI+PHBhdGggZD0iTTI5LDE5IEw1LDE5IEwxLDEwIEw1LDEgTDI5LDEiIGZpbGw9IiNGRkZG"
-        "RkYiIHN0cm9rZT0iIzAwODAwMCIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+Cg==');}\n"
-        "\t\tdiv.arrow.response.error{background-image:url('data:image/svg+xml;base64,"
-        "PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
-        "L3N2ZyI+PHBhdGggZD0iTTI5LDE5IEw1LDE5IEwxLDEwIEw1LDEgTDI5LDEiIGZpbGw9IiNGRkZG"
-        "RkYiIHN0cm9rZT0iI0MwMDAwMCIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+Cg==');}\n"
-        "\n"
-        "\t\t@media(prefers-color-scheme:dark){\n"
-        "\t\t\thtml{color:#FFFFFF;--soft:#404040;}\n"
-        "\t\t\tbody{background-color:#101010;}\n"
-        "\t\t\tsection{background-color:#181818;}\n"
-        "\n"
-        "\t\t\tdiv.arrow.request.success{background-image:url('data:image/svg+xml;base64,"
-        "PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
-        "L3N2ZyI+PHBhdGggZD0iTTEsMSBMMjUsMSBMMjksMTAgTDI1LDE5IEwxLDE5IiBmaWxsPSIjMTgx"
-        "ODE4IiBzdHJva2U9IiMwMDgwMDAiIHN0cm9rZS13aWR0aD0iMiIvPjwvc3ZnPgo=');}\n"
-        "\t\t\tdiv.arrow.request.error{background-image:url('data:image/svg+xml;base64,"
-        "PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
-        "L3N2ZyI+PHBhdGggZD0iTTEsMSBMMjUsMSBMMjksMTAgTDI1LDE5IEwxLDE5IiBmaWxsPSIjMTgx"
-        "ODE4IiBzdHJva2U9IiNDMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIvPjwvc3ZnPgo=');}\n"
-        "\t\t\tdiv.arrow.response.success{background-image:url('data:image/svg+xml;base64,"
-        "PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
-        "L3N2ZyI+PHBhdGggZD0iTTI5LDE5IEw1LDE5IEwxLDEwIEw1LDEgTDI5LDEiIGZpbGw9IiMxODE4"
-        "MTgiIHN0cm9rZT0iIzAwODAwMCIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+Cg==');}\n"
-        "\t\t\tdiv.arrow.response.error{background-image:url('data:image/svg+xml;base64,"
-        "PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
-        "L3N2ZyI+PHBhdGggZD0iTTI5LDE5IEw1LDE5IEwxLDEwIEw1LDEgTDI5LDEiIGZpbGw9IiMxODE4"
-        "MTgiIHN0cm9rZT0iI0MwMDAwMCIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+Cg==');}\n"
-        "\t\t}\n"
-        "\t\t@media(min-width:650px){\n"
-        "\t\t\tdiv.box:first-child{border-top-left-radius:4px;border-bottom-left-radius:4px;border-right:none;}\n"
-        "\t\t\tdiv.box:last-child{border-top-right-radius:4px;border-bottom-right-radius:4px;border-left:none;}\n"
-        "\t\t\tdiv.box:not(:last-child):not(:first-child){border-left:none;border-right:none;}\n"
-        "\t\t}\n"
-        "\t\t@media(max-width:650px){\n"
-        "\t\t\tsection.error-ctx{flex-direction:column;height:unset;}\n"
-        "\t\t\tdiv.box:first-child{border-top-left-radius:4px;border-top-right-radius:4px;border-bottom:none;padding-top:1em;}\n"
-        "\t\t\tdiv.box:last-child{border-bottom-right-radius:4px;border-bottom-left-radius:4px;border-top:none;padding-bottom:1em;}\n"
-        "\t\t\tdiv.box:not(:last-child):not(:first-child){border-top:none;border-bottom:none;}\n"
-        "\t\t\tdiv.arrow.response{transform:rotate(90deg);top:-10px;left:calc(33.3333%% - 22.5px);right:unset;}\n"
-        "\t\t\tdiv.arrow.request{transform:rotate(90deg);bottom:-10px;right:calc(33.3333%% - 22.5px);top:unset;}\n"
-        "\t\t}\n"
-        "\t</style>\n"
-        "</head>\n"
-        "<body>\n"
-        "\t<main>\n"
-        "\t\t<section>\n"
-        "%3$s"
-        "%9$s"
-        "\t\t\t<div class=\"footer\"><a href=\"https://%7$s/\">%7$s</a> - " SERVER_STR_HTML "</div>\n"
-        "\t\t</section>\n"
-        "%8$s"
-        "\t</main>\n"
-        "</body>\n"
-        "</html>\n";
+const int http_statuses_size = sizeof(http_statuses) / sizeof(http_status);
+const int http_status_messages_size = sizeof(http_status_messages) / sizeof(http_status_msg);
 
-const char http_proxy_document[] =
-        "\t\t<section class=\"error-ctx\">\n"
-        "\t\t\t<div class=\"box%1$s\">\n"
-        "\t\t\t\t<div class=\"content\">\n"
-        "\t\t\t\t\t<span>Client</span>\n"
-        "\t\t\t\t\t<img src=\"data:image/svg+xml;base64,"
-        "PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
-        "L3N2ZyI+PHBhdGggZD0iTTIsMzIgYTMwLDMwLDAsMSwwLDYwLDAgYTMwLDMwLDAsMSwwLC02MCww"
-        "IEw2MiwzMiBNNiwxNiBMNTgsMTYgTTYsNDggTDU4LDQ4IE0zMiwyIEwzMiw2MiBhMTUsMzAsMCwx"
-        "LDAsMCwtNjAgYTE1LDMwLDAsMSwwLDAsNjAgWiIgc3Ryb2tlPSIjMDA4MDAwIiBzdHJva2Utd2lk"
-        "dGg9IjIiIGZpbGw9IiMwMDAwMDAwMCIvPjwvc3ZnPgo=\"/>\n"
-        "\t\t\t\t\t<span>Your Browser</span>\n"
-        "\t\t\t\t</div>\n"
-        "\t\t\t\t<div class=\"arrow request%2$s\"></div>\n"
-        "\t\t\t</div>\n"
-        "\t\t\t<div class=\"border%8$s\"></div>\n"
-        "\t\t\t<div class=\"box%3$s\">\n"
-        "\t\t\t\t<div class=\"content\">\n"
-        "\t\t\t\t\t<span>Reverse Proxy</span>\n"
-        "\t\t\t\t\t<h3>%10$03i</h3>\n"
-        "\t\t\t\t\t<h4>%11$s</h4>\n"
-        "\t\t\t\t\t<span>" SERVER_NAME "</span>\n"
-        "\t\t\t\t</div>\n"
-        "\t\t\t\t<div class=\"arrow request%4$s\"></div>\n"
-        "\t\t\t\t<div class=\"arrow response%5$s\"></div>\n"
-        "\t\t\t</div>\n"
-        "\t\t\t<div class=\"border%9$s\"></div>\n"
-        "\t\t\t<div class=\"box%6$s\">\n"
-        "\t\t\t\t<div class=\"content\">\n"
-        "\t\t\t\t\t<span>Server</span>\n"
-        "\t\t\t\t\t<h3>%12$s</h3>\n"
-        "\t\t\t\t\t<h4>%13$s</h4>\n"
-        "\t\t\t\t\t<span>%14$s</span>\n"
-        "\t\t\t\t</div>\n"
-        "\t\t\t\t<div class=\"arrow response%7$s\"></div>\n"
-        "\t\t\t</div>\n"
-        "\t\t</section>\n";
-
-const char http_error_document[] =
-        "\t\t\t<h1>%1$i</h1>\n"
-        "\t\t\t<h2>%2$s :&#xFEFF;(</h2>\n"
-        "\t\t\t<p>%3$s</p>\n"
-        "\t\t\t<p>%4$s</p>\n";
+const char http_error_doc[] =
+        "      <h1>%1$i</h1>\n"
+        "      <h2>%2$s :&#xFEFF;(</h2>\n"
+        "      <p>%3$s</p>\n"
+        "      <p>%4$s</p>\n";
 
 const char http_error_icon[] =
-        "\t<link rel=\"alternate icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
+        "  <link rel=\"alternate icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
         "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
         "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiNDMDAwMDAiIHN0eWxlPSJmb250LWZhbWls"
         "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjooPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
 
 
-const char http_warning_document[] =
-        "\t\t\t<h1>%1$i</h1>\n"
-        "\t\t\t<h2>%2$s :&#xFEFF;)</h2>\n"
-        "\t\t\t<p>%3$s</p>\n"
-        "\t\t\t<p>%4$s</p>\n";
+const char http_warning_doc[] =
+        "      <h1>%1$i</h1>\n"
+        "      <h2>%2$s :&#xFEFF;)</h2>\n"
+        "      <p>%3$s</p>\n"
+        "      <p>%4$s</p>\n";
 
 const char http_warning_icon[] =
-        "\t<link rel=\"alternate icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
+        "  <link rel=\"alternate icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
         "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
         "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiNFMEMwMDAiIHN0eWxlPSJmb250LWZhbWls"
         "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjopPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
 
 
-const char http_success_document[] =
-        "\t\t\t<h1>%1$i</h1>\n"
-        "\t\t\t<h2>%2$s :&#xFEFF;)</h2>\n"
-        "\t\t\t<p>%3$s</p>\n"
-        "\t\t\t<p>%4$s</p>\n";
+const char http_success_doc[] =
+        "      <h1>%1$i</h1>\n"
+        "      <h2>%2$s :&#xFEFF;)</h2>\n"
+        "      <p>%3$s</p>\n"
+        "      <p>%4$s</p>\n";
 
 const char http_success_icon[] =
-        "\t<link rel=\"alternate icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
+        "  <link rel=\"alternate icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
         "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
         "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiMwMDgwMDAiIHN0eWxlPSJmb250LWZhbWls"
         "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjopPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
 
 
-const char http_info_document[] =
-        "\t\t\t<h1>%1$i</h1>\n"
-        "\t\t\t<h2>%2$s :&#xFEFF;)</h2>\n"
-        "\t\t\t<p>%3$s</p>\n"
-        "\t\t\t<p>%4$s</p>\n";
+const char http_info_doc[] =
+        "      <h1>%1$i</h1>\n"
+        "      <h2>%2$s :&#xFEFF;)</h2>\n"
+        "      <p>%3$s</p>\n"
+        "      <p>%4$s</p>\n";
 
 const char http_info_icon[] =
-        "\t<link rel=\"alternate icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
+        "  <link rel=\"alternate icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
         "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
         "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiM2MDYwNjAiIHN0eWxlPSJmb250LWZhbWls"
         "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjopPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
-
-const int http_statuses_size = sizeof(http_statuses);
-const int http_status_messages_size = sizeof(http_status_messages);

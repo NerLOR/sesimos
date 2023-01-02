@@ -370,7 +370,7 @@ int http_send_request(sock *server, http_req *req) {
 }
 
 const http_status *http_get_status(unsigned short status_code) {
-    for (int i = 0; i < http_statuses_size / sizeof(http_status); i++) {
+    for (int i = 0; i < http_statuses_size; i++) {
         if (http_statuses[i].code == status_code) {
             return &http_statuses[i];
         }
@@ -380,7 +380,7 @@ const http_status *http_get_status(unsigned short status_code) {
 
 const http_status_msg *http_get_error_msg(const http_status *status) {
     unsigned short code = status->code;
-    for (int i = 0; i < http_status_messages_size / sizeof(http_status_msg); i++) {
+    for (int i = 0; i < http_status_messages_size; i++) {
         if (http_status_messages[i].code == code) {
             return &http_status_messages[i];
         }
@@ -419,10 +419,10 @@ char *http_get_date(char *buf, size_t size) {
 const http_doc_info *http_get_status_info(const http_status *status) {
     unsigned short code = status->code;
     static http_doc_info info[] = {
-            {"info", HTTP_COLOR_INFO, http_info_icon, http_info_document},
-            {"success", HTTP_COLOR_SUCCESS, http_success_icon, http_success_document},
-            {"warning", HTTP_COLOR_WARNING, http_warning_icon, http_warning_document},
-            {"error", HTTP_COLOR_ERROR, http_error_icon, http_error_document}
+            {"info",    HTTP_COLOR_INFO,    http_info_icon,    http_info_doc},
+            {"success", HTTP_COLOR_SUCCESS, http_success_icon, http_success_doc},
+            {"warning", HTTP_COLOR_WARNING, http_warning_icon, http_warning_doc},
+            {"error",   HTTP_COLOR_ERROR,   http_error_icon,   http_error_doc}
     };
     if (code >= 100 && code < 200) {
         return &info[0];

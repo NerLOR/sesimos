@@ -1,6 +1,8 @@
 *
 !src
 !src/**
+!res
+!res/**
 !doc
 !doc/**
 !test

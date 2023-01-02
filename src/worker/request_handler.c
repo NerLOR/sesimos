@@ -14,6 +14,7 @@
 #include "../lib/utils.h"
 #include "../lib/websocket.h"
 #include "../server.h"
+#include "../lib/res.h"
 
 #include <string.h>
 #include <arpa/inet.h>
@@ -128,6 +129,15 @@ static int request_handler(client_ctx_t *ctx) {
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
     info(BLD_STR "%s %s", req->method, req->uri);
 
+    if (strcmp(req->uri, "/.sesimos/style.css") == 0 && (strcmp(req->method, "GET") == 0 || strcmp(req->method, "HEAD") == 0)) {
+        memcpy(ctx->msg_buf, http_style_doc, http_style_doc_size);
+        ctx->content_length = http_style_doc_size;
+        res->status= http_get_status(200);
+        http_add_header_field(&res->hdr, "Content-Type", "text/css; charset=UTF-8");
+        http_add_header_field(&res->hdr, "Cache-Control", "public, max-age=3600");
+        return 0;
+    }
+
     ctx->conf = get_host_config(ctx->req_host);
     if (ctx->conf == NULL) {
         info("Unknown host, redirecting to default");
@@ -228,14 +238,14 @@ int respond(client_ctx_t *ctx) {
             http_add_header_field(&res->hdr, "Content-Type", "text/html; charset=UTF-8");
 
             // TODO list Locations on 3xx Redirects
-            const http_doc_info *info = http_get_status_info(res->status);
+            const http_doc_info *http_info = http_get_status_info(res->status);
             const http_status_msg *http_msg = http_get_error_msg(res->status);
 
             if (ctx->msg_content[0] == 0) {
                 if (res->status->code >= 300 && res->status->code < 400) {
                     const char *location = http_get_header_field(&res->hdr, "Location");
                     if (location != NULL) {
-                        snprintf(ctx->msg_content, sizeof(ctx->msg_content), "<ul>\n\t<li><a href=\"%s\">%s</a></li>\n</ul>\n", location, location);
+                        snprintf(ctx->msg_content, sizeof(ctx->msg_content), "      <ul>\n        <li><a href=\"%s\">%s</a></li>\n      </ul>\n", location, location);
                     }
                 }
             } else if (strncmp(ctx->msg_content, "<!DOCTYPE html>", 15) == 0 || strncmp(ctx->msg_content, "<html", 5) == 0) {
@@ -248,28 +258,29 @@ int respond(client_ctx_t *ctx) {
                 const http_status *status_hdr = http_get_status(status->status);
                 char stat_str[8];
                 sprintf(stat_str, "%03i", status->status);
-                sprintf(msg_pre_buf_2, http_proxy_document,
+                snprintf(msg_pre_buf_2, sizeof(msg_pre_buf_2), http_proxy_doc,
                         " success",
                         (status->origin == CLIENT_REQ) ? " error" : " success",
-                        (status->origin == INTERNAL) ? " error" : " success",
+                        (status->origin == INTERNAL) ?   " error" : " success",
                         (status->origin == SERVER_REQ) ? " error" : (status->status == 0 ? "" : " success"),
                         (status->origin == CLIENT_RES) ? " error" : " success",
-                        (status->origin == SERVER) ? " error" : (status->status == 0 ? "" : " success"),
+                        (status->origin == SERVER) ?     " error" : (status->status == 0 ? "" : " success"),
                         (status->origin == SERVER_RES) ? " error" : (status->status == 0 ? "" : " success"),
-                        (status->origin == INTERNAL) ? " error" : " success",
+                        (status->origin == INTERNAL) ?   " error" : " success",
                         (status->origin == INTERNAL || status->origin == SERVER) ? " error" : " success",
                         res->status->code,
                         res->status->msg,
                         (status->status == 0) ? "???" : stat_str,
                         (status_hdr != NULL) ? status_hdr->msg : "",
-                        ctx->req_host);
+                        ctx->req_host, SERVER_NAME);
                 proxy_doc = msg_pre_buf_2;
             }
 
-            sprintf(msg_pre_buf_1, info->doc, res->status->code, res->status->msg, http_msg != NULL ? http_msg->msg : "", err_msg[0] != 0 ? err_msg : "");
-            ctx->content_length = snprintf(ctx->msg_buf, sizeof(ctx->msg_buf), http_default_document, res->status->code,
-                                           res->status->msg, msg_pre_buf_1, info->mode, info->icon, info->color, ctx->req_host,
-                                           proxy_doc, ctx->msg_content[0] != 0 ? ctx->msg_content : "");
+            snprintf(msg_pre_buf_1, sizeof(msg_pre_buf_1), http_info->doc,
+                     res->status->code, res->status->msg, http_msg != NULL ? http_msg->msg : "", err_msg[0] != 0 ? err_msg : "");
+            ctx->content_length = snprintf(ctx->msg_buf, sizeof(ctx->msg_buf), http_default_doc, res->status->code,
+                                           res->status->msg, msg_pre_buf_1, http_info->mode, http_info->icon, http_info->color, ctx->req_host,
+                                           proxy_doc, ctx->msg_content[0] != 0 ? ctx->msg_content : "", SERVER_STR_HTML);
         }
         if (ctx->content_length >= 0) {
             sprintf(buf0, "%li", ctx->content_length);

@@ -32,9 +32,9 @@
 #define HTTP_5XX_STR "\x1B[1;31m"
 
 #define HTTP_COLOR_SUCCESS "#008000"
-#define HTTP_COLOR_INFO "#606060"
+#define HTTP_COLOR_INFO    "#606060"
 #define HTTP_COLOR_WARNING "#E0C000"
-#define HTTP_COLOR_ERROR "#C00000"
+#define HTTP_COLOR_ERROR   "#C00000"
 
 #define CLIENT_MAX_HEADER_SIZE 8192
 #define HTTP_MAX_HEADER_FIELD_NUM 64
@@ -117,16 +117,10 @@ extern const http_status_msg http_status_messages[];
 extern const int http_statuses_size;
 extern const int http_status_messages_size;
 
-extern const char http_default_document[];
-extern const char http_proxy_document[];
-extern const char http_error_document[];
-extern const char http_error_icon[];
-extern const char http_warning_document[];
-extern const char http_warning_icon[];
-extern const char http_success_document[];
-extern const char http_success_icon[];
-extern const char http_info_document[];
-extern const char http_info_icon[];
+extern const char http_error_doc[],   http_error_icon[];
+extern const char http_warning_doc[], http_warning_icon[];
+extern const char http_success_doc[], http_success_icon[];
+extern const char http_info_doc[],    http_info_icon[];
 
 void http_to_camel_case(char *str, int mode);
 
