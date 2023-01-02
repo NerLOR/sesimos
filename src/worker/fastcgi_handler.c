@@ -14,6 +14,7 @@
 #include "../lib/fastcgi.h"
 
 #include <string.h>
+#include <errno.h>
 
 static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx);
 static int fastcgi_handler_2(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx);
@@ -22,9 +23,9 @@ void fastcgi_handler_func(client_ctx_t *ctx) {
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
 
     fastcgi_cnx_t fcgi_cnx;
-    fastcgi_handler_1(ctx, &fcgi_cnx);
+    int ret = fastcgi_handler_1(ctx, &fcgi_cnx);
     respond(ctx);
-    fastcgi_handler_2(ctx, &fcgi_cnx);
+    if (ret == 0) fastcgi_handler_2(ctx, &fcgi_cnx);
     request_complete(ctx);
 
     handle_request(ctx);
@@ -64,7 +65,7 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
     if (fastcgi_init(fcgi_cnx, mode, 0 /* TODO */, ctx->req_num, client, req, uri) != 0) {
         res->status = http_get_status(503);
         sprintf(err_msg, "Unable to communicate with FastCGI socket.");
-        return 0;
+        return 2;
     }
 
     const char *client_content_length = http_get_header_field(&req->hdr, "Content-Length");
@@ -84,13 +85,13 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
             sprintf(err_msg, "Unable to communicate with FastCGI socket.");
         }
         res->status = http_get_status(502);
-        return 0;
+        return 2;
     }
     fastcgi_close_stdin(fcgi_cnx);
 
     ret = fastcgi_header(fcgi_cnx, res, err_msg);
     if (ret != 0) {
-        return (ret < 0) ? -1 : 0;
+        return (ret < 0) ? -1 : 1;
     }
 
     const char *status_hdr = http_get_header_field(&res->hdr, "Status");
@@ -106,7 +107,7 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
         } else if (res->status == NULL) {
             res->status = http_get_status(500);
             sprintf(err_msg, "The status_hdr code was set to an invalid or unknown value.");
-            return 0;
+            return 2;
         }
     }
 
@@ -122,7 +123,7 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
         ctx->content_length <= sizeof(ctx->msg_content) - 1)
     {
         fastcgi_dump(fcgi_cnx, ctx->msg_content, sizeof(ctx->msg_content));
-        return 0;
+        return 1;
     }
 
     ctx->use_fastcgi = 1;
@@ -160,9 +161,9 @@ static int fastcgi_handler_2(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
 
     int flags = (chunked ? FASTCGI_CHUNKED : 0) | (ctx->use_fastcgi & (FASTCGI_COMPRESS | FASTCGI_COMPRESS_HOLD));
     int ret = fastcgi_send(fcgi_cnx, &ctx->socket, flags);
-
     if (ret < 0) {
         ctx->c_keep_alive = 0;
+        errno = 0;
     }
 
     if (fcgi_cnx->socket != 0) {
