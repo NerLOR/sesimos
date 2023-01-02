@@ -19,6 +19,10 @@ int async(sock *s, short events, int flags, void cb(void *), void *arg, void err
 
 int async_fd(int fd, short events, int flags, void cb(void *), void *arg, void err_cb(void *), void *err_arg);
 
+int async_init(void);
+
+void async_free(void);
+
 void async_thread(void);
 
 void async_stop(void);

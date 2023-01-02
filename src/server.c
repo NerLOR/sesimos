@@ -244,12 +244,19 @@ int main(int argc, char *const argv[]) {
         }
     }
 
+    if (async_init() != 0) {
+        critical("Unable to initialize async thread");
+        geoip_free();
+        return 1;
+    }
+
     proxy_preload();
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         if (listen(sockets[i], LISTEN_BACKLOG) < 0) {
             critical("Unable to listen on socket %i", i);
             geoip_free();
+            proxy_unload();
             return 1;
         }
     }
@@ -264,7 +271,12 @@ int main(int argc, char *const argv[]) {
 
     async_thread();
 
+    warning("Async thread finished");
+    notice("Goodbye?");
+
     // cleanup
     geoip_free();
+    proxy_unload();
+    async_free();
     return 0;
 }

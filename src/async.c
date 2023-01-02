@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <memory.h>
 #include <pthread.h>
+#include <semaphore.h>
 
 typedef struct {
     int fd;
@@ -34,10 +35,22 @@ typedef struct {
 static listen_queue_t listen1, listen2, *listen_q = &listen1;
 static volatile sig_atomic_t alive = 1;
 static pthread_t thread = -1;
+static sem_t lock;
 
 static int async_add_to_queue(evt_listen_t *evt) {
-    // TODO locking
+    try_again:
+    if (sem_wait(&lock) != 0) {
+        if (errno == EINTR) {
+            goto try_again;
+        } else {
+            return -1;
+        }
+    }
+
     memcpy(&listen_q->q[listen_q->n++], evt, sizeof(*evt));
+
+    sem_post(&lock);
+
     return 0;
 }
 
@@ -116,6 +129,20 @@ int async(sock *s, short events, int flags, void cb(void *), void *arg, void err
             .err_arg = err_arg,
     };
     return async_add(&evt);
+}
+
+int async_init(void) {
+    if (sem_init(&lock, 0, 1) != 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+void async_free(void) {
+    int e = errno;
+    sem_destroy(&lock);
+    errno = e;
 }
 
 void async_thread(void) {
