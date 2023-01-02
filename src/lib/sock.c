@@ -154,7 +154,7 @@ int sock_close(sock *s) {
 int sock_check(sock *s) {
     char buf;
     int e = errno;
-    long ret = recv(s->socket, &buf, 1, MSG_PEEK | MSG_DONTWAIT);
+    long ret = sock_recv(s, &buf, 1, MSG_PEEK | MSG_DONTWAIT);
     errno = e;
     return ret == 1;
 }
