@@ -42,28 +42,28 @@ static int async_add_to_queue(evt_listen_t *evt) {
 }
 
 static int async_exec(evt_listen_t *evt, short r_events) {
+    int ret, e = errno;
     if (r_events & evt->events) {
         // specified event(s) occurred
         if (evt->socket && !sock_check(evt->socket)) {
             evt->err_cb(evt->err_arg);
-            errno = 0;
+            ret = 0;
         } else {
             evt->cb(evt->arg);
-            errno = 0;
-
-            if (evt->flags & ASYNC_KEEP)
-                return 1;
+            ret = (evt->flags & ASYNC_KEEP) ? 1 : 0;
         }
-        return 0;
     } else if (r_events & (POLLERR | POLLHUP | POLLNVAL)) {
         // error occurred
         evt->err_cb(evt->err_arg);
-        errno = 0;
-        return 0;
+        ret = 0;
     } else {
         // no event occurred
-        return -1;
+        ret = -1;
     }
+
+    logger_set_prefix("");
+    errno = e;
+    return ret;
 }
 
 static int async_check(evt_listen_t *evt) {
