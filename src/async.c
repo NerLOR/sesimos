@@ -8,6 +8,7 @@
 
 #include "async.h"
 #include "logger.h"
+#include "lib/list.h"
 
 #include <poll.h>
 #include <signal.h>
@@ -29,7 +30,7 @@ typedef struct {
 
 typedef struct {
     int n;
-    evt_listen_t q[256];
+    evt_listen_t q[64];
 } listen_queue_t;
 
 static listen_queue_t listen1, listen2, *listen_q = &listen1;
@@ -149,31 +150,30 @@ void async_free(void) {
 }
 
 void async_thread(void) {
-    listen_queue_t local_q;
-    struct pollfd fds[256];  // TODO dynamic
+    evt_listen_t *local = list_create(sizeof(evt_listen_t), 16);
 
     thread = pthread_self();
-    local_q.n = 0;
 
     // main event loop
     while (alive) {
         // swap listen queue
         listen_queue_t *l = listen_q;
         listen_q = (listen_q == &listen1) ? &listen2 : &listen1;
-        int num_fds = 0;
 
-        // fill fds with previously added queue entries
-        for (int i = 0; i < l->n; i++, local_q.n++) {
-            memcpy(&local_q.q[local_q.n], &l->q[i], sizeof(evt_listen_t));
+        // fill local list with previously added queue entries
+        for (int i = 0; i < l->n; i++) {
+            local = list_append(local, &l->q[i]);
         }
 
         // reset size of queue
         l->n = 0;
 
         // fill fds with newly added queue entries
-        for (int i = 0; i < local_q.n; i++, num_fds++) {
-            fds[num_fds].fd = local_q.q[i].fd;
-            fds[num_fds].events = local_q.q[i].events;
+        int num_fds = 0;
+        struct pollfd fds[list_size(local)];
+        for (int i = 0; i < list_size(local); i++, num_fds++) {
+            fds[num_fds].fd = local[i].fd;
+            fds[num_fds].events = local[i].events;
         }
 
         if (poll(fds, num_fds, -1) < 0) {
@@ -188,13 +188,14 @@ void async_thread(void) {
             }
         }
 
-        local_q.n = 0;
-        for (int i = 0; i < num_fds; i++) {
-            evt_listen_t *evt = &local_q.q[i];
-            if (async_exec(evt, fds[i].revents) != 0)
-                memcpy(&local_q.q[local_q.n++], evt, sizeof(*evt));
+        for (int i = 0, j = 0; i < num_fds; i++, j++) {
+            evt_listen_t *evt = &local[j];
+            if (async_exec(evt, fds[i].revents) == 0)
+                local = list_remove(local, j--);
         }
     }
+
+    list_free(local);
 }
 
 void async_stop(void) {

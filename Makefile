@@ -35,7 +35,7 @@ bin/worker:
 bin/res:
 	mkdir -p bin/res
 
-bin/test: test/mock_*.c test/test_*.c src/lib/utils.c src/lib/sock.c
+bin/test: test/mock_*.c test/test_*.c src/lib/utils.c src/lib/sock.c src/lib/list.c
 	$(CC) -o $@ $(CFLAGS) $^ -lcriterion
 
 
@@ -61,7 +61,7 @@ bin/sesimos: bin/server.o bin/logger.o bin/cache_handler.o bin/async.o bin/worke
 			 bin/lib/http_static.o bin/res/default.o bin/res/proxy.o bin/res/style.o \
 			 bin/lib/compress.o bin/lib/config.o bin/lib/fastcgi.o bin/lib/geoip.o \
 			 bin/lib/http.o  bin/lib/proxy.o bin/lib/sock.o bin/lib/uri.o \
-		     bin/lib/utils.o bin/lib/websocket.o bin/lib/mpmc.o
+		     bin/lib/utils.o bin/lib/websocket.o bin/lib/mpmc.o bin/lib/list.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
 
 
@@ -96,6 +96,8 @@ bin/lib/fastcgi.o: src/lib/fastcgi.h src/server.h src/lib/utils.h src/lib/compre
 bin/lib/geoip.o: src/lib/geoip.h
 
 bin/lib/http.o: src/lib/http.h src/lib/utils.h src/lib/compress.h src/lib/sock.h src/logger.h
+
+bin/lib/list.o: src/lib/list.h
 
 bin/lib/mpmc.o: src/lib/mpmc.h src/logger.h
 
