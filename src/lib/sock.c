@@ -138,6 +138,7 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len)
 }
 
 int sock_close(sock *s) {
+    int e = errno;
     if ((int) s->enc && s->ssl != NULL) {
         if (s->_last_ret >= 0) SSL_shutdown(s->ssl);
         SSL_free(s->ssl);
@@ -146,13 +147,16 @@ int sock_close(sock *s) {
     close(s->socket);
     s->socket = 0;
     s->enc = 0;
-    errno = 0;
+    errno = e;
     return 0;
 }
 
 int sock_check(sock *s) {
     char buf;
-    return recv(s->socket, &buf, 1, MSG_PEEK | MSG_DONTWAIT) == 1;
+    int e = errno;
+    long ret = recv(s->socket, &buf, 1, MSG_PEEK | MSG_DONTWAIT);
+    errno = e;
+    return ret == 1;
 }
 
 int sock_poll(sock *sockets[], sock *ready[], sock *error[], int n_sock, int *n_ready, int *n_error, short events, int timeout_ms) {
