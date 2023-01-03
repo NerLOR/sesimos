@@ -152,6 +152,8 @@ void async_free(void) {
 void async_thread(void) {
     evt_listen_t *local = list_create(sizeof(evt_listen_t), 16);
 
+    // TODO use epoll instead of poll
+
     thread = pthread_self();
 
     // main event loop
