@@ -25,6 +25,9 @@
 #define http_icon_warning       _binary_bin_res_icon_warning_txt_start
 #define http_icon_warning_size  ((unsigned int) (_binary_bin_res_icon_warning_txt_end - _binary_bin_res_icon_warning_txt_start) - 1)
 
+#define http_icon_globe         _binary_bin_res_globe_txt_start
+#define http_icon_globe_size    ((unsigned int) (_binary_bin_res_globe_txt_end - _binary_bin_res_globe_txt_start) - 1)
+
 typedef struct {
     const char *name;
     const char *type;
@@ -52,5 +55,8 @@ extern const char _binary_bin_res_icon_success_txt_end[];
 
 extern const char _binary_bin_res_icon_warning_txt_start[];
 extern const char _binary_bin_res_icon_warning_txt_end[];
+
+extern const char _binary_bin_res_globe_txt_start[];
+extern const char _binary_bin_res_globe_txt_end[];
 
 #endif //SESIMOS_RES_H

@@ -143,6 +143,7 @@ static int request_handler(client_ctx_t *ctx) {
                 {"icon-info.svg",    "image/svg+xml; charset=UTF-8", http_icon_info,    http_icon_info_size},
                 {"icon-success.svg", "image/svg+xml; charset=UTF-8", http_icon_success, http_icon_success_size},
                 {"icon-warning.svg", "image/svg+xml; charset=UTF-8", http_icon_warning, http_icon_warning_size},
+                {"globe.svg",        "image/svg+xml; charset=UTF-8", http_icon_globe,   http_icon_globe_size},
         };
 
         res->status = http_get_status(404);
