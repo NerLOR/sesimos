@@ -130,7 +130,13 @@ static int request_handler(client_ctx_t *ctx) {
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
     info(BLD_STR "%s %s", req->method, req->uri);
 
-    if (strncmp(req->uri, "/.sesimos/res/", 14) == 0 && (strcmp(req->method, "GET") == 0 || strcmp(req->method, "HEAD") == 0)) {
+    if (strncmp(req->uri, "/.sesimos/res/", 14) == 0) {
+        if (strcmp(req->method, "GET") != 0 && strcmp(req->method, "HEAD") != 0) {
+            res->status = http_get_status(405);
+            http_add_header_field(&res->hdr, "Allow", "GET, HEAD");
+            return 0;
+        }
+
         const res_t resources[] = {
                 {"style.css",        "text/css; charset=UTF-8",      http_style_doc,    http_style_doc_size},
                 {"icon-error.svg",   "image/svg+xml; charset=UTF-8", http_icon_error,   http_icon_error_size},
