@@ -38,12 +38,23 @@ void *list_create(int elem_size, int init_elem_n) {
     return (unsigned char *) list_ptr + sizeof(list_meta_t);
 }
 
-unsigned int list_size(void *list_ptr) {
+int list_size(const void *list_ptr) {
     list_meta_t *list = (void *) ((unsigned char *) list_ptr - sizeof(list_meta_t));
     return list->size;
 }
 
 void *list_insert(void *list_ptr, void *elem, int n) {
+    void *ptr = NULL;
+    list_ptr = list_insert_ptr(list_ptr, &ptr, n);
+    if (list_ptr != NULL && ptr != NULL) {
+        list_meta_t *list = (void *) ((unsigned char *) list_ptr - sizeof(list_meta_t));
+        memcpy(ptr, elem, list->elem_size);
+    }
+
+    return list_ptr;
+}
+
+void *list_insert_ptr(void *list_ptr, void **elem, int n) {
     list_meta_t *list = (void *) ((unsigned char *) list_ptr - sizeof(list_meta_t));
     if (n < 0)
         n = list->size + n + 1;
@@ -58,7 +69,7 @@ void *list_insert(void *list_ptr, void *elem, int n) {
 
     if (n < list->size)
         memmove(array + (n + 1) * list->elem_size, array + n * list->elem_size, (list->size - n) * list->elem_size);
-    memcpy(array + n * list->elem_size, elem, list->elem_size);
+    *elem = array + n * list->elem_size;
 
     list->size++;
     return (unsigned char *) list + sizeof(list_meta_t);
@@ -66,6 +77,10 @@ void *list_insert(void *list_ptr, void *elem, int n) {
 
 void *list_append(void *list_ptr, void *elem) {
     return list_insert(list_ptr, elem, -1);
+}
+
+void *list_append_ptr(void *list_ptr, void **elem) {
+    return list_insert_ptr(list_ptr, elem, -1);
 }
 
 void *list_remove(void *list_ptr, int n) {
