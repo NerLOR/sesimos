@@ -245,16 +245,8 @@ int http_get_header_field_num(const http_hdr *hdr, const char *field_name) {
 }
 
 int http_get_header_field_num_len(const http_hdr *hdr, const char *field_name, unsigned long len) {
-    char field_name_1[256], field_name_2[256];
-    memcpy(field_name_1, field_name, len);
-    field_name_1[len] = 0;
-    http_to_camel_case(field_name_1, HTTP_LOWER);
-
     for (int i = 0; i < list_size(hdr->fields); i++) {
-        strcpy(field_name_2, http_field_get_name(&hdr->fields[i]));
-        http_to_camel_case(field_name_2, HTTP_LOWER);
-
-        if (strcmp(field_name_1, field_name_2) == 0)
+        if (strncasecmp(field_name, http_field_get_name(&hdr->fields[i]), len) == 0)
             return i;
     }
 
@@ -320,10 +312,6 @@ void http_append_to_header_field(http_field *field, const char *value, unsigned 
 }
 
 void http_remove_header_field(http_hdr *hdr, const char *field_name, int mode) {
-    char field_name_1[256], field_name_2[256];
-    strcpy(field_name_1, field_name);
-    http_to_camel_case(field_name_1, HTTP_LOWER);
-
     int i = 0;
     int diff = 1;
     if (mode == HTTP_REMOVE_LAST) {
@@ -331,9 +319,7 @@ void http_remove_header_field(http_hdr *hdr, const char *field_name, int mode) {
         diff = -1;
     }
     for (; i < list_size(hdr->fields) && i >= 0; i += diff) {
-        strcpy(field_name_2, http_field_get_name(&hdr->fields[i]));
-        http_to_camel_case(field_name_2, HTTP_LOWER);
-        if (strcmp(field_name_1, field_name_2) == 0) {
+        if (strcasecmp(field_name, http_field_get_name(&hdr->fields[i])) == 0) {
             http_free_field(&hdr->fields[i]);
             list_remove(hdr->fields, i);
             if (mode == HTTP_REMOVE_ALL) {
