@@ -12,15 +12,16 @@
 #include "worker/func.h"
 #include "async.h"
 
-static mpmc_t tcp_acceptor_ctx, request_handler_ctx,
-              local_handler_ctx, fastcgi_handler_cxt, proxy_handler_ctx;
+static mpmc_t tcp_acceptor_ctx, request_handler_ctx, local_handler_ctx, fastcgi_handler_cxt, proxy_handler_ctx,
+              ws_frame_handler_ctx;
 
 int workers_init(void) {
-    mpmc_init(&tcp_acceptor_ctx,     8, 64, (void (*)(void *)) tcp_acceptor_func,    "tcp");
-    mpmc_init(&request_handler_ctx, 16, 64, (void (*)(void *)) request_handler_func, "req");
-    mpmc_init(&local_handler_ctx,   16, 64, (void (*)(void *)) local_handler_func,   "local");
-    mpmc_init(&fastcgi_handler_cxt, 16, 64, (void (*)(void *)) fastcgi_handler_func, "fcgi");
-    mpmc_init(&proxy_handler_ctx,   16, 64, (void (*)(void *)) proxy_handler_func,   "proxy");
+    mpmc_init(&tcp_acceptor_ctx,      8, 64, (void (*)(void *)) tcp_acceptor_func,     "tcp");
+    mpmc_init(&request_handler_ctx,  16, 64, (void (*)(void *)) request_handler_func,  "req");
+    mpmc_init(&local_handler_ctx,    16, 64, (void (*)(void *)) local_handler_func,    "local");
+    mpmc_init(&fastcgi_handler_cxt,  16, 64, (void (*)(void *)) fastcgi_handler_func,  "fcgi");
+    mpmc_init(&proxy_handler_ctx,    16, 64, (void (*)(void *)) proxy_handler_func,    "proxy");
+    mpmc_init(&ws_frame_handler_ctx, 16, 64, (void (*)(void *)) ws_frame_handler_func, "ws");
     return -1;
 }
 
@@ -30,6 +31,7 @@ void workers_stop(void) {
     mpmc_stop(&fastcgi_handler_cxt);
     mpmc_stop(&proxy_handler_ctx);
     mpmc_stop(&request_handler_ctx);
+    mpmc_stop(&ws_frame_handler_ctx);
 }
 
 void workers_destroy(void) {
@@ -38,6 +40,7 @@ void workers_destroy(void) {
     mpmc_destroy(&fastcgi_handler_cxt);
     mpmc_destroy(&proxy_handler_ctx);
     mpmc_destroy(&request_handler_ctx);
+    mpmc_destroy(&ws_frame_handler_ctx);
 }
 
 int tcp_accept(client_ctx_t *ctx) {
@@ -67,4 +70,12 @@ int fastcgi_handle(client_ctx_t *ctx) {
 
 int proxy_handle(client_ctx_t *ctx) {
     return mpmc_queue(&proxy_handler_ctx, ctx);
+}
+
+static int ws_handle_frame_cb(ws_ctx_t *ctx) {
+    return mpmc_queue(&ws_frame_handler_ctx, ctx);
+}
+
+int ws_handle_frame(ws_ctx_t *ctx) {
+    return async(ctx->socket, POLLIN, 0, (void (*)(void *)) ws_handle_frame_cb, ctx, (void (*)(void *)) ws_close, ctx);
 }

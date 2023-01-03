@@ -30,6 +30,4 @@ int ws_recv_frame_header(sock *s, ws_frame *frame);
 
 int ws_send_frame_header(sock *s, ws_frame *frame);
 
-int ws_handle_connection(sock *s1, sock *s2);
-
 #endif //SESIMOS_WEBSOCKET_H

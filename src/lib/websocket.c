@@ -6,22 +6,14 @@
  * @date 2022-08-16
  */
 
-#include "../defs.h"
 #include "../logger.h"
 #include "websocket.h"
 #include "utils.h"
 
 #include <string.h>
 #include <openssl/sha.h>
-#include <errno.h>
-#include <signal.h>
 
 static const char ws_key_uuid[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-static volatile sig_atomic_t terminate = 0;
-
-void ws_terminate(int _) {
-    terminate = 1;
-}
 
 int ws_calc_accept_key(const char *key, char *accept_key) {
     if (key == NULL || accept_key == NULL)
@@ -140,68 +132,6 @@ int ws_send_frame_header(sock *s, ws_frame *frame) {
     } else if (ret != ptr - buf) {
         error("Unable to send to socket");
         return -2;
-    }
-
-    return 0;
-}
-
-int ws_handle_connection(sock *s1, sock *s2) {
-    sock *poll_socks[2] = {s1, s2};
-    sock *readable[2], *error[2];
-    int n_sock = 2, n_readable = 0, n_error = 0;
-    ws_frame frame;
-    char buf[CHUNK_SIZE];
-    int closes = 0;
-    long ret;
-
-    signal(SIGINT, ws_terminate);
-    signal(SIGTERM, ws_terminate);
-
-    while (!terminate && closes != 3) {
-        ret = sock_poll_read(poll_socks, readable, error, n_sock, &n_readable, &n_error, WS_TIMEOUT * 1000);
-        if (terminate) {
-            break;
-        } else if (ret < 0) {
-            error("Unable to poll sockets");
-            return -1;
-        } else if (n_readable == 0) {
-            error("Connection timed out");
-            return -2;
-        } else if (n_error > 0) {
-            error("Peer closed connection");
-            return -3;
-        }
-
-        for (int i = 0; i < n_readable; i++) {
-            sock *s = readable[i];
-            sock *o = (s == s1) ? s2 : s1;
-            if (ws_recv_frame_header(s, &frame) != 0) return -3;
-
-            // debug("WebSocket: Peer %s, Opcode=0x%X, Len=%li", (s == s1) ? "1" : "2", frame.opcode, frame.len);
-
-            if (frame.opcode == 0x8) {
-                n_sock--;
-                if (s == s1) {
-                    poll_socks[0] = s2;
-                    closes |= 1;
-                } else {
-                    closes |= 2;
-                }
-            }
-
-            if (ws_send_frame_header(o, &frame) != 0) return -3;
-
-            if (frame.len > 0) {
-                ret = sock_splice(o, s, buf, sizeof(buf), frame.len);
-                if (ret < 0) {
-                    error("Unable to forward data in WebSocket");
-                    return -4;
-                } else if (ret != frame.len) {
-                    error("Unable to forward correct number of bytes in WebSocket");
-                    return -4;
-                }
-            }
-        }
     }
 
     return 0;

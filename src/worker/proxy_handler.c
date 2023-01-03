@@ -27,23 +27,16 @@ void proxy_handler_func(client_ctx_t *ctx) {
 
     if (ctx->use_proxy == 0) {
         proxy_close(ctx->proxy);
-        request_complete(ctx);
-        handle_request(ctx);
     } else if (ctx->use_proxy == 1) {
         proxy_handler_2(ctx);
-        request_complete(ctx);
     } else if (ctx->use_proxy == 2) {
         // WebSocket
-        sock_set_timeout(&ctx->socket, WS_TIMEOUT);
-        sock_set_timeout(&ctx->proxy->proxy, WS_TIMEOUT);
-        info("Upgrading connection to WebSocket connection");
-        if (ws_handle_connection(&ctx->socket, &ctx->proxy->proxy) != 0) {
-            ctx->c_keep_alive = 0;
-            proxy_close(ctx->proxy);
-        }
-        info("WebSocket connection closed");
+        ws_handle_connection(ctx);
         return;
     }
+
+    request_complete(ctx);
+    handle_request(ctx);
 }
 
 static int proxy_handler_1(client_ctx_t *ctx) {

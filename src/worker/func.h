@@ -38,7 +38,8 @@ typedef struct {
 
 typedef struct {
     client_ctx_t *client;
-    sock *s1, *s2, *s, *r;
+    sock *socket;
+    void *other;
 } ws_ctx_t;
 
 void tcp_acceptor_func(client_ctx_t *ctx);
@@ -60,5 +61,9 @@ void request_complete(client_ctx_t *ctx);
 void tcp_close(client_ctx_t *ctx);
 
 void proxy_close(proxy_ctx_t *ctx);
+
+int ws_handle_connection(client_ctx_t *ctx);
+
+void ws_close(ws_ctx_t *ctx);
 
 #endif //SESIMOS_FUNC_H
