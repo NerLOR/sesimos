@@ -63,6 +63,10 @@ static int request_handler(client_ctx_t *ctx) {
     ctx->req_host[0] = 0;
     ctx->err_msg[0] = 0;
 
+    memset(&ctx->uri, 0, sizeof(ctx->uri));
+    memset(&ctx->req, 0, sizeof(ctx->req));
+    memset(&ctx->res, 0, sizeof(ctx->res));
+
     http_res *res = &ctx->res;
     res->status = http_get_status(501);
     http_init_hdr(&res->hdr);
