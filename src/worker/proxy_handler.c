@@ -22,10 +22,12 @@ static int proxy_handler_2(client_ctx_t *ctx);
 void proxy_handler_func(client_ctx_t *ctx) {
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
 
-    proxy_handler_1(ctx);
+    int ret = proxy_handler_1(ctx);
     respond(ctx);
 
-    if (ctx->use_proxy == 0) {
+    if (ret == 1) {
+
+    } else if (ctx->use_proxy == 0) {
         proxy_close(ctx->proxy);
     } else if (ctx->use_proxy == 1) {
         proxy_handler_2(ctx);
@@ -74,7 +76,10 @@ static int proxy_handler_1(client_ctx_t *ctx) {
         const char *content_type = http_get_header_field(&res->hdr, "Content-Type");
         const char *content_length_f = http_get_header_field(&res->hdr, "Content-Length");
         const char *content_encoding = http_get_header_field(&res->hdr, "Content-Encoding");
-        if (content_encoding == NULL && content_type != NULL && content_length_f != NULL && strncmp(content_type, "text/html", 9) == 0) {
+        if (content_encoding == NULL && (
+                (content_length_f != NULL && strcmp(content_length_f, "0") == 0) ||
+                (content_type != NULL && content_length_f != NULL && strncmp(content_type, "text/html", 9) == 0)))
+        {
             long content_len = strtol(content_length_f, NULL, 10);
             if (content_len <= sizeof(ctx->msg_content) - 1) {
                 if (status->status != 101) {
@@ -82,7 +87,11 @@ static int proxy_handler_1(client_ctx_t *ctx) {
                     status->origin = res->status->code >= 400 ? SERVER : NONE;
                 }
                 ctx->use_proxy = 0;
-                proxy_dump(ctx->proxy, ctx->msg_content, content_len);
+
+                if (content_len > 0)
+                    proxy_dump(ctx->proxy, ctx->msg_content, content_len);
+
+                return 1;
             }
         }
     }
