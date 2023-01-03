@@ -9,6 +9,8 @@
 #ifndef SESIMOS_SERVER_H
 #define SESIMOS_SERVER_H
 
+#include "worker/func.h"
+
 #include <signal.h>
 
 #define NUM_SOCKETS 2
@@ -23,5 +25,7 @@
 #define REQ_HANDLER_WORKERS 16
 
 extern volatile sig_atomic_t server_alive;
+
+void server_free_client(client_ctx_t *ctx);
 
 #endif //SESIMOS_SERVER_H

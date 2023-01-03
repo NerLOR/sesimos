@@ -126,5 +126,5 @@ void tcp_close(client_ctx_t *ctx) {
     char buf[32];
     info("Connection closed (%s)", format_duration(ctx->cnx_e - ctx->cnx_s, buf));
 
-    memset(ctx, 0, sizeof(*ctx));
+    server_free_client(ctx);
 }

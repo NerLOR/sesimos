@@ -17,6 +17,7 @@
 #include "lib/geoip.h"
 #include "workers.h"
 #include "worker/func.h"
+#include "lib/list.h"
 
 #include <stdio.h>
 #include <getopt.h>
@@ -39,7 +40,7 @@ const char *config_file;
 static int sockets[NUM_SOCKETS];
 static SSL_CTX *contexts[CONFIG_MAX_CERT_CONFIG];
 
-static client_ctx_t clients[MAX_CLIENTS];  // TODO dynamic
+static client_ctx_t **clients;
 
 static const char *color_table[] = {"\x1B[31m", "\x1B[32m", "\x1B[33m", "\x1B[34m", "\x1B[35m", "\x1B[36m"};
 
@@ -58,15 +59,34 @@ static int ssl_servername_cb(SSL *ssl, int *ad, void *arg) {
     return SSL_TLSEXT_ERR_OK;
 }
 
+void server_free_client(client_ctx_t *ctx) {
+    for (int i = 0; i < list_size(clients); i++) {
+        if (clients[i] == ctx) {
+            clients = list_remove(clients, i);
+            break;
+        }
+    }
+    free(ctx);
+}
+
 static void accept_cb(void *arg) {
     int i = (int) (((int *) arg) - sockets);
     int fd = sockets[i];
 
-    int j;
-    for (j = 0; j < MAX_CLIENTS; j++) {
-        if (clients[j].in_use == 0) break;
+    client_ctx_t *client_ctx = malloc(sizeof(client_ctx_t));
+    if (client_ctx == NULL) {
+        critical("Unable to allocate memory for client context");
+        errno = 0;
+        return;
     }
-    client_ctx_t *client_ctx = &clients[j];
+
+    clients = list_append(clients, &client_ctx);
+    if (clients == NULL) {
+        critical("Unable to add client context to list");
+        errno = 0;
+        return;
+    }
+
     client_ctx->in_use = 1;
     sock *client = &client_ctx->socket;
 
@@ -127,7 +147,11 @@ int main(int argc, char *const argv[]) {
     int ret;
 
     memset(sockets, 0, sizeof(sockets));
-    memset(clients, 0, sizeof(clients));
+    clients = list_create(sizeof(void *), 64);
+    if (clients == NULL) {
+        critical("Unable to initialize client list");
+        return 1;
+    }
 
     const struct sockaddr_in6 addresses[2] = {
             {.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_ANY_INIT, .sin6_port = htons(80)},
