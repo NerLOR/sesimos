@@ -50,6 +50,7 @@ static int request_handler(client_ctx_t *ctx) {
 
     err_msg[0] = 0;
 
+    ctx->conf = NULL;
     ctx->file = NULL;
     ctx->proxy = NULL;
     ctx->use_fastcgi = 0;
