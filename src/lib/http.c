@@ -10,6 +10,7 @@
 #include "http.h"
 #include "utils.h"
 #include "compress.h"
+#include "list.h"
 
 #include <string.h>
 
@@ -69,10 +70,10 @@ void http_free_field(http_field *f) {
 }
 
 void http_free_hdr(http_hdr *hdr) {
-    for (int i = 0; i < hdr->field_num; i++) {
+    for (int i = 0; i < list_size(hdr->fields); i++) {
         http_free_field(&hdr->fields[i]);
     }
-    hdr->field_num = 0;
+    list_free(hdr->fields);
     hdr->last_field_num = -1;
 }
 
@@ -86,8 +87,16 @@ void http_free_res(http_res *res) {
     http_free_hdr(&res->hdr);
 }
 
+int http_init_hdr(http_hdr *hdr) {
+    hdr->fields = list_create(sizeof(http_field), HTTP_INIT_HEADER_FIELD_NUM);
+    if (hdr->fields == NULL)
+        return -1;
+
+    return 0;
+}
+
 int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr, int flags) {
-    if (hdr->last_field_num > hdr->field_num) {
+    if (hdr->last_field_num > list_size(hdr->fields)) {
         error("Unable to parse header: Invalid state");
         return 3;
     }
@@ -117,7 +126,7 @@ int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr,
     str_trim_lws(&pos1, &pos2);
     long len2 = pos2 - pos1;
 
-    char field_num = hdr->field_num;
+    int field_num = list_size(hdr->fields);
     int found = http_get_header_field_num_len(hdr, buf, len1);
     if (!(flags & HTTP_MERGE_FIELDS) || found == -1) {
         if (http_add_header_field_len(hdr, buf, len1, pos1, len2 < 0 ? 0 : len2) != 0) {
@@ -125,12 +134,12 @@ int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr,
             return 3;
         }
     } else {
-        field_num = (char) found;
+        field_num = found;
         http_append_to_header_field(&hdr->fields[found], ", ", 2);
         http_append_to_header_field(&hdr->fields[found], pos1, len2);
     }
 
-    hdr->last_field_num = (char) field_num;
+    hdr->last_field_num = field_num;
     return 0;
 }
 
@@ -142,8 +151,8 @@ int http_receive_request(sock *client, http_req *req) {
     memset(req->method, 0, sizeof(req->method));
     memset(req->version, 0, sizeof(req->version));
     req->uri = NULL;
-    req->hdr.field_num = 0;
     req->hdr.last_field_num = -1;
+    http_init_hdr(&req->hdr);
 
     while (1) {
         rcv_len = sock_recv(client, buf, CLIENT_MAX_HEADER_SIZE, MSG_PEEK);
@@ -228,7 +237,7 @@ const char *http_get_header_field(const http_hdr *hdr, const char *field_name) {
 
 const char *http_get_header_field_len(const http_hdr *hdr, const char *field_name, unsigned long len) {
     int num = http_get_header_field_num_len(hdr, field_name, len);
-    return (num >= 0 && num < HTTP_MAX_HEADER_FIELD_NUM) ? http_field_get_value(&hdr->fields[num]) : NULL;
+    return (num >= 0 && num < list_size(hdr->fields)) ? http_field_get_value(&hdr->fields[num]) : NULL;
 }
 
 int http_get_header_field_num(const http_hdr *hdr, const char *field_name) {
@@ -241,7 +250,7 @@ int http_get_header_field_num_len(const http_hdr *hdr, const char *field_name, u
     field_name_1[len] = 0;
     http_to_camel_case(field_name_1, HTTP_LOWER);
 
-    for (int i = 0; i < hdr->field_num; i++) {
+    for (int i = 0; i < list_size(hdr->fields); i++) {
         strcpy(field_name_2, http_field_get_name(&hdr->fields[i]));
         http_to_camel_case(field_name_2, HTTP_LOWER);
 
@@ -257,10 +266,8 @@ int http_add_header_field(http_hdr *hdr, const char *field_name, const char *fie
 }
 
 int http_add_header_field_len(http_hdr *hdr, const char *name, unsigned long name_len, const char *value, unsigned long value_len) {
-    if (hdr->field_num >= HTTP_MAX_HEADER_FIELD_NUM)
-        return -1;
-
-    http_field *f = &hdr->fields[(int) hdr->field_num];
+    http_field *f;
+    hdr->fields = list_append_ptr(hdr->fields, (void **) &f);
 
     if (name_len < sizeof(f->normal.name) && value_len < sizeof(f->normal.value)) {
         f->type = HTTP_FIELD_NORMAL;
@@ -288,7 +295,6 @@ int http_add_header_field_len(http_hdr *hdr, const char *name, unsigned long nam
         http_to_camel_case(f->ex_name.name, HTTP_PRESERVE);
     }
 
-    hdr->field_num++;
     return 0;
 }
 
@@ -321,16 +327,15 @@ void http_remove_header_field(http_hdr *hdr, const char *field_name, int mode) {
     int i = 0;
     int diff = 1;
     if (mode == HTTP_REMOVE_LAST) {
-        i = hdr->field_num - 1;
+        i = list_size(hdr->fields) - 1;
         diff = -1;
     }
-    for (; i < hdr->field_num && i >= 0; i += diff) {
+    for (; i < list_size(hdr->fields) && i >= 0; i += diff) {
         strcpy(field_name_2, http_field_get_name(&hdr->fields[i]));
         http_to_camel_case(field_name_2, HTTP_LOWER);
         if (strcmp(field_name_1, field_name_2) == 0) {
             http_free_field(&hdr->fields[i]);
-            memmove(&hdr->fields[i], &hdr->fields[i + 1], sizeof(hdr->fields[0]) * (hdr->field_num - i));
-            hdr->field_num--;
+            list_remove(hdr->fields, i);
             if (mode == HTTP_REMOVE_ALL) {
                 i -= diff;
             } else {
@@ -343,7 +348,7 @@ void http_remove_header_field(http_hdr *hdr, const char *field_name, int mode) {
 int http_send_response(sock *client, http_res *res) {
     char buf[CLIENT_MAX_HEADER_SIZE];
     long off = sprintf(buf, "HTTP/%s %03i %s\r\n", res->version, res->status->code, res->status->msg);
-    for (int i = 0; i < res->hdr.field_num; i++) {
+    for (int i = 0; i < list_size(res->hdr.fields); i++) {
         const http_field *f = &res->hdr.fields[i];
         off += sprintf(buf + off, "%s: %s\r\n", http_field_get_name(f), http_field_get_value(f));
     }
@@ -357,7 +362,7 @@ int http_send_response(sock *client, http_res *res) {
 int http_send_request(sock *server, http_req *req) {
     char buf[CLIENT_MAX_HEADER_SIZE];
     long off = sprintf(buf, "%s %s HTTP/%s\r\n", req->method, req->uri, req->version);
-    for (int i = 0; i < req->hdr.field_num; i++) {
+    for (int i = 0; i < list_size(req->hdr.fields); i++) {
         const http_field *f = &req->hdr.fields[i];
         off += sprintf(buf + off, "%s: %s\r\n", http_field_get_name(f), http_field_get_value(f));
     }

@@ -11,6 +11,7 @@
 #include "compress.h"
 #include "../server.h"
 #include "../logger.h"
+#include "list.h"
 
 #include <sys/un.h>
 #include <sys/socket.h>
@@ -154,7 +155,7 @@ int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int req_num, const sock
     //    param_ptr = fastcgi_add_param(param_ptr, "REMOTE_INFO", conn->ctx->geoip);
     //}
 
-    for (int i = 0; i < req->hdr.field_num; i++) {
+    for (int i = 0; i < list_size(&req->hdr); i++) {
         const http_field *f = &req->hdr.fields[i];
         const char *name = http_field_get_name(f);
         char *ptr = buf0;

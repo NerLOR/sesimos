@@ -64,7 +64,7 @@ static int request_handler(client_ctx_t *ctx) {
 
     http_res *res = &ctx->res;
     res->status = http_get_status(501);
-    res->hdr.field_num = 0;
+    http_init_hdr(&res->hdr);
     res->hdr.last_field_num = -1;
     sprintf(res->version, "1.1");
 

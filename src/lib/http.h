@@ -37,7 +37,7 @@
 #define HTTP_COLOR_ERROR   "#C00000"
 
 #define CLIENT_MAX_HEADER_SIZE 8192
-#define HTTP_MAX_HEADER_FIELD_NUM 32
+#define HTTP_INIT_HEADER_FIELD_NUM 16
 
 #ifndef SERVER_STR
 #   define SERVER_STR "sesimos"
@@ -84,9 +84,8 @@ typedef struct {
 } http_field;
 
 typedef struct {
-    char field_num;
-    char last_field_num;
-    http_field fields[HTTP_MAX_HEADER_FIELD_NUM];
+    int last_field_num;
+    http_field *fields;
 } http_hdr;
 
 typedef struct {
@@ -124,6 +123,8 @@ void http_to_camel_case(char *str, int mode);
 const char *http_field_get_name(const http_field *field);
 
 const char *http_field_get_value(const http_field *field);
+
+int http_init_hdr(http_hdr *hdr);
 
 void http_free_field(http_field *f);
 
