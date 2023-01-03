@@ -130,12 +130,28 @@ static int request_handler(client_ctx_t *ctx) {
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
     info(BLD_STR "%s %s", req->method, req->uri);
 
-    if (strcmp(req->uri, "/.sesimos/style.css") == 0 && (strcmp(req->method, "GET") == 0 || strcmp(req->method, "HEAD") == 0)) {
-        ctx->msg_buf = (char *) http_style_doc;
-        ctx->content_length = http_style_doc_size;
-        res->status= http_get_status(200);
-        http_add_header_field(&res->hdr, "Content-Type", "text/css; charset=UTF-8");
-        http_add_header_field(&res->hdr, "Cache-Control", "public, max-age=3600");
+    if (strncmp(req->uri, "/.sesimos/res/", 14) == 0 && (strcmp(req->method, "GET") == 0 || strcmp(req->method, "HEAD") == 0)) {
+        const res_t resources[] = {
+                {"style.css",        "text/css; charset=UTF-8",      http_style_doc,    http_style_doc_size},
+                {"icon-error.svg",   "image/svg+xml; charset=UTF-8", http_icon_error,   http_icon_error_size},
+                {"icon-info.svg",    "image/svg+xml; charset=UTF-8", http_icon_info,    http_icon_info_size},
+                {"icon-success.svg", "image/svg+xml; charset=UTF-8", http_icon_success, http_icon_success_size},
+                {"icon-warning.svg", "image/svg+xml; charset=UTF-8", http_icon_warning, http_icon_warning_size},
+        };
+
+        res->status = http_get_status(404);
+        for (int i = 0; i < sizeof(resources) / sizeof(res_t); i++) {
+            const res_t *r = &resources[i];
+            if (strcmp(req->uri + 14, r->name) == 0) {
+                res->status = http_get_status(200);
+                http_add_header_field(&res->hdr, "Content-Type", r->type);
+                http_add_header_field(&res->hdr, "Cache-Control", "public, max-age=86400");
+                ctx->msg_buf = (char *) r->content;
+                ctx->content_length = r->size;
+                break;
+            }
+        }
+
         return 0;
     }
 

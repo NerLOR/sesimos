@@ -419,10 +419,10 @@ char *http_get_date(char *buf, size_t size) {
 const http_doc_info *http_get_status_info(const http_status *status) {
     unsigned short code = status->code;
     static http_doc_info info[] = {
-            {"info",    HTTP_COLOR_INFO,    http_info_icon,    http_info_doc},
-            {"success", HTTP_COLOR_SUCCESS, http_success_icon, http_success_doc},
-            {"warning", HTTP_COLOR_WARNING, http_warning_icon, http_warning_doc},
-            {"error",   HTTP_COLOR_ERROR,   http_error_icon,   http_error_doc}
+            {"info",    HTTP_COLOR_INFO,    "/.sesimos/res/icon-info.svg",    http_info_doc},
+            {"success", HTTP_COLOR_SUCCESS, "/.sesimos/res/icon-success.svg", http_success_doc},
+            {"warning", HTTP_COLOR_WARNING, "/.sesimos/res/icon-warning.svg", http_warning_doc},
+            {"error",   HTTP_COLOR_ERROR,   "/.sesimos/res/icon-error.svg",   http_error_doc}
     };
     if (code >= 100 && code < 200) {
         return &info[0];

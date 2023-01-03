@@ -112,25 +112,11 @@ const char http_error_doc[] =
         "      <p>%3$s</p>\n"
         "      <p>%4$s</p>\n";
 
-const char http_error_icon[] =
-        "  <link rel=\"alternate icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
-        "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
-        "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiNDMDAwMDAiIHN0eWxlPSJmb250LWZhbWls"
-        "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjooPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
-
-
 const char http_warning_doc[] =
         "      <h1>%1$i</h1>\n"
         "      <h2>%2$s :&#xFEFF;)</h2>\n"
         "      <p>%3$s</p>\n"
         "      <p>%4$s</p>\n";
-
-const char http_warning_icon[] =
-        "  <link rel=\"alternate icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
-        "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
-        "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiNFMEMwMDAiIHN0eWxlPSJmb250LWZhbWls"
-        "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjopPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
-
 
 const char http_success_doc[] =
         "      <h1>%1$i</h1>\n"
@@ -138,21 +124,8 @@ const char http_success_doc[] =
         "      <p>%3$s</p>\n"
         "      <p>%4$s</p>\n";
 
-const char http_success_icon[] =
-        "  <link rel=\"alternate icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
-        "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
-        "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiMwMDgwMDAiIHN0eWxlPSJmb250LWZhbWls"
-        "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjopPC90ZXh0Pjwvc3ZnPgo=\"/>\n";
-
-
 const char http_info_doc[] =
         "      <h1>%1$i</h1>\n"
         "      <h2>%2$s :&#xFEFF;)</h2>\n"
         "      <p>%3$s</p>\n"
         "      <p>%4$s</p>\n";
-
-const char http_info_icon[] =
-        "  <link rel=\"alternate icon\" type=\"image/svg+xml\" sizes=\"any\" href=\"data:image/svg+xml;base64,"
-        "PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAw"
-        "L3N2ZyI+PHRleHQgeD0iNCIgeT0iMTIiIGZpbGw9IiM2MDYwNjAiIHN0eWxlPSJmb250LWZhbWls"
-        "eTonQXJpYWwnLHNhbnMtc2VyaWYiPjopPC90ZXh0Pjwvc3ZnPgo=\"/>\n";

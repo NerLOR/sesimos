@@ -117,10 +117,7 @@ extern const http_status_msg http_status_messages[];
 extern const int http_statuses_size;
 extern const int http_status_messages_size;
 
-extern const char http_error_doc[],   http_error_icon[];
-extern const char http_warning_doc[], http_warning_icon[];
-extern const char http_success_doc[], http_success_icon[];
-extern const char http_info_doc[],    http_info_icon[];
+extern const char http_error_doc[], http_warning_doc[], http_success_doc[], http_info_doc[];
 
 void http_to_camel_case(char *str, int mode);
 
