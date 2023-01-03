@@ -12,7 +12,6 @@
 #include "../lib/mpmc.h"
 #include "../logger.h"
 #include "../lib/utils.h"
-#include "../lib/websocket.h"
 #include "../server.h"
 #include "../lib/res.h"
 
@@ -55,6 +54,7 @@ static int request_handler(client_ctx_t *ctx) {
     ctx->proxy = NULL;
     ctx->use_fastcgi = 0;
     ctx->use_proxy = 0;
+    ctx->ws_close = 0;
     ctx->proxy = NULL;
     ctx->msg_content[0] = 0;
     ctx->msg_buf = NULL;
@@ -362,6 +362,7 @@ int respond(client_ctx_t *ctx) {
                 snd_len += ret;
             }
         } else if (ctx->use_fastcgi) {
+            // FastCGI
             return 2;
         }
 

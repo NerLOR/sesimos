@@ -9,13 +9,11 @@
 #include "fastcgi.h"
 #include "utils.h"
 #include "compress.h"
-#include "../server.h"
 #include "../logger.h"
 #include "list.h"
 
 #include <sys/un.h>
 #include <sys/socket.h>
-#include <errno.h>
 #include <string.h>
 
 
