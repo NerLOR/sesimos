@@ -57,7 +57,7 @@ static int ws_frame_handler(ws_ctx_t *ctx) {
     if (ws_recv_frame_header(socket, &frame) != 0)
         return -1;
 
-    debug("WebSocket: Peer %s, Opcode=0x%X, Len=%li", (ctx->socket == &ctx->client->socket) ? "1" : "2", frame.opcode, frame.len);
+    debug("WebSocket: Peer %s, Opcode=0x%X, Len=%li", (ctx->socket == &ctx->client->socket) ? "client" : "server", frame.opcode, frame.len);
 
     if (frame.opcode == 0x8) {
         ctx->client->ws_close |= (ctx->socket == &ctx->client->socket) ? 1 : 2;
