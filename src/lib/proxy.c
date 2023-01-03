@@ -217,13 +217,14 @@ int proxy_response_header(http_req *req, http_res *res, host_config_t *conf) {
     return 0;
 }
 
-proxy_ctx_t *proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host_config_t *conf, sock *client, http_status *custom_status, char *err_msg) {
+int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_status_ctx *ctx, host_config_t *conf, sock *client, http_status *custom_status, char *err_msg) {
     char buffer[CHUNK_SIZE];
     const char *connection, *upgrade, *ws_version;
     long ret;
     int tries = 0, retry = 0;
 
-    proxy_ctx_t *proxy = proxy_get_by_conf(conf);
+    *proxy_ptr = proxy_get_by_conf(conf);
+    proxy_ctx_t *proxy = *proxy_ptr;
     proxy->in_use = 1;
 
     if (proxy->initialized && sock_has_pending(&proxy->proxy) == 0)
@@ -243,7 +244,7 @@ proxy_ctx_t *proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host
         error("Unable to create socket");
         res->status = http_get_status(500);
         ctx->origin = INTERNAL;
-        return NULL;
+        return -1;
     }
 
     if (sock_set_timeout(&proxy->proxy, SERVER_TIMEOUT_INIT) != 0)
@@ -331,7 +332,7 @@ proxy_ctx_t *proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host
         } else {
             res->status = http_get_status(501);
             ctx->origin = INTERNAL;
-            return NULL;
+            return -1;
         }
     } else {
         http_remove_header_field(&req->hdr, "Connection", HTTP_REMOVE_ALL);
@@ -342,7 +343,7 @@ proxy_ctx_t *proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host
     if (ret != 0) {
         res->status = http_get_status(500);
         ctx->origin = INTERNAL;
-        return NULL;
+        return -1;
     }
 
     ret = http_send_request(&proxy->proxy, req);
@@ -379,12 +380,12 @@ proxy_ctx_t *proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host
             ctx->origin = CLIENT_REQ;
             error("Unable to receive request from client: %s", sock_strerror(client));
             sprintf(err_msg, "Unable to receive request from client: %s.", sock_strerror(client));
-            return NULL;
+            return -1;
         }
         res->status = http_get_status(500);
         ctx->origin = INTERNAL;
         error("Unknown Error");
-        return NULL;
+        return -1;
     }
 
     ret = sock_recv(&proxy->proxy, buffer, sizeof(buffer), MSG_PEEK);
@@ -480,15 +481,15 @@ proxy_ctx_t *proxy_init(http_req *req, http_res *res, http_status_ctx *ctx, host
     if (ret != 0) {
         res->status = http_get_status(500);
         ctx->origin = INTERNAL;
-        return NULL;
+        return -1;
     }
 
-    return proxy;
+    return 0;
 
     proxy_err:
     errno = 0;
     if (retry) goto retry;
-    return NULL;
+    return -1;
 }
 
 int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int flags) {

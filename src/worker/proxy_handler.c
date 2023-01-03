@@ -25,7 +25,14 @@ void proxy_handler_func(client_ctx_t *ctx) {
     proxy_handler_1(ctx);
     respond(ctx);
 
-    if (ctx->use_proxy == 2) {
+    if (ctx->use_proxy == 0) {
+        proxy_close(ctx->proxy);
+        request_complete(ctx);
+        handle_request(ctx);
+    } else if (ctx->use_proxy == 1) {
+        proxy_handler_2(ctx);
+        request_complete(ctx);
+    } else if (ctx->use_proxy == 2) {
         // WebSocket
         sock_set_timeout(&ctx->socket, WS_TIMEOUT);
         sock_set_timeout(&ctx->proxy->proxy, WS_TIMEOUT);
@@ -37,11 +44,6 @@ void proxy_handler_func(client_ctx_t *ctx) {
         info("WebSocket connection closed");
         return;
     }
-
-    proxy_handler_2(ctx);
-    request_complete(ctx);
-
-    handle_request(ctx);
 }
 
 static int proxy_handler_1(client_ctx_t *ctx) {
@@ -54,8 +56,7 @@ static int proxy_handler_1(client_ctx_t *ctx) {
     http_remove_header_field(&res->hdr, "Date", HTTP_REMOVE_ALL);
     http_remove_header_field(&res->hdr, "Server", HTTP_REMOVE_ALL);
 
-    ctx->proxy = proxy_init(&ctx->req, res, status, ctx->conf, &ctx->socket, &ctx->custom_status, ctx->err_msg);
-    ctx->use_proxy = (ctx->proxy != NULL);
+    ctx->use_proxy = proxy_init(&ctx->proxy, &ctx->req, res, status, ctx->conf, &ctx->socket, &ctx->custom_status, ctx->err_msg) == 0;
 
     if (res->status->code == 101) {
         const char *connection = http_get_header_field(&res->hdr, "Connection");
