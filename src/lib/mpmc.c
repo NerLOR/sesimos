@@ -8,11 +8,6 @@
 #include <pthread.h>
 #include <signal.h>
 
-typedef struct {
-    mpmc_t *ctx;
-    int worker_id;
-} mpmc_arg_t;
-
 static void *mpmc_worker(void *arg);
 
 int mpmc_init(mpmc_t *ctx, int n_workers, int buf_size, void (*consumer)(void *obj), const char *name) {
@@ -40,8 +35,8 @@ int mpmc_init(mpmc_t *ctx, int n_workers, int buf_size, void (*consumer)(void *o
         return -1;
     }
 
-    memset(ctx->buffer,  0, ctx->size      * sizeof(void *));
-    memset(ctx->workers, 0, ctx->n_workers * sizeof(pthread_t));
+    memset(ctx->buffer,   0, ctx->size      * sizeof(void *));
+    memset(ctx->workers, -1, ctx->n_workers * sizeof(pthread_t));
 
     for (int i = 0; i < ctx->n_workers; i++) {
         int ret;
@@ -155,11 +150,9 @@ void mpmc_destroy(mpmc_t *ctx) {
     // stop threads, if running
     mpmc_stop(ctx);
     for (int i = 0; i < ctx->n_workers; i++) {
-        if (ctx->workers[i] == 0) break;
-        // FIXME
+        if (ctx->workers[i] == -1) break;
         pthread_kill(ctx->workers[i], SIGUSR1);
-        //pthread_join(ctx->workers[i], NULL);
-        pthread_cancel(ctx->workers[i]);
+        pthread_join(ctx->workers[i], NULL);
     }
 
     sem_destroy(&ctx->free);

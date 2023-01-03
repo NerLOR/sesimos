@@ -125,8 +125,10 @@ static void terminate_gracefully(int sig) {
     notice("Terminating gracefully...");
 
     server_alive = 0;
-    signal(SIGINT, terminate_forcefully);
-    signal(SIGTERM, terminate_forcefully);
+    struct sigaction act = {0};
+    act.sa_handler = terminate_forcefully;
+    sigaction(SIGINT, &act, NULL);
+    sigaction(SIGTERM, &act, NULL);
 
     workers_stop();
     workers_destroy();
@@ -225,10 +227,13 @@ int main(int argc, char *const argv[]) {
         return 1;
     }
 
-    signal(SIGINT, terminate_gracefully);
-    signal(SIGTERM, terminate_gracefully);
-    signal(SIGUSR1, nothing);
-    signal(SIGPIPE, nothing);
+    struct sigaction act = {0};
+    act.sa_handler = terminate_gracefully;
+    sigaction(SIGINT, &act, NULL);
+    sigaction(SIGTERM, &act, NULL);
+    act.sa_handler = nothing;
+    sigaction(SIGUSR1, &act, NULL);
+    sigaction(SIGPIPE, &act, NULL);
 
     if ((ret = geoip_init(config.geoip_dir)) != 0) {
         if (ret == -1) {
