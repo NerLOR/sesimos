@@ -316,10 +316,7 @@ int respond(client_ctx_t *ctx) {
         }
     }
 
-    int close_proxy = 0;
     if (ctx->use_proxy != 2) {
-        const char *conn = http_get_header_field(&res->hdr, "Connection");
-        close_proxy = (conn == NULL || (strstr(conn, "keep-alive") == NULL && strstr(conn, "Keep-Alive") == NULL));
         http_remove_header_field(&res->hdr, "Connection", HTTP_REMOVE_ALL);
         http_remove_header_field(&res->hdr, "Keep-Alive", HTTP_REMOVE_ALL);
         if (ctx->s_keep_alive && ctx->c_keep_alive) {
@@ -340,16 +337,8 @@ int respond(client_ctx_t *ctx) {
 
     // TODO access/error log file
 
-    if (ctx->use_proxy == 2) {
-        // WebSocket
-        info("Upgrading connection to WebSocket connection");
-        ret = ws_handle_connection(client, &ctx->proxy->proxy);
-        if (ret != 0) {
-            ctx->c_keep_alive = 0;
-            close_proxy = 1;
-        }
-        info("WebSocket connection closed");
-    } else if (ctx->use_proxy) {
+    if (ctx->use_proxy) {
+        // reverse proxy
         return 3;
     } else if (strcmp(req->method, "HEAD") != 0) {
         // default response
@@ -376,21 +365,13 @@ int respond(client_ctx_t *ctx) {
             return 2;
         }
 
-        if (ret < 0) {
-            ctx->c_keep_alive = 0;
-        }
+        if (ret < 0) ctx->c_keep_alive = 0;
     }
 
     return 0;
 }
 
 void request_complete(client_ctx_t *ctx) {
-    // FIXME
-    //if (close_proxy && proxy.socket != 0) {
-    //    info(BLUE_STR "Closing proxy connection");
-    //    sock_close(&proxy);
-    //}
-
     char buf[32];
     ctx->req_e = clock_micros();
     info("Transfer complete: %s", format_duration(ctx->req_e - ctx->req_s, buf));

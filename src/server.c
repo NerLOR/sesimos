@@ -130,6 +130,9 @@ static void terminate_gracefully(int sig) {
     sigaction(SIGINT, &act, NULL);
     sigaction(SIGTERM, &act, NULL);
 
+    // TODO close client connections
+    // TODO close proxy connections
+
     workers_stop();
     workers_destroy();
 

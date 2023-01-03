@@ -18,7 +18,7 @@
 typedef struct {
     sock socket;
     int req_num;
-    unsigned char in_use: 1, s_keep_alive:1, c_keep_alive:1;
+    unsigned char in_use: 1, s_keep_alive:1, c_keep_alive:1, use_fastcgi:4, use_proxy:2, ws_close:2;
     char cc[3], host[256];
     char req_host[256], err_msg[256];
     char log_prefix[128];
@@ -29,7 +29,6 @@ typedef struct {
     http_uri uri;
     http_status_ctx status;
     http_status custom_status;
-    int use_fastcgi, use_proxy;
     host_config_t *conf;
     FILE *file;
     long content_length;
@@ -59,5 +58,7 @@ int respond(client_ctx_t *ctx);
 void request_complete(client_ctx_t *ctx);
 
 void tcp_close(client_ctx_t *ctx);
+
+void proxy_close(proxy_ctx_t *ctx);
 
 #endif //SESIMOS_FUNC_H

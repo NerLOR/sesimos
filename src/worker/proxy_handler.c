@@ -14,6 +14,7 @@
 #include "../workers.h"
 
 #include <string.h>
+#include <errno.h>
 
 static int proxy_handler_1(client_ctx_t *ctx);
 static int proxy_handler_2(client_ctx_t *ctx);
@@ -23,6 +24,17 @@ void proxy_handler_func(client_ctx_t *ctx) {
 
     proxy_handler_1(ctx);
     respond(ctx);
+
+    if (ctx->use_proxy == 2) {
+        // WebSocket
+        info("Upgrading connection to WebSocket connection");
+        if (ws_handle_connection(&ctx->socket, &ctx->proxy->proxy) != 0) {
+            ctx->c_keep_alive = 0;
+            proxy_close(ctx->proxy);
+        }
+        info("WebSocket connection closed");
+    }
+
     proxy_handler_2(ctx);
     request_complete(ctx);
 
@@ -125,4 +137,12 @@ static int proxy_handler_2(client_ctx_t *ctx) {
     }
 
     return ret;
+}
+
+void proxy_close(proxy_ctx_t *ctx) {
+    info(BLUE_STR "Closing proxy connection");
+    sock_close(&ctx->proxy);
+
+    memset(ctx, 0, sizeof(*ctx));
+    errno = 0;
 }

@@ -22,8 +22,7 @@
 #include "config.h"
 
 typedef struct {
-    unsigned char initialized:1;
-    unsigned char in_use:1;
+    unsigned char initialized:1, in_use:1;
     sock proxy;
     char *host;
 } proxy_ctx_t;
