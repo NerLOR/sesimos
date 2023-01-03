@@ -25,11 +25,14 @@ typedef struct {
     unsigned char initialized:1, in_use:1;
     sock proxy;
     char *host;
+    void *client;
 } proxy_ctx_t;
 
 int proxy_preload(void);
 
 void proxy_unload(void);
+
+void proxy_close_all(void);
 
 int proxy_request_header(http_req *req, sock *sock);
 

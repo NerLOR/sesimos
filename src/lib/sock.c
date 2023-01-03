@@ -14,7 +14,6 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <poll.h>
 
 
 int sock_enc_error(sock *s) {
@@ -142,7 +141,7 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len)
 
 int sock_close(sock *s) {
     int e = errno;
-    if ((int) s->enc && s->ssl != NULL) {
+    if (s->enc && s->ssl != NULL) {
         if (s->_last_ret >= 0) SSL_shutdown(s->ssl);
         SSL_free(s->ssl);
         s->ssl = NULL;

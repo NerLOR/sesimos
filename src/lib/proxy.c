@@ -46,6 +46,22 @@ void proxy_unload(void) {
     free(proxies);
 }
 
+void proxy_close_all(void) {
+    int n = 0;
+    for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
+        host_config_t *hc = &config.hosts[i];
+        if (hc->type == CONFIG_TYPE_UNSET) break;
+        if (hc->type != CONFIG_TYPE_REVERSE_PROXY) continue;
+        n++;
+    }
+
+    proxy_ctx_t *ptr = proxies;
+    for (int i = 0; i < MAX_PROXY_CNX_PER_HOST * n; i++, ptr++) {
+        if (ptr->initialized)
+            proxy_close(ptr);
+    }
+}
+
 static proxy_ctx_t *proxy_get_by_conf(host_config_t *conf) {
     // TODO locking void *proxies
     int n = 0;
@@ -225,6 +241,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
 
     *proxy_ptr = proxy_get_by_conf(conf);
     proxy_ctx_t *proxy = *proxy_ptr;
+    proxy->client = NULL;
     proxy->in_use = 1;
 
     if (proxy->initialized && sock_has_pending(&proxy->proxy) == 0)

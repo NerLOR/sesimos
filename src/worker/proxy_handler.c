@@ -52,6 +52,7 @@ static int proxy_handler_1(client_ctx_t *ctx) {
     http_remove_header_field(&res->hdr, "Server", HTTP_REMOVE_ALL);
 
     ctx->use_proxy = proxy_init(&ctx->proxy, &ctx->req, res, status, ctx->conf, &ctx->socket, &ctx->custom_status, ctx->err_msg) == 0;
+    ctx->proxy->client = ctx;
 
     if (res->status->code == 101) {
         const char *connection = http_get_header_field(&res->hdr, "Connection");
@@ -147,6 +148,13 @@ static int proxy_handler_2(client_ctx_t *ctx) {
 }
 
 void proxy_close(proxy_ctx_t *ctx) {
+    client_ctx_t *cctx = ctx->client;
+    if (cctx) {
+        logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, cctx->req_host, CLR_STR, cctx->log_prefix);
+    } else {
+        logger_set_prefix("");
+    }
+
     info(BLUE_STR "Closing proxy connection");
     sock_close(&ctx->proxy);
 

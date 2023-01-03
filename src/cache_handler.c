@@ -6,7 +6,6 @@
  * @date 2020-12-19
  */
 
-#include "server.h"
 #include "logger.h"
 #include "cache_handler.h"
 #include "lib/utils.h"
@@ -20,7 +19,9 @@
 #include <openssl/evp.h>
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <semaphore.h>
+#include <signal.h>
 
 #define CACHE_BUF_SIZE 16
 
@@ -28,6 +29,7 @@
 static magic_t magic;
 static pthread_t thread;
 static sem_t sem_free, sem_used, sem_lock;
+volatile sig_atomic_t alive = 1;
 
 typedef struct {
     int rd;
@@ -203,7 +205,7 @@ static void cache_process_entry(cache_entry_t *entry) {
 static void *cache_thread(void *arg) {
     logger_set_name("cache");
 
-    while (server_alive) {
+    while (alive) {
         pthread_testcancel();
         if (sem_wait(&sem_used) != 0) {
             if (errno == EINTR) {
@@ -278,6 +280,11 @@ int cache_init(void) {
     pthread_create(&thread, NULL, cache_thread, NULL);
 
     return 0;
+}
+
+void cache_stop(void) {
+    alive = 0;
+    pthread_kill(thread, SIGUSR1);
 }
 
 int cache_join(void) {

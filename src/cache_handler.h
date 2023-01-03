@@ -35,6 +35,8 @@ typedef struct {
 
 int cache_init(void);
 
+void cache_stop(void);
+
 int cache_join(void);
 
 void cache_mark_dirty(cache_t *cache, const char *filename);

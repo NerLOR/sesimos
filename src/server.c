@@ -24,7 +24,6 @@
 #include <sys/socket.h>
 #include <signal.h>
 #include <unistd.h>
-#include <poll.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -34,7 +33,6 @@
 #include <openssl/conf.h>
 
 
-volatile sig_atomic_t server_alive = 1;
 const char *config_file;
 
 static int sockets[NUM_SOCKETS];
@@ -124,25 +122,26 @@ static void terminate_gracefully(int sig) {
     fprintf(stderr, "\n");
     notice("Terminating gracefully...");
 
-    server_alive = 0;
     struct sigaction act = {0};
     act.sa_handler = terminate_forcefully;
     sigaction(SIGINT, &act, NULL);
     sigaction(SIGTERM, &act, NULL);
 
-    // TODO close client connections
-    // TODO close proxy connections
-
-    workers_stop();
-    workers_destroy();
-
     for (int i = 0; i < NUM_SOCKETS; i++) {
         close(sockets[i]);
     }
 
-    notice("Goodbye");
-    geoip_free();
-    exit(0);
+    cache_stop();
+    workers_stop();
+    workers_destroy();
+
+    for (int i = 0; i < list_size(clients); i++) {
+        tcp_close(clients[i]);
+    }
+    proxy_close_all();
+    logger_set_prefix("");
+
+    async_stop();
 }
 
 static void nothing(int sig) {}
@@ -304,12 +303,13 @@ int main(int argc, char *const argv[]) {
 
     async_thread();
 
-    warning("Async thread finished");
-    notice("Goodbye?");
+    notice("Goodbye!");
 
     // cleanup
+    list_free(clients);
     geoip_free();
     proxy_unload();
+    cache_join();
     async_free();
     return 0;
 }
