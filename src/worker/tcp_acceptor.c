@@ -52,7 +52,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
             ntohs(ctx->socket._addr.ipv6.sin6_port), CLR_STR);
 
     logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->socket.s_addr, ctx->log_prefix);
-    
+
     int ret;
     char buf[1024];
     sock *client = &ctx->socket;
