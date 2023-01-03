@@ -162,35 +162,6 @@ int sock_has_pending(sock *s) {
     return ret == 1;
 }
 
-int sock_poll(sock *sockets[], sock *ready[], sock *error[], int n_sock, int *n_ready, int *n_error, short events, int timeout_ms) {
-    struct pollfd fds[n_sock];
-    for (int i = 0; i < n_sock; i++) {
-        fds[i].fd = sockets[i]->socket;
-        fds[i].events = events;
-    }
-
-    int ret = poll(fds, n_sock, timeout_ms);
-    if (ret < 0 || ready == NULL || error == NULL) return ret;
-
-    *n_ready = 0, *n_error = 0;
-    for (int i = 0; i < n_sock; i++) {
-        if (fds[i].revents & events)
-            ready[(*n_ready)++] = sockets[i];
-        if (fds[i].revents & (POLLERR | POLLHUP | POLLNVAL))
-            error[(*n_error)++] = sockets[i];
-    }
-
-    return ret;
-}
-
-int sock_poll_read(sock *sockets[], sock *readable[], sock *error[], int n_sock, int *n_readable, int *n_error, int timeout_ms) {
-    return sock_poll(sockets, readable, error, n_sock, n_readable, n_error, POLLIN, timeout_ms);
-}
-
-int sock_poll_write(sock *sockets[], sock *writable[], sock *error[], int n_sock, int *n_writable, int *n_error, int timeout_ms) {
-    return sock_poll(sockets, writable, error, n_sock, n_writable, n_error, POLLOUT, timeout_ms);
-}
-
 long sock_parse_chunk_header(const char *buf, long len, long *ret_len) {
     for (int i = 0; i < len; i++) {
         char ch = buf[i];

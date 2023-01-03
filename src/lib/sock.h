@@ -48,12 +48,6 @@ int sock_close(sock *s);
 
 int sock_has_pending(sock *s);
 
-int sock_poll(sock *sockets[], sock *ready[], sock *error[], int n_sock, int *n_ready, int *n_error, short events, int timeout_ms);
-
-int sock_poll_read(sock *sockets[], sock *readable[], sock *error[], int n_sock, int *n_readable, int *n_error, int timeout_ms);
-
-int sock_poll_write(sock *sockets[], sock *writable[], sock *error[], int n_sock, int *n_writable, int *n_error, int timeout_ms);
-
 long sock_parse_chunk_header(const char *buf, long len, long *ret_len);
 
 long sock_get_chunk_header(sock *s);
