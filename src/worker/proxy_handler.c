@@ -77,10 +77,11 @@ static int proxy_handler_1(client_ctx_t *ctx) {
         const char *content_length_f = http_get_header_field(&res->hdr, "Content-Length");
         const char *content_encoding = http_get_header_field(&res->hdr, "Content-Encoding");
         if (content_encoding == NULL && (
+                strcmp(ctx->req.method, "HEAD") == 0 ||
                 (content_length_f != NULL && strcmp(content_length_f, "0") == 0) ||
                 (content_type != NULL && content_length_f != NULL && strncmp(content_type, "text/html", 9) == 0)))
         {
-            long content_len = strtol(content_length_f, NULL, 10);
+            long content_len = (content_length_f != NULL) ? strtol(content_length_f, NULL, 10) : 0;
             if (content_len <= sizeof(ctx->msg_content) - 1) {
                 if (status->status != 101) {
                     status->status = res->status->code;
