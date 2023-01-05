@@ -256,8 +256,13 @@ void async_thread(void) {
             evt_listen_t *evt = events[i].data.ptr;
             if (async_exec(evt, async_e2a(events[i].events)) == 0) {
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, evt->fd, NULL) == -1) {
-                    critical("Unable to remove file descriptor from epoll instance");
-                    return;
+                    if (errno == EBADF) {
+                        // already closed fd, do not die
+                        errno = 0;
+                    } else {
+                        critical("Unable to remove file descriptor from epoll instance");
+                        return;
+                    }
                 }
 
                 local = list_delete(local, &evt);
