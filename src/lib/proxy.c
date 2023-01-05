@@ -24,7 +24,9 @@
 
 static SSL_CTX *proxy_ctx = NULL;
 static proxy_ctx_t *proxies = NULL;
+static sem_t *available = NULL;
 static sem_t lock;
+static int num_proxy_hosts = -1;
 
 int proxy_preload(void) {
     int n = 0;
@@ -45,42 +47,53 @@ int proxy_preload(void) {
         proxy_unload();
         return -1;
     }
-
     memset(proxies, 0, n * MAX_PROXY_CNX_PER_HOST * sizeof(proxy_ctx_t));
+
+    available = malloc(n * sizeof(*available));
+    if (available == NULL) {
+        proxy_unload();
+        return -1;
+    }
+    for (int i = 0; i < n; i++) {
+        if (sem_init(&available[i], 0, MAX_PROXY_CNX_PER_HOST) != 0) {
+            proxy_unload();
+            return -1;
+        }
+    }
 
     if (sem_init(&lock, 0, 1) != 0) {
         proxy_unload();
         return -1;
     }
 
+    num_proxy_hosts = n;
+
     return 0;
 }
 
 void proxy_unload(void) {
     int e = errno;
-    sem_destroy(&lock);
     SSL_CTX_free(proxy_ctx);
+    sem_destroy(&lock);
+    if (num_proxy_hosts != -1) {
+        for (int i = 0; i < num_proxy_hosts; i++) {
+            sem_destroy(&available[i]);
+        }
+    }
+    free(available);
     free(proxies);
     errno = e;
 }
 
 void proxy_close_all(void) {
-    int n = 0;
-    for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
-        host_config_t *hc = &config.hosts[i];
-        if (hc->type == CONFIG_TYPE_UNSET) break;
-        if (hc->type != CONFIG_TYPE_REVERSE_PROXY) continue;
-        n++;
-    }
-
     proxy_ctx_t *ptr = proxies;
-    for (int i = 0; i < MAX_PROXY_CNX_PER_HOST * n; i++, ptr++) {
+    for (int i = 0; i < MAX_PROXY_CNX_PER_HOST * num_proxy_hosts; i++, ptr++) {
         if (ptr->initialized)
             proxy_close(ptr);
     }
 }
 
-static proxy_ctx_t *proxy_get_by_conf(host_config_t *conf) {
+proxy_ctx_t *proxy_get_by_conf(host_config_t *conf) {
     int n = 0;
     for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
         host_config_t *hc = &config.hosts[i];
@@ -90,12 +103,21 @@ static proxy_ctx_t *proxy_get_by_conf(host_config_t *conf) {
         n++;
     }
 
-    // TODO use semaphore to keep track of number of free proxy connections
-    try_again:
+    try_again_1:
+    if (sem_wait(&available[n]) != 0) {
+        if (errno == EINTR) {
+            goto try_again_1;
+        } else {
+            return NULL;
+        }
+    }
+
+    try_again_2:
     if (sem_wait(&lock) != 0) {
         if (errno == EINTR) {
-            goto try_again;
+            goto try_again_2;
         } else {
+            sem_post(&available[n]);
             return NULL;
         }
     }
@@ -110,7 +132,14 @@ static proxy_ctx_t *proxy_get_by_conf(host_config_t *conf) {
     }
 
     sem_post(&lock);
+    sem_post(&available[n]);
     return NULL;
+}
+
+void proxy_unlock_ctx(proxy_ctx_t *ctx) {
+    int n = (int) ((ctx - proxies) / MAX_PROXY_CNX_PER_HOST);
+    ctx->in_use = 0;
+    sem_post(&available[n]);
 }
 
 int proxy_request_header(http_req *req, sock *sock) {

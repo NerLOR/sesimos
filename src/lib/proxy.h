@@ -34,6 +34,10 @@ void proxy_unload(void);
 
 void proxy_close_all(void);
 
+proxy_ctx_t *proxy_get_by_conf(host_config_t *conf);
+
+void proxy_unlock_ctx(proxy_ctx_t *ctx);
+
 int proxy_request_header(http_req *req, sock *sock);
 
 int proxy_response_header(http_req *req, http_res *res, host_config_t *conf);
