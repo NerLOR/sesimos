@@ -35,7 +35,8 @@ bin/worker:
 bin/res:
 	mkdir -p bin/res
 
-bin/test: test/mock_*.c test/test_*.c src/lib/utils.c src/lib/sock.c src/lib/list.c
+bin/test: test/mock_*.c test/test_*.c \
+          src/lib/utils.c src/lib/sock.c src/lib/list.c src/lib/http.c src/lib/http_static.c src/logger.c
 	$(CC) -o $@ $(CFLAGS) $^ -lcriterion
 
 

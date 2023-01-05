@@ -53,7 +53,7 @@ static int handle_request_cb(client_ctx_t *ctx) {
 
 int handle_request(client_ctx_t *ctx) {
     if (ctx->c_keep_alive && ctx->s_keep_alive) {
-        return async(&ctx->socket, POLLIN, 0, (void (*)(void *)) handle_request_cb, ctx, (void (*)(void *)) tcp_close, ctx);
+        return async(&ctx->socket, ASYNC_WAIT_READ, 0, ctx, (void (*)(void *)) handle_request_cb, (void (*)(void *)) tcp_close);
     } else {
         tcp_close(ctx);
         return 0;
@@ -77,5 +77,5 @@ static int ws_handle_frame_cb(ws_ctx_t *ctx) {
 }
 
 int ws_handle_frame(ws_ctx_t *ctx) {
-    return async(ctx->socket, POLLIN, 0, (void (*)(void *)) ws_handle_frame_cb, ctx, (void (*)(void *)) ws_close, ctx);
+    return async(ctx->socket, ASYNC_WAIT_READ, 0, ctx, (void (*)(void *)) ws_handle_frame_cb, (void (*)(void *)) ws_close);
 }

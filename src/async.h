@@ -11,13 +11,22 @@
 
 #include "lib/sock.h"
 
-#include <poll.h>
-
 #define ASYNC_KEEP 1
 
-int async(sock *s, short events, int flags, void cb(void *), void *arg, void err_cb(void *), void *err_arg);
+#define ASYNC_IN   0x01
+#define ASYNC_PRI  0x02
+#define ASYNC_OUT  0x04
+#define ASYNC_ERR  0x08
+#define ASYNC_HUP  0x10
 
-int async_fd(int fd, short events, int flags, void cb(void *), void *arg, void err_cb(void *), void *err_arg);
+#define ASYNC_WAIT_READ  ASYNC_IN
+#define ASYNC_WAIT_WRITE ASYNC_OUT
+
+typedef unsigned int async_evt_t;
+
+int async(sock *s, async_evt_t events, int flags, void *arg, void cb(void *), void err_cb(void *));
+
+int async_fd(int fd, async_evt_t events, int flags, void *arg, void cb(void *), void err_cb(void *));
 
 int async_init(void);
 
