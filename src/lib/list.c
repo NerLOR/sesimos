@@ -43,6 +43,19 @@ int list_size(const void *list_ptr) {
     return list->size;
 }
 
+int list_find(void *list_ptr, void *elem) {
+    list_meta_t *list = (void *) ((unsigned char *) list_ptr - sizeof(list_meta_t));
+    unsigned char *array = list_ptr;
+
+    for (int i = 0; i < list->size; i++) {
+        if (memcmp(array + i * list->elem_size, elem, list->elem_size) == 0) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 void *list_insert(void *list_ptr, void *elem, int n) {
     void *ptr = NULL;
     list_ptr = list_insert_ptr(list_ptr, &ptr, n);
@@ -94,13 +107,22 @@ void *list_remove(void *list_ptr, int n) {
         memmove(array + n * list->elem_size, array + (n + 1) * list->elem_size, (list->size - n - 1) * list->elem_size);
 
     list->size--;
-    if (list->size < list->max_size / FACTOR && list->max_size / FACTOR >= list->init_size) {
+    if (list->size < list->max_size / FACTOR / 2 && list->max_size / FACTOR >= list->init_size) {
         if ((list = list_resize(list, list->max_size / FACTOR)) == NULL) {
             return NULL;
         }
     }
 
     return (unsigned char *) list + sizeof(list_meta_t);
+}
+
+void *list_delete(void *list_ptr, void *elem) {
+    int idx = list_find(list_ptr, elem);
+    if (idx == -1) {
+        return list_ptr;
+    } else {
+        return list_remove(list_ptr, idx);
+    }
 }
 
 void *list_clear(void *list_ptr) {
