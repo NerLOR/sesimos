@@ -26,11 +26,14 @@ void proxy_handler_func(client_ctx_t *ctx) {
     respond(ctx);
 
     if (ret == 1) {
-
+        ctx->proxy->in_use = 0;
+        ctx->proxy = NULL;
     } else if (ctx->use_proxy == 0) {
         proxy_close(ctx->proxy);
     } else if (ctx->use_proxy == 1) {
         proxy_handler_2(ctx);
+        ctx->proxy->in_use = 0;
+        ctx->proxy = NULL;
     } else if (ctx->use_proxy == 2) {
         // WebSocket
         ws_handle_connection(ctx);
@@ -137,8 +140,6 @@ static int proxy_handler_2(client_ctx_t *ctx) {
 
     int flags = (chunked ? PROXY_CHUNKED : 0) | (ctx->use_proxy & PROXY_COMPRESS);
     int ret = proxy_send(ctx->proxy, &ctx->socket, len_to_send, flags);
-    ctx->proxy->in_use = 0;
-    ctx->proxy = NULL;
 
     if (ret < 0) {
         ctx->c_keep_alive = 0;

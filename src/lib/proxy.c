@@ -90,6 +90,7 @@ static proxy_ctx_t *proxy_get_by_conf(host_config_t *conf) {
         n++;
     }
 
+    // TODO use semaphore to keep track of number of free proxy connections
     try_again:
     if (sem_wait(&lock) != 0) {
         if (errno == EINTR) {

@@ -306,6 +306,7 @@ int main(int argc, char *const argv[]) {
 
     notice("Ready to accept connections");
 
+    // TODO handle timeouts in epoll
     async_thread();
 
     notice("Goodbye!");
