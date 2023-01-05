@@ -134,6 +134,8 @@ void http_free_req(http_req *req);
 
 void http_free_res(http_res *res);
 
+int http_parse_request(char *buf, http_req *req);
+
 int http_receive_request(sock *client, http_req *req);
 
 int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr, int flags);

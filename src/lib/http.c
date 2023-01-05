@@ -143,10 +143,81 @@ int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr,
     return 0;
 }
 
-int http_receive_request(sock *client, http_req *req) {
-    long rcv_len, len;
-    char buf[CLIENT_MAX_HEADER_SIZE];
+int http_parse_request(char *buf, http_req *req) {
     char *ptr, *pos0 = buf, *pos1, *pos2;
+    long len;
+
+    unsigned long header_len = strstr(buf, "\r\n\r\n") - buf + 4;
+    if (header_len <= 0) {
+        error("Unable to parse http header: End of header not found");
+        return -5;
+    }
+
+    for (int i = 0; i < header_len; i++) {
+        if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {
+            error("Unable to parse http header: Header contains illegal characters");
+            return -4;
+        }
+    }
+
+    ptr = buf;
+    while (header_len > (ptr - buf + 2)) {
+        pos0 = strstr(ptr, "\r\n");
+        if (pos0 == NULL) {
+            error("Unable to parse http header: Invalid header format");
+            return -1;
+        }
+
+        if (req->version[0] == 0) {
+            pos1 = (char *) strchr(ptr, ' ') + 1;
+            if (pos1 == NULL) goto err_hdr_fmt;
+
+            if (pos1 - ptr - 1 >= sizeof(req->method)) {
+                error("Unable to parse http header: Method name too long");
+                return -2;
+            }
+
+            for (int i = 0; i < (pos1 - ptr - 1); i++) {
+                if (ptr[i] < 'A' || ptr[i] > 'Z') {
+                    error("Unable to parse http header: Invalid method");
+                    return -2;
+                }
+            }
+            snprintf(req->method, sizeof(req->method), "%.*s", (int) (pos1 - ptr - 1), ptr);
+
+            pos2 = (char *) strchr(pos1, ' ') + 1;
+            if (pos2 == NULL) {
+                err_hdr_fmt:
+                error("Unable to parse http header: Invalid header format");
+                return -1;
+            }
+
+            if (memcmp(pos2, "HTTP/", 5) != 0 || memcmp(pos2 + 8, "\r\n", 2) != 0) {
+                error("Unable to parse http header: Invalid version");
+                return -3;
+            }
+
+            len = pos2 - pos1 - 1;
+            req->uri = malloc(len + 1);
+            sprintf(req->uri, "%.*s", (int) len, pos1);
+            sprintf(req->version, "%.3s", pos2 + 5);
+        } else {
+            int ret = http_parse_header_field(&req->hdr, ptr, pos0, HTTP_MERGE_FIELDS);
+            if (ret != 0) return -ret;
+        }
+        ptr = pos0 + 2;
+    }
+
+    if (pos0[2] == '\r' && pos0[3] == '\n') {
+        return (int) header_len;
+    }
+
+    return -1;
+}
+
+int http_receive_request(sock *client, http_req *req) {
+    long rcv_len;
+    char buf[CLIENT_MAX_HEADER_SIZE];
     memset(buf, 0, sizeof(buf));
     memset(req->method, 0, sizeof(req->method));
     memset(req->version, 0, sizeof(req->version));
@@ -154,79 +225,20 @@ int http_receive_request(sock *client, http_req *req) {
     req->hdr.last_field_num = -1;
     http_init_hdr(&req->hdr);
 
-    while (1) {
-        rcv_len = sock_recv(client, buf, CLIENT_MAX_HEADER_SIZE, MSG_PEEK);
-        if (rcv_len <= 0) {
-            error("Unable to receive http header: %s", sock_strerror(client));
-            return -1;
-        }
-
-        unsigned long header_len = strstr(buf, "\r\n\r\n") - buf + 4;
-        if (header_len <= 0) {
-            error("Unable to parse http header: End of header not found");
-            return 5;
-        } else {
-            rcv_len = sock_recv(client, buf, header_len, 0);
-        }
-
-        for (int i = 0; i < header_len; i++) {
-            if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {
-                error("Unable to parse http header: Header contains illegal characters");
-                return 4;
-            }
-        }
-
-        ptr = buf;
-        while (header_len > (ptr - buf + 2)) {
-            pos0 = strstr(ptr, "\r\n");
-            if (pos0 == NULL) {
-                error("Unable to parse http header: Invalid header format");
-                return 1;
-            }
-
-            if (req->version[0] == 0) {
-                pos1 = (char *) memchr(ptr, ' ', rcv_len - (ptr - buf)) + 1;
-                if (pos1 == NULL) goto err_hdr_fmt;
-
-                if (pos1 - ptr - 1 >= sizeof(req->method)) {
-                    error("Unable to parse http header: Method name too long");
-                    return 2;
-                }
-
-                for (int i = 0; i < (pos1 - ptr - 1); i++) {
-                    if (ptr[i] < 'A' || ptr[i] > 'Z') {
-                        error("Unable to parse http header: Invalid method");
-                        return 2;
-                    }
-                }
-                snprintf(req->method, sizeof(req->method), "%.*s", (int) (pos1 - ptr - 1), ptr);
-
-                pos2 = (char *) memchr(pos1, ' ', rcv_len - (pos1 - buf)) + 1;
-                if (pos2 == NULL) {
-                    err_hdr_fmt:
-                    error("Unable to parse http header: Invalid header format");
-                    return 1;
-                }
-
-                if (memcmp(pos2, "HTTP/", 5) != 0 || memcmp(pos2 + 8, "\r\n", 2) != 0) {
-                    error("Unable to parse http header: Invalid version");
-                    return 3;
-                }
-
-                len = pos2 - pos1 - 1;
-                req->uri = malloc(len + 1);
-                sprintf(req->uri, "%.*s", (int) len, pos1);
-                sprintf(req->version, "%.3s", pos2 + 5);
-            } else {
-                int ret = http_parse_header_field(&req->hdr, ptr, pos0, HTTP_MERGE_FIELDS);
-                if (ret != 0) return ret;
-            }
-            ptr = pos0 + 2;
-        }
-        if (pos0[2] == '\r' && pos0[3] == '\n') {
-            break;
-        }
+    rcv_len = sock_recv(client, buf, CLIENT_MAX_HEADER_SIZE - 1, MSG_PEEK);
+    if (rcv_len <= 0) {
+        error("Unable to receive http header: %s", sock_strerror(client));
+        return -1;
     }
+    buf[rcv_len] = 0;
+
+    long header_len = http_parse_request(buf, req);
+    if (header_len < 0)
+        return (int) -header_len;
+
+    rcv_len = sock_recv(client, buf, header_len, 0);
+    if (rcv_len != header_len)
+        return -1;
 
     return 0;
 }
