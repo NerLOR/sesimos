@@ -39,4 +39,6 @@ int base64_encode(void *data, unsigned long data_len, char *output, unsigned lon
 
 long clock_micros(void);
 
+long clock_cpu(void);
+
 #endif //SESIMOS_UTILS_H
