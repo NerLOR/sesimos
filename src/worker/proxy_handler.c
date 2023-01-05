@@ -57,7 +57,9 @@ static int proxy_handler_1(client_ctx_t *ctx) {
     ctx->use_proxy = proxy_init(&ctx->proxy, &ctx->req, res, status, ctx->conf, &ctx->socket, &ctx->custom_status, ctx->err_msg) == 0;
     ctx->proxy->client = ctx;
 
-    if (res->status->code == 101) {
+    if (strcmp(ctx->req.method, "HEAD") == 0) {
+        return 1;
+    } else if (res->status->code == 101) {
         const char *connection = http_get_header_field(&res->hdr, "Connection");
         const char *upgrade = http_get_header_field(&res->hdr, "Upgrade");
         if (connection != NULL && upgrade != NULL &&
@@ -81,7 +83,6 @@ static int proxy_handler_1(client_ctx_t *ctx) {
         const char *content_length_f = http_get_header_field(&res->hdr, "Content-Length");
         const char *content_encoding = http_get_header_field(&res->hdr, "Content-Encoding");
         if (content_encoding == NULL && (
-                strcmp(ctx->req.method, "HEAD") == 0 ||
                 (content_length_f != NULL && strcmp(content_length_f, "0") == 0) ||
                 (content_type != NULL && content_length_f != NULL && strncmp(content_type, "text/html", 9) == 0)))
         {
