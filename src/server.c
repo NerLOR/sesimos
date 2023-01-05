@@ -282,7 +282,12 @@ int main(int argc, char *const argv[]) {
         return 1;
     }
 
-    proxy_preload();
+    if (proxy_preload() != 0) {
+        critical("Unable to initialize proxy");
+        geoip_free();
+        async_free();
+        return 1;
+    }
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         if (listen(sockets[i], LISTEN_BACKLOG) < 0) {

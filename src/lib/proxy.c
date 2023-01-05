@@ -20,9 +20,11 @@
 #include <openssl/err.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <semaphore.h>
 
 static SSL_CTX *proxy_ctx = NULL;
 static proxy_ctx_t *proxies = NULL;
+static sem_t lock;
 
 int proxy_preload(void) {
     int n = 0;
@@ -33,17 +35,33 @@ int proxy_preload(void) {
         n++;
     }
 
-    // FIXME return value check
     proxy_ctx = SSL_CTX_new(TLS_client_method());
+    if (proxy_ctx == NULL) {
+        return -1;
+    }
+
     proxies = malloc(n * MAX_PROXY_CNX_PER_HOST * sizeof(proxy_ctx_t));
+    if (proxies == NULL) {
+        proxy_unload();
+        return -1;
+    }
+
     memset(proxies, 0, n * MAX_PROXY_CNX_PER_HOST * sizeof(proxy_ctx_t));
+
+    if (sem_init(&lock, 0, 1) != 0) {
+        proxy_unload();
+        return -1;
+    }
 
     return 0;
 }
 
 void proxy_unload(void) {
+    int e = errno;
+    sem_destroy(&lock);
     SSL_CTX_free(proxy_ctx);
     free(proxies);
+    errno = e;
 }
 
 void proxy_close_all(void) {
@@ -63,7 +81,6 @@ void proxy_close_all(void) {
 }
 
 static proxy_ctx_t *proxy_get_by_conf(host_config_t *conf) {
-    // TODO locking void *proxies
     int n = 0;
     for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
         host_config_t *hc = &config.hosts[i];
@@ -73,13 +90,25 @@ static proxy_ctx_t *proxy_get_by_conf(host_config_t *conf) {
         n++;
     }
 
+    try_again:
+    if (sem_wait(&lock) != 0) {
+        if (errno == EINTR) {
+            goto try_again;
+        } else {
+            return NULL;
+        }
+    }
+
     proxy_ctx_t *ptr = proxies + n * MAX_PROXY_CNX_PER_HOST;
     for (int i = 0; i < MAX_PROXY_CNX_PER_HOST; i++, ptr++) {
         if (!ptr->in_use) {
+            ptr->in_use = 1;
+            sem_post(&lock);
             return ptr;
         }
     }
 
+    sem_post(&lock);
     return NULL;
 }
 
@@ -242,7 +271,6 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
     *proxy_ptr = proxy_get_by_conf(conf);
     proxy_ctx_t *proxy = *proxy_ptr;
     proxy->client = NULL;
-    proxy->in_use = 1;
 
     if (proxy->initialized && sock_has_pending(&proxy->proxy) == 0)
         goto proxy;
