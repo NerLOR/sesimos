@@ -524,7 +524,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
             res->status = http_get_status(status_code);
             if (res->status == NULL && status_code >= 100 && status_code <= 999) {
                 custom_status->code = status_code;
-                strcpy(custom_status->type, "");
+                custom_status->type = 0;
                 snprintf(custom_status->msg, sizeof(custom_status->msg), "%.*s",
                          (int) (strchr(ptr, '\r') - ptr - 13), ptr + 13);
                 res->status = custom_status;

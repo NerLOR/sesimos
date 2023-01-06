@@ -101,7 +101,7 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
         http_remove_header_field(&res->hdr, "Status", HTTP_REMOVE_ALL);
         if (res->status == NULL && status_code >= 100 && status_code <= 999) {
             ctx->custom_status.code = status_code;
-            strcpy(ctx->custom_status.type, "");
+            ctx->custom_status.type = 0;
             strcpy(ctx->custom_status.msg, status_hdr + 4);
             res->status = &ctx->custom_status;
         } else if (res->status == NULL) {

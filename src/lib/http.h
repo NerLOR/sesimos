@@ -39,6 +39,12 @@
 #define CLIENT_MAX_HEADER_SIZE 8192
 #define HTTP_INIT_HEADER_FIELD_NUM 16
 
+#define HTTP_TYPE_INFORMATIONAL 1
+#define HTTP_TYPE_SUCCESS       2
+#define HTTP_TYPE_REDIRECTION   3
+#define HTTP_TYPE_CLIENT_ERROR  4
+#define HTTP_TYPE_SERVER_ERROR  5
+
 #ifndef SERVER_STR
 #   define SERVER_STR "sesimos"
 #endif
@@ -48,13 +54,13 @@
 #endif
 
 typedef struct {
-    unsigned short code;
-    char type[16];
+    unsigned short code:10;
+    unsigned char type:3;
     char msg[64];
 } http_status;
 
 typedef struct {
-    unsigned short code;
+    unsigned short code:10;
     const char *msg;
 } http_status_msg;
 
