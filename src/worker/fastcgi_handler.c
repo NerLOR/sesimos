@@ -63,7 +63,7 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
 
     res->status = http_get_status(200);
     if (fastcgi_init(fcgi_cnx, mode, ctx->req_num, client, req, uri) != 0) {
-        res->status = http_get_status(503);
+        res->status = http_get_status(504);
         sprintf(err_msg, "Unable to communicate with FastCGI socket.");
         return 2;
     }
