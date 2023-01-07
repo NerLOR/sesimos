@@ -155,7 +155,7 @@ static int request_handler(client_ctx_t *ctx) {
         for (int i = 0; i < sizeof(resources) / sizeof(res_t); i++) {
             const res_t *r = &resources[i];
             if (strcmp(req->uri + 14, r->name) == 0) {
-                res->status = http_get_status(200);
+                res->status = http_get_status(203);
                 http_add_header_field(&res->hdr, "Content-Type", r->type);
                 http_add_header_field(&res->hdr, "Cache-Control", "public, max-age=86400");
                 ctx->msg_buf = (char *) r->content;
