@@ -169,10 +169,7 @@ static int request_handler(client_ctx_t *ctx) {
 
     ctx->conf = get_host_config(ctx->req_host);
     if (ctx->conf == NULL) {
-        info("Unknown host, redirecting to default");
-        res->status = http_get_status(307);
-        sprintf(buf0, "https://%s%s", DEFAULT_HOST, req->uri);
-        http_add_header_field(&res->hdr, "Location", buf0);
+        res->status = http_get_status(421);
         return 0;
     }
 
