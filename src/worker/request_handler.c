@@ -170,6 +170,7 @@ static int request_handler(client_ctx_t *ctx) {
     ctx->conf = get_host_config(ctx->req_host);
     if (ctx->conf == NULL) {
         res->status = http_get_status(421);
+        strcpy(ctx->err_msg, "The requested host name is not configured on the server.");
         return 0;
     }
 
