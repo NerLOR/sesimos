@@ -22,6 +22,8 @@ static int proxy_handler_2(client_ctx_t *ctx);
 void proxy_handler_func(client_ctx_t *ctx) {
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
 
+    // TODO handle 1xx responses
+
     int ret = proxy_handler_1(ctx);
     respond(ctx);
 
