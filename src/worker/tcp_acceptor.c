@@ -12,6 +12,7 @@
 #include "../lib/geoip.h"
 #include "../workers.h"
 #include "../server.h"
+#include "../lib/error.h"
 
 #include <string.h>
 #include <errno.h>
@@ -63,7 +64,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
         sprintf(buf, "dig @%s +short +time=1 -x %s", config.dns_server, ctx->socket.addr);
         FILE *dig = popen(buf, "r");
         if (dig == NULL) {
-            error("Unable to start dig: %s", strerror(errno));
+            error("Unable to start dig: %s");
             goto dig_err;
         }
         unsigned long read = fread(buf, 1, sizeof(buf), dig);
@@ -101,11 +102,9 @@ static int tcp_acceptor(client_ctx_t *ctx) {
         SSL_set_accept_state(client->ssl);
 
         ret = SSL_accept(client->ssl);
-        client->_last_ret = ret;
-        client->_errno = errno;
-        client->_ssl_error = ERR_get_error();
-        if (ret <= 0) {
-            info("Unable to perform handshake: %s", sock_strerror(client));
+        if (ret != 1) {
+            error_ssl(SSL_get_error(client->ssl, ret));
+            info("Unable to perform handshake");
             return - 1;
         }
         client->ts_last = clock_micros();

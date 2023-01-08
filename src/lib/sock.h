@@ -24,14 +24,7 @@ typedef struct {
     SSL_CTX *ctx;
     SSL *ssl;
     long ts_start, ts_last, timeout_us;
-    long _last_ret;
-    int _errno;
-    unsigned long _ssl_error;
 } sock;
-
-int sock_enc_error(sock *s);
-
-const char *sock_strerror(sock *s);
 
 int sock_set_socket_timeout_micros(sock *s, long recv_micros, long send_micros);
 

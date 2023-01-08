@@ -8,6 +8,7 @@
 
 #include "logger.h"
 #include "lib/utils.h"
+#include "lib/error.h"
 
 #include <stdio.h>
 #include <pthread.h>
@@ -59,8 +60,8 @@ static const char *level_keywords[] = {
 
 static void err(const char *restrict msg) {
     char err_buf[64];
-    strerror_r(errno, err_buf, sizeof(err_buf));
-    fprintf(stderr, ERR_STR LOG_PREFIX " %s: %s" CLR_STR "\n", "logger", level_keywords[LOG_CRITICAL], msg, err_buf);
+    fprintf(stderr, ERR_STR LOG_PREFIX " %s: %s" CLR_STR "\n", "logger",
+            level_keywords[LOG_CRITICAL], msg, error_str(errno, err_buf, sizeof(err_buf)));
 }
 
 void logmsgf(log_lvl_t level, const char *restrict format, ...) {
@@ -71,8 +72,7 @@ void logmsgf(log_lvl_t level, const char *restrict format, ...) {
 
     const char *color = (level <= LOG_ERROR) ? ERR_STR : ((level <= LOG_WARNING) ? WRN_STR : "");
     if (errno != 0) {
-        strerror_r(errno, err_buf, sizeof(err_buf));
-        snprintf(buf, sizeof(buf), "%s%s: %s" CLR_STR, color, format, err_buf);
+        snprintf(buf, sizeof(buf), "%s%s: %s" CLR_STR, color, format, error_str(errno, err_buf, sizeof(err_buf)));
     } else {
         snprintf(buf, sizeof(buf), "%s%s" CLR_STR, color, format);
     }

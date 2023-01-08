@@ -45,6 +45,10 @@
 #define HTTP_TYPE_CLIENT_ERROR  4
 #define HTTP_TYPE_SERVER_ERROR  5
 
+#define HTTP_ERROR_GENERAL 1
+#define HTTP_ERROR_SYSCALL 2
+#define HTTP_ERROR_TOO_MANY_HEADER_FIELDS 3
+
 #ifndef SERVER_STR
 #   define SERVER_STR "sesimos"
 #endif

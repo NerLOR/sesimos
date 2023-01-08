@@ -227,7 +227,7 @@ int http_receive_request(sock *client, http_req *req) {
 
     rcv_len = sock_recv(client, buf, CLIENT_MAX_HEADER_SIZE - 1, MSG_PEEK);
     if (rcv_len <= 0) {
-        error("Unable to receive http header: %s", sock_strerror(client));
+        error("Unable to receive http header");
         return -1;
     }
     buf[rcv_len] = 0;

@@ -75,7 +75,6 @@ static int request_handler(client_ctx_t *ctx) {
     sock *client = &ctx->socket;
     char *err_msg = ctx->err_msg;
     http_res *res = &ctx->res;
-    http_status_ctx *status = &ctx->status;
 
     long ret;
     char buf0[1024], buf1[1024];
@@ -353,7 +352,7 @@ int respond(client_ctx_t *ctx) {
         if (ctx->msg_buf != NULL) {
             ret = sock_send(client, ctx->msg_buf, ctx->content_length, 0);
             if (ret <= 0) {
-                error("Unable to send: %s", sock_strerror(client));
+                error("Unable to send");
             }
         } else if (ctx->file != NULL) {
             unsigned long len, snd_len = 0;
@@ -364,7 +363,7 @@ int respond(client_ctx_t *ctx) {
                 }
                 ret = sock_send(client, buffer, len, feof(ctx->file) ? 0 : MSG_MORE);
                 if (ret <= 0) {
-                    error("Unable to send: %s", sock_strerror(client));
+                    error("Unable to send");
                     break;
                 }
                 snd_len += ret;

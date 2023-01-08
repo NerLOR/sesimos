@@ -593,7 +593,7 @@ int fastcgi_receive(fastcgi_cnx_t *conn, sock *client, unsigned long len) {
     while (rcv_len < len) {
         ret = sock_recv(client, buf, sizeof(buf), 0);
         if (ret <= 0) {
-            error("Unable to receive: %s", sock_strerror(client));
+            error("Unable to receive");
             return -1;
         }
 

@@ -63,7 +63,7 @@ bin/sesimos: bin/server.o bin/logger.o bin/cache_handler.o bin/async.o bin/worke
              bin/lib/http_static.o bin/res/default.o bin/res/proxy.o bin/res/style.o \
              bin/res/icon_error.o bin/res/icon_info.o bin/res/icon_success.o bin/res/icon_warning.o \
              bin/res/globe.o \
-             bin/lib/compress.o bin/lib/config.o bin/lib/fastcgi.o bin/lib/geoip.o \
+             bin/lib/compress.o bin/lib/config.o bin/lib/fastcgi.o bin/lib/geoip.o bin/lib/error.o \
              bin/lib/http.o  bin/lib/proxy.o bin/lib/sock.o bin/lib/uri.o \
              bin/lib/utils.o bin/lib/websocket.o bin/lib/mpmc.o bin/lib/list.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
@@ -98,6 +98,8 @@ bin/lib/config.o: src/lib/config.h src/lib/utils.h src/lib/uri.h src/logger.h
 
 bin/lib/fastcgi.o: src/lib/fastcgi.h src/server.h src/lib/utils.h src/lib/compress.h src/lib/http.h \
                    src/lib/uri.h src/lib/include/fastcgi.h src/logger.h
+
+bin/lib/error.o: src/lib/error.h
 
 bin/lib/geoip.o: src/lib/geoip.h
 

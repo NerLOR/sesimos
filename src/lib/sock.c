@@ -8,56 +8,13 @@
 
 #include "sock.h"
 #include "utils.h"
+#include "error.h"
 
-#include <openssl/err.h>
+#include <errno.h>
 #include <openssl/ssl.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-
-
-int sock_enc_error(sock *s) {
-    return (int) s->enc ? SSL_get_error(s->ssl, (int) s->_last_ret) : 0;
-}
-
-const char *sock_strerror(sock *s) {
-    // FIXME sock_strerror not Thread Safe!
-    //       (and ugly)
-    errno = 0;
-    if (s->_last_ret == 0) {
-        return "closed";
-    } else if (s->enc) {
-        if (s->_last_ret > 0) {
-            return NULL;
-        }
-        const char *err1 = ERR_reason_error_string(s->_ssl_error);
-        const char *err2 = strerror(s->_errno);
-        switch (sock_enc_error(s)) {
-            case SSL_ERROR_NONE:
-                return NULL;
-            case SSL_ERROR_ZERO_RETURN:
-                return "closed";
-            case SSL_ERROR_WANT_READ:
-                return "want read";
-            case SSL_ERROR_WANT_WRITE:
-                return "want write";
-            case SSL_ERROR_WANT_CONNECT:
-                return "want connect";
-            case SSL_ERROR_WANT_ACCEPT:
-                return "want accept";
-            case SSL_ERROR_WANT_X509_LOOKUP:
-                return "want x509 lookup";
-            case SSL_ERROR_SYSCALL:
-                return ((s->_ssl_error == 0) ? ((s->_last_ret == 0) ? "protocol violation" : err2) : err1);
-            case SSL_ERROR_SSL:
-                return err1;
-            default:
-                return "unknown error";
-        }
-    } else {
-        return strerror(s->_errno);
-    }
-}
 
 int sock_set_socket_timeout_micros(sock *s, long recv_micros, long send_micros) {
     struct timeval recv_to = {.tv_sec = recv_micros / 1000000, .tv_usec = recv_micros % 1000000},
@@ -92,12 +49,11 @@ long sock_send(sock *s, void *buf, unsigned long len, int flags) {
     long ret;
     if (s->enc) {
         ret = SSL_write(s->ssl, buf, (int) len);
-        s->_ssl_error = ERR_get_error();
+        if (ret <= 0) error_ssl(SSL_get_error(s->ssl, (int) ret));
     } else {
         ret = send(s->socket, buf, len, flags);
     }
-    s->_last_ret = ret;
-    s->_errno = errno;
+
     if (ret >= 0) {
         s->ts_last = clock_micros();
         return ret;
@@ -111,12 +67,11 @@ long sock_recv(sock *s, void *buf, unsigned long len, int flags) {
     if (s->enc) {
         int (*func)(SSL*, void*, int) = (flags & MSG_PEEK) ? SSL_peek : SSL_read;
         ret = func(s->ssl, buf, (int) len);
-        s->_ssl_error = ERR_get_error();
+        if (ret <= 0) error_ssl(SSL_get_error(s->ssl, (int) ret));
     } else {
         ret = recv(s->socket, buf, len, flags);
     }
-    s->_last_ret = ret;
-    s->_errno = errno;
+
     if (ret >= 0) {
         s->ts_last = clock_micros();
         return ret;
@@ -164,7 +119,7 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len)
 int sock_close(sock *s) {
     int e = errno;
     if (s->enc && s->ssl != NULL) {
-        if (s->_last_ret >= 0) SSL_shutdown(s->ssl);
+        SSL_shutdown(s->ssl);
         SSL_free(s->ssl);
         s->ssl = NULL;
     }
