@@ -24,7 +24,7 @@ const http_status http_statuses[] = {
         {206, HTTP_TYPE_SUCCESS,       "Partial Content"},
         {207, HTTP_TYPE_SUCCESS,       "Multi-Status"},
         {208, HTTP_TYPE_SUCCESS,       "Already Reported"},
-        {226, HTTP_TYPE_SUCCESS,       "IM Used"},
+        {226, HTTP_TYPE_SUCCESS,       "Instance Manipulation Used"},
 
         {300, HTTP_TYPE_REDIRECTION,   "Multiple Choices"},
         {301, HTTP_TYPE_REDIRECTION,   "Moved Permanently"},

@@ -329,7 +329,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
     if (host_ent == NULL) {
         host_ent = gethostbyname2(conf->proxy.hostname, AF_INET);
         if (host_ent == NULL) {
-            res->status = http_get_status(504);
+            res->status = http_get_status(502);
             ctx->origin = SERVER_REQ;
             error("Unable to connect to server: Name or service not known");
             sprintf(err_msg, "Unable to connect to server: Name or service not known.");
@@ -354,7 +354,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
             res->status = http_get_status(504);
             ctx->origin = SERVER_REQ;
         } else if (errno == ECONNREFUSED) {
-            res->status = http_get_status(504);
+            res->status = http_get_status(502);
             ctx->origin = SERVER_REQ;
         } else {
             res->status = http_get_status(500);
