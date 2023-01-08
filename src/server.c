@@ -18,6 +18,7 @@
 #include "workers.h"
 #include "worker/func.h"
 #include "lib/list.h"
+#include "lib/utils.h"
 
 #include <stdio.h>
 #include <getopt.h>
@@ -98,6 +99,10 @@ static void accept_cb(void *arg) {
 
     client->socket = client_fd;
     client->enc = (i == 1);
+    client->ts_start = clock_micros();
+    client->ts_last = client->ts_start;
+    client_ctx->cnx_s = client->ts_start;
+    client_ctx->cnx_e = -1, client_ctx->req_s = -1, client_ctx->req_e = -1, client_ctx->res_ts = -1;
 
     tcp_accept(client_ctx);
 }
@@ -301,12 +306,11 @@ int main(int argc, char *const argv[]) {
     workers_init();
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
-        async_fd(sockets[i], ASYNC_WAIT_READ, ASYNC_KEEP, &sockets[i], accept_cb, accept_err_cb);
+        async_fd(sockets[i], ASYNC_WAIT_READ, ASYNC_KEEP, &sockets[i], accept_cb, accept_err_cb, accept_err_cb);
     }
 
     notice("Ready to accept connections");
 
-    // TODO handle timeouts in epoll
     async_thread();
 
     notice("Goodbye!");

@@ -58,6 +58,8 @@ int respond(client_ctx_t *ctx);
 
 void request_complete(client_ctx_t *ctx);
 
+void timeout_request(client_ctx_t *ctx);
+
 void tcp_close(client_ctx_t *ctx);
 
 void proxy_close(proxy_ctx_t *ctx);

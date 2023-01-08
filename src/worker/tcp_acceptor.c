@@ -90,7 +90,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
          ctx->host[0] != 0 ? ctx->host : "", ctx->host[0] != 0 ? ") " : "",
          ctx->cc[0] != 0 ? ctx->cc : "N/A");
 
-    if (sock_set_timeout(client, CLIENT_TIMEOUT)) {
+    if (sock_set_socket_timeout(client, 1) != 0 || sock_set_timeout(client, CLIENT_TIMEOUT) != 0) {
         error("Unable to set timeout for socket");
         return -1;
     }
@@ -108,6 +108,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
             info("Unable to perform handshake: %s", sock_strerror(client));
             return - 1;
         }
+        client->ts_last = clock_micros();
     }
 
     ctx->req_num = 0;

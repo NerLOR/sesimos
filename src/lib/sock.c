@@ -59,7 +59,7 @@ const char *sock_strerror(sock *s) {
     }
 }
 
-int sock_set_timeout_micros(sock *s, long recv_micros, long send_micros) {
+int sock_set_socket_timeout_micros(sock *s, long recv_micros, long send_micros) {
     struct timeval recv_to = {.tv_sec = recv_micros / 1000000, .tv_usec = recv_micros % 1000000},
                    send_to = {.tv_sec = send_micros / 1000000, .tv_usec = send_micros % 1000000};
 
@@ -72,8 +72,20 @@ int sock_set_timeout_micros(sock *s, long recv_micros, long send_micros) {
     return 0;
 }
 
-int sock_set_timeout(sock *s, int sec) {
-    return sock_set_timeout_micros(s, sec * 1000000L, sec * 1000000L);
+int sock_set_socket_timeout(sock *s, double sec) {
+    return sock_set_socket_timeout_micros(s, (long) (sec * 1000000L), (long) (sec * 1000000L));
+}
+
+int sock_set_timeout_micros(sock *s, long micros) {
+    if (micros < 0)
+        return -1;
+
+    s->timeout_us = micros;
+    return 0;
+}
+
+int sock_set_timeout(sock *s, double sec) {
+    return sock_set_timeout_micros(s, (long) (sec * 1000000));
 }
 
 long sock_send(sock *s, void *buf, unsigned long len, int flags) {
@@ -86,7 +98,12 @@ long sock_send(sock *s, void *buf, unsigned long len, int flags) {
     }
     s->_last_ret = ret;
     s->_errno = errno;
-    return ret >= 0 ? ret : -1;
+    if (ret >= 0) {
+        s->ts_last = clock_micros();
+        return ret;
+    } else {
+        return -1;
+    }
 }
 
 long sock_recv(sock *s, void *buf, unsigned long len, int flags) {
@@ -100,7 +117,12 @@ long sock_recv(sock *s, void *buf, unsigned long len, int flags) {
     }
     s->_last_ret = ret;
     s->_errno = errno;
-    return ret >= 0 ? ret : -1;
+    if (ret >= 0) {
+        s->ts_last = clock_micros();
+        return ret;
+    } else {
+        return -1;
+    }
 }
 
 long sock_splice(sock *dst, sock *src, void *buf, unsigned long buf_len, unsigned long len) {

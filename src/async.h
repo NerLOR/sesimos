@@ -24,9 +24,9 @@
 
 typedef unsigned int async_evt_t;
 
-int async(sock *s, async_evt_t events, int flags, void *arg, void cb(void *), void err_cb(void *));
+int async(sock *s, async_evt_t events, int flags, void *arg, void cb(void *), void to_cb(void *), void err_cb(void *));
 
-int async_fd(int fd, async_evt_t events, int flags, void *arg, void cb(void *), void err_cb(void *));
+int async_fd(int fd, async_evt_t events, int flags, void *arg, void cb(void *), void to_cb(void *), void err_cb(void *));
 
 int async_init(void);
 

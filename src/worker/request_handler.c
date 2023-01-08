@@ -41,15 +41,7 @@ void request_handler_func(client_ctx_t *ctx) {
     }
 }
 
-static int request_handler(client_ctx_t *ctx) {
-    sock *client = &ctx->socket;
-    char *err_msg = ctx->err_msg;
-
-    long ret;
-    char buf0[1024], buf1[1024];
-
-    err_msg[0] = 0;
-
+static void init_ctx(client_ctx_t *ctx) {
     ctx->conf = NULL;
     ctx->file = NULL;
     ctx->proxy = NULL;
@@ -62,23 +54,35 @@ static int request_handler(client_ctx_t *ctx) {
     ctx->msg_buf_ptr = NULL;
     ctx->req_host[0] = 0;
     ctx->err_msg[0] = 0;
+    ctx->req_s = ctx->socket.ts_last;
 
     memset(&ctx->uri, 0, sizeof(ctx->uri));
     memset(&ctx->req, 0, sizeof(ctx->req));
     memset(&ctx->res, 0, sizeof(ctx->res));
 
-    http_res *res = &ctx->res;
-    res->status = http_get_status(501);
-    http_init_hdr(&res->hdr);
-    res->hdr.last_field_num = -1;
-    sprintf(res->version, "1.1");
 
+    ctx->res.status = http_get_status(501);
+    http_init_hdr(&ctx->res.hdr);
+    ctx->res.hdr.last_field_num = -1;
+    sprintf(ctx->res.version, "1.1");
+
+    ctx->status.status = 0;
+    ctx->status.origin = NONE;
+    ctx->status.ws_key = NULL;
+}
+
+static int request_handler(client_ctx_t *ctx) {
+    sock *client = &ctx->socket;
+    char *err_msg = ctx->err_msg;
+    http_res *res = &ctx->res;
     http_status_ctx *status = &ctx->status;
-    status->status = 0;
-    status->origin = NONE;
-    status->ws_key = NULL;
+
+    long ret;
+    char buf0[1024], buf1[1024];
 
     ctx->req_s = clock_micros();
+
+    init_ctx(ctx);
 
     http_add_header_field(&res->hdr, "Date", http_get_date(buf0, sizeof(buf0)));
     http_add_header_field(&res->hdr, "Server", SERVER_STR);
@@ -386,4 +390,15 @@ void request_complete(client_ctx_t *ctx) {
     uri_free(&ctx->uri);
     http_free_req(&ctx->req);
     http_free_res(&ctx->res);
+}
+
+void timeout_request(client_ctx_t *ctx) {
+    init_ctx(ctx);
+    logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->socket.s_addr, ctx->log_prefix);
+
+    ctx->s_keep_alive = 0;
+    ctx->res.status = http_get_status(408);
+
+    respond(ctx);
+    tcp_close(ctx);
 }

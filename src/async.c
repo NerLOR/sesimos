@@ -9,6 +9,7 @@
 #include "async.h"
 #include "logger.h"
 #include "lib/list.h"
+#include "lib/utils.h"
 
 #include <poll.h>
 #include <sys/epoll.h>
@@ -28,6 +29,7 @@ typedef struct {
     int flags;
     void *arg;
     void (*cb)(void *);
+    void (*to_cb)(void *);
     void (*err_cb)(void *);
 } evt_listen_t;
 
@@ -154,7 +156,7 @@ static int async_add(evt_listen_t *evt) {
     return ret;
 }
 
-int async_fd(int fd, async_evt_t events, int flags, void *arg, void cb(void *), void err_cb(void *)) {
+int async_fd(int fd, async_evt_t events, int flags, void *arg, void cb(void *), void to_cb(void *), void err_cb(void *)) {
     evt_listen_t evt = {
             .fd = fd,
             .socket = NULL,
@@ -162,12 +164,13 @@ int async_fd(int fd, async_evt_t events, int flags, void *arg, void cb(void *), 
             .flags = flags,
             .arg = arg,
             .cb = cb,
+            .to_cb = to_cb,
             .err_cb = err_cb,
     };
     return async_add(&evt);
 }
 
-int async(sock *s, async_evt_t events, int flags, void *arg, void cb(void *), void err_cb(void *)) {
+int async(sock *s, async_evt_t events, int flags, void *arg, void cb(void *), void to_cb(void *), void err_cb(void *)) {
     evt_listen_t evt = {
             .fd = s->socket,
             .socket = s,
@@ -175,6 +178,7 @@ int async(sock *s, async_evt_t events, int flags, void *arg, void cb(void *), vo
             .flags = flags,
             .arg = arg,
             .cb = cb,
+            .to_cb = to_cb,
             .err_cb = err_cb,
     };
     return async_add(&evt);
@@ -206,6 +210,8 @@ void async_free(void) {
 void async_thread(void) {
     struct epoll_event ev, events[ASYNC_MAX_EVENTS];
     int num_fds;
+    long ts, min_ts, cur_ts;
+    listen_queue_t *l;
     evt_listen_t **local = list_create(sizeof(evt_listen_t *), 16);
     if (local == NULL) {
         critical("Unable to create async local list");
@@ -217,7 +223,7 @@ void async_thread(void) {
     // main event loop
     while (alive) {
         // swap listen queue
-        listen_queue_t *l = listen_q;
+        l = listen_q;
         listen_q = (listen_q == &listen1) ? &listen2 : &listen1;
 
         // fill local list and epoll instance with previously added queue entries
@@ -240,7 +246,17 @@ void async_thread(void) {
         // reset size of queue
         l->n = 0;
 
-        if ((num_fds = epoll_wait(epoll_fd, events, ASYNC_MAX_EVENTS, -1)) == -1) {
+        // calculate wait timeout
+        min_ts = -1000, cur_ts = clock_micros();;
+        for (int i = 0; i < list_size(local); i++) {
+            evt_listen_t *evt = local[i];
+            if (!evt->socket) continue;
+
+            ts = evt->socket->ts_last + evt->socket->timeout_us - cur_ts;
+            if (min_ts == -1000 || ts < min_ts) min_ts = ts;
+        }
+
+        if ((num_fds = epoll_wait(epoll_fd, events, ASYNC_MAX_EVENTS, (int) (min_ts / 1000))) == -1) {
             if (errno == EINTR) {
                 // interrupt
                 errno = 0;
@@ -274,6 +290,31 @@ void async_thread(void) {
                 free(evt);
             }
         }
+
+        // check, if some socket ran into a timeout
+        cur_ts = clock_micros();
+        for (int i = 0; i < list_size(local); i++) {
+            evt_listen_t *evt = local[i];
+            if (!evt->socket) continue;
+
+            if ((cur_ts - evt->socket->ts_last) >= evt->socket->timeout_us) {
+                evt->to_cb(evt->arg);
+
+                if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, evt->fd, NULL) == -1) {
+                    if (errno == EBADF) {
+                        // already closed fd, do not die
+                        errno = 0;
+                    } else {
+                        critical("Unable to remove file descriptor from epoll instance");
+                        return;
+                    }
+                }
+
+                local = list_remove(local, i--);
+            }
+        }
+        logger_set_prefix("");
+        errno = 0;
     }
 
     // cleanup
