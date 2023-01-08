@@ -76,7 +76,6 @@ const http_status http_statuses[] = {
         {511, HTTP_TYPE_SERVER_ERROR,  "Network Authentication Required"},
 };
 
-// TODO add remaining descriptions
 const http_status_msg http_status_messages[] = {
         {100, "The client SHOULD continue with its request. The server MUST send a final response after the request "
               "has been completed."},
@@ -146,15 +145,21 @@ const http_status_msg http_status_messages[] = {
               "next-hop server."},
         {421, "The server is not able to produce a response. The client MAY retry the request over a different "
               "connection."},
-        {422, ""},
-        {423, ""},
-        {424, ""},
-        {425, ""},
-        {426, ""},
-        {428, ""},
-        {429, ""},
-        {431, ""},
-        {451, ""},
+        {422, "The server understands the content type of the request content, and the syntax of the request content "
+              "is correct, but the server was unable to process the contained information."},
+        {423, "The source or destination resource of a method is locked."},
+        {424, "The method could not be performed on the resource because the requested action depended on another "
+              "action and that action failed."},
+        {425, "The server is unwilling to risk processing a request that might be replayed."},
+        {426, "The server refuses to perform the request using the current protocol but might be willing to do so "
+              "after the client upgrades to a different protocol. The server MUST send an Upgrade header field to"
+              "indicate the required protocol(s)."},
+        {428, "The origin server requires the request to be conditional. By requiring requests to be conditional, the "
+              "server can assure that clients are working with the correct copies and thus avoiding a lost update."},
+        {429, "The client has sent too many requests in a given amount of time."},
+        {431, "The server is unwilling to process the request because its header fields are too large. The request MAY "
+              "be resubmitted after reducing the size of the request header fields."},
+        {451, "The server is denying access to the resource as a consequence of a legal demand."},
 
         {500, "The server encountered an unexpected condition which prevented it from fulfilling the request."},
         {501, "The server does not support the functionality required to fulfill the request."},
@@ -167,10 +172,16 @@ const http_status_msg http_status_messages[] = {
               "complete the request."},
         {505, "The server does not support, or refuses to support, the HTTP protocol version that was used in the "
               "request message."},
-        {506, ""},
-        {507, ""},
-        {508, ""},
-        {511, ""},
+        {506, "The server has an internal configuration error: the chosen variant resource is configured to engage in "
+              "transparent content negotiation itself, and is therefore not a proper end point in the negotiation "
+              "process."},
+        {507, "The method could not be performed on the resource because the server is unable to store the "
+              "representation needed to successfully complete the request. This condition is considered to be "
+              "temporary."},
+        {508, "The server terminated an operation because it encountered an infinite loop while processing the "
+              "request."},
+        {511, "The client needs to authenticate to gain network access. The response representation SHOULD contain a "
+              "link to a resource that allows the user to submit credentials."},
 };
 
 const int http_statuses_size = sizeof(http_statuses) / sizeof(http_status);
