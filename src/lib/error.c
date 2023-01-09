@@ -10,6 +10,7 @@
 #include "http.h"
 
 #include <errno.h>
+#include <string.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <maxminddb.h>
@@ -34,8 +35,8 @@ static const char *error_ssl_strerror(int err) {
             return "want async job";
         case SSL_ERROR_WANT_CLIENT_HELLO_CB:
             return "want client hello callback";
-        case SSL_ERROR_WANT_RETRY_VERIFY:
-            return "want retry verify";
+        //case SSL_ERROR_WANT_RETRY_VERIFY:
+        //    return "want retry verify";
         case SSL_ERROR_SSL:
             return ERR_reason_error_string(ERR_get_error());
         default:
