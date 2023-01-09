@@ -243,6 +243,13 @@ int cache_init(void) {
         if (hc->type == CONFIG_TYPE_UNSET) break;
         if (hc->type != CONFIG_TYPE_LOCAL) continue;
 
+        sprintf(buf, "%s/.sesimos", hc->local.webroot);
+        if (mkdir(buf, 0755) != 0 && errno != EEXIST) {
+            critical("Unable to create directory %s", buf);
+            return 1;
+        }
+        errno = 0;
+
         sprintf(buf, "%s/.sesimos/metadata", hc->local.webroot);
         if ((fd = open(buf, O_CREAT | O_RDWR, 0600)) == -1) {
             critical("Unable to open file %s", buf);
