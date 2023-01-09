@@ -45,6 +45,17 @@ static const char *error_ssl_strerror(int err) {
 
 static const char *error_http_strerror(int err) {
     switch (err) {
+        case HTTP_ERROR_TOO_MANY_HEADER_FIELDS:
+            return "too many header fields";
+        case HTTP_ERROR_EOH_NOT_FOUND:
+            return "end of http header not found";
+        case HTTP_ERROR_HEADER_MALFORMED:
+            return "http header malformed";
+        case HTTP_ERROR_INVALID_VERSION:
+            return "invalid http version";
+        case HTTP_ERROR_URI_TOO_LONG:
+            return "uri too long";
+        case HTTP_ERROR_GENERAL:
         default:
             return "unknown error";
     }
@@ -100,4 +111,24 @@ int error_http(int err) {
         errno = 0x03000000 | err;
     }
     return -1;
+}
+
+static int error_get(unsigned char prefix) {
+    return (errno >> 24 != prefix) ? 0 : errno & 0x00FFFFFF;
+}
+
+int error_get_sys() {
+    return error_get(0x00);
+}
+
+int error_get_ssl() {
+    return error_get(0x01);
+}
+
+int error_get_mmdb() {
+    return error_get(0x02);
+}
+
+int error_get_http() {
+    return error_get(0x03);
 }

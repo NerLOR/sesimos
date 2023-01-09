@@ -464,8 +464,8 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
 
     ret = sock_recv(&proxy->proxy, buffer, sizeof(buffer), MSG_PEEK);
     if (ret <= 0) {
-        int enc_err = errno & 0x00FFFFFFFF;
-        if (errno == EAGAIN || errno == EINPROGRESS || enc_err == SSL_ERROR_WANT_READ || enc_err == SSL_ERROR_WANT_WRITE) {
+        int e_sys = error_get_sys(), e_ssl = error_get_ssl();
+        if (e_sys == EAGAIN || e_sys == EINPROGRESS || e_ssl == SSL_ERROR_WANT_READ || e_ssl == SSL_ERROR_WANT_WRITE) {
             res->status = http_get_status(504);
             ctx->origin = SERVER_RES;
         } else {
@@ -533,8 +533,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
                 goto proxy_err;
             }
         } else {
-            ret = http_parse_header_field(&res->hdr, ptr, pos0, 0);
-            if (ret != 0) {
+            if (http_parse_header_field(&res->hdr, ptr, pos0, 0) != 0) {
                 res->status = http_get_status(502);
                 ctx->origin = SERVER_RES;
                 error("Unable to parse header");

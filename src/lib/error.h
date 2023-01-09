@@ -17,4 +17,12 @@ void error_mmdb(int err);
 
 int error_http(int err);
 
+int error_get_sys();
+
+int error_get_ssl();
+
+int error_get_mmdb();
+
+int error_get_http();
+
 #endif //SESIMOS_ERROR_H

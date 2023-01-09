@@ -6,11 +6,11 @@
  * @date 2020-12-09
  */
 
-#include "../logger.h"
 #include "http.h"
 #include "utils.h"
 #include "compress.h"
 #include "list.h"
+#include "error.h"
 
 #include <string.h>
 
@@ -90,23 +90,20 @@ void http_free_res(http_res *res) {
 int http_init_hdr(http_hdr *hdr) {
     hdr->fields = list_create(sizeof(http_field), HTTP_INIT_HEADER_FIELD_NUM);
     if (hdr->fields == NULL)
-        return -1;
+        return error_http(HTTP_ERROR_SYSCALL);
 
     return 0;
 }
 
 int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr, int flags) {
-    if (hdr->last_field_num > list_size(hdr->fields)) {
-        error("Unable to parse header: Invalid state");
-        return 3;
-    }
+    if (hdr->last_field_num > list_size(hdr->fields))
+        return error_http(HTTP_ERROR_GENERAL);
 
     char *pos1 = (char *) buf, *pos2 = (char *) end_ptr;
     if (buf[0] == ' ' || buf[0] == '\t') {
-        if (hdr->last_field_num == -1) {
-            error("Unable to parse header");
-            return 3;
-        }
+        if (hdr->last_field_num == -1)
+            return error_http(HTTP_ERROR_GENERAL);
+
         http_field *f = &hdr->fields[(int) hdr->last_field_num];
 
         str_trim_lws(&pos1, &pos2);
@@ -116,10 +113,9 @@ int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr,
     }
 
     pos1 = memchr(buf, ':', end_ptr - buf);
-    if (pos1 == NULL) {
-        error("Unable to parse header");
-        return 3;
-    }
+    if (pos1 == NULL)
+        return error_http(HTTP_ERROR_GENERAL);
+
     long len1 = pos1 - buf;
 
     pos1++;
@@ -129,10 +125,8 @@ int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr,
     int field_num = list_size(hdr->fields);
     int found = http_get_header_field_num_len(hdr, buf, len1);
     if (!(flags & HTTP_MERGE_FIELDS) || found == -1) {
-        if (http_add_header_field_len(hdr, buf, len1, pos1, len2 < 0 ? 0 : len2) != 0) {
-            error("Unable to parse header: Too many header fields");
-            return 3;
-        }
+        if (http_add_header_field_len(hdr, buf, len1, pos1, len2 < 0 ? 0 : len2) != 0)
+            return error_http(HTTP_ERROR_TOO_MANY_HEADER_FIELDS);
     } else {
         field_num = found;
         http_append_to_header_field(&hdr->fields[found], ", ", 2);
@@ -148,62 +142,52 @@ int http_parse_request(char *buf, http_req *req) {
     long len;
 
     unsigned long header_len = strstr(buf, "\r\n\r\n") - buf + 4;
-    if (header_len <= 0) {
-        error("Unable to parse http header: End of header not found");
-        return -5;
-    }
+    if (header_len <= 0)
+        return error_http(HTTP_ERROR_EOH_NOT_FOUND);
 
     for (int i = 0; i < header_len; i++) {
-        if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {
-            error("Unable to parse http header: Header contains illegal characters");
-            return -4;
-        }
+        if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F)
+            return error_http(HTTP_ERROR_HEADER_MALFORMED);
     }
 
     ptr = buf;
     while (header_len > (ptr - buf + 2)) {
         pos0 = strstr(ptr, "\r\n");
-        if (pos0 == NULL) {
-            error("Unable to parse http header: Invalid header format");
-            return -1;
-        }
+        if (pos0 == NULL)
+            return error_http(HTTP_ERROR_HEADER_MALFORMED);
 
         if (req->version[0] == 0) {
             pos1 = (char *) strchr(ptr, ' ') + 1;
             if (pos1 == NULL) goto err_hdr_fmt;
 
-            if (pos1 - ptr - 1 >= sizeof(req->method)) {
-                error("Unable to parse http header: Method name too long");
-                return -2;
-            }
+            if (pos1 - ptr - 1 >= sizeof(req->method))
+                return error_http(HTTP_ERROR_HEADER_MALFORMED);
 
             for (int i = 0; i < (pos1 - ptr - 1); i++) {
-                if (ptr[i] < 'A' || ptr[i] > 'Z') {
-                    error("Unable to parse http header: Invalid method");
-                    return -2;
-                }
+                if (ptr[i] < 'A' || ptr[i] > 'Z')
+                    return error_http(HTTP_ERROR_HEADER_MALFORMED);
             }
             snprintf(req->method, sizeof(req->method), "%.*s", (int) (pos1 - ptr - 1), ptr);
 
             pos2 = (char *) strchr(pos1, ' ') + 1;
             if (pos2 == NULL) {
                 err_hdr_fmt:
-                error("Unable to parse http header: Invalid header format");
-                return -1;
+                return error_http(HTTP_ERROR_HEADER_MALFORMED);
             }
 
-            if (memcmp(pos2, "HTTP/", 5) != 0 || memcmp(pos2 + 8, "\r\n", 2) != 0) {
-                error("Unable to parse http header: Invalid version");
-                return -3;
-            }
+            if (memcmp(pos2, "HTTP/", 5) != 0 || memcmp(pos2 + 8, "\r\n", 2) != 0)
+                return error_http(HTTP_ERROR_INVALID_VERSION);
 
             len = pos2 - pos1 - 1;
+            if (len >= 2048)
+                return error_http(HTTP_ERROR_URI_TOO_LONG);
+
             req->uri = malloc(len + 1);
             sprintf(req->uri, "%.*s", (int) len, pos1);
             sprintf(req->version, "%.3s", pos2 + 5);
         } else {
-            int ret = http_parse_header_field(&req->hdr, ptr, pos0, HTTP_MERGE_FIELDS);
-            if (ret != 0) return -ret;
+            if (http_parse_header_field(&req->hdr, ptr, pos0, HTTP_MERGE_FIELDS) != 0)
+                return -1;
         }
         ptr = pos0 + 2;
     }
@@ -212,7 +196,7 @@ int http_parse_request(char *buf, http_req *req) {
         return (int) header_len;
     }
 
-    return -1;
+    return error_http(HTTP_ERROR_GENERAL);
 }
 
 int http_receive_request(sock *client, http_req *req) {
@@ -226,10 +210,9 @@ int http_receive_request(sock *client, http_req *req) {
     http_init_hdr(&req->hdr);
 
     rcv_len = sock_recv(client, buf, CLIENT_MAX_HEADER_SIZE - 1, MSG_PEEK);
-    if (rcv_len <= 0) {
-        error("Unable to receive http header");
+    if (rcv_len <= 0)
         return -1;
-    }
+
     buf[rcv_len] = 0;
 
     long header_len = http_parse_request(buf, req);
@@ -351,9 +334,9 @@ int http_send_response(sock *client, http_res *res) {
         off += sprintf(buf + off, "%s: %s\r\n", http_field_get_name(f), http_field_get_value(f));
     }
     off += sprintf(buf + off, "\r\n");
-    if (sock_send(client, buf, off, 0) < 0) {
+    if (sock_send(client, buf, off, 0) != off)
         return -1;
-    }
+
     return 0;
 }
 
@@ -365,10 +348,9 @@ int http_send_request(sock *server, http_req *req) {
         off += sprintf(buf + off, "%s: %s\r\n", http_field_get_name(f), http_field_get_value(f));
     }
     off += sprintf(buf + off, "\r\n");
-    long ret = sock_send(server, buf, off, 0);
-    if (ret <= 0) {
+    if (sock_send(server, buf, off, 0) != off)
         return -1;
-    }
+
     return 0;
 }
 

@@ -14,9 +14,11 @@
 #include "../lib/utils.h"
 #include "../server.h"
 #include "../lib/res.h"
+#include "../lib/error.h"
 
 #include <string.h>
 #include <arpa/inet.h>
+#include <errno.h>
 
 static int request_handler(client_ctx_t *ctx);
 
@@ -97,20 +99,11 @@ static int request_handler(client_ctx_t *ctx) {
     ret = http_receive_request(client, req);
     if (ret != 0) {
         ctx->c_keep_alive = 0;
-        if (ret < 0) {
-            return -1;
-        } else if (ret == 1) {
-            sprintf(err_msg, "Unable to parse http header: Invalid header format.");
-        } else if (ret == 2) {
-            sprintf(err_msg, "Unable to parse http header: Invalid method.");
-        } else if (ret == 3) {
-            sprintf(err_msg, "Unable to parse http header: Invalid version.");
-        } else if (ret == 4) {
-            sprintf(err_msg, "Unable to parse http header: Header contains illegal characters.");
-        } else if (ret == 5) {
-            sprintf(err_msg, "Unable to parse http header: End of header not found.");
-        }
-        res->status = http_get_status(400);
+        error("Unable to receive http header");
+        sprintf(err_msg, "Unable to receive http header: %s.", error_str(errno, buf0, sizeof(buf0)));
+        int err = error_get_http();
+        res->status = http_get_status(err == HTTP_ERROR_URI_TOO_LONG ? 414 : (err == HTTP_ERROR_TOO_MANY_HEADER_FIELDS ? 431 : 400));
+        errno = 0;
         return 0;
     }
 
