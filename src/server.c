@@ -33,15 +33,10 @@
 #include <openssl/ssl.h>
 #include <openssl/conf.h>
 
-
 const char *config_file;
-
 static int sockets[NUM_SOCKETS];
 static SSL_CTX *contexts[CONFIG_MAX_CERT_CONFIG];
-
 static client_ctx_t **clients;
-
-static const char *color_table[] = {"\x1B[31m", "\x1B[32m", "\x1B[33m", "\x1B[34m", "\x1B[35m", "\x1B[36m"};
 
 static void clean(void) {
     notice("Cleaning sesimos cache and metadata files...");
