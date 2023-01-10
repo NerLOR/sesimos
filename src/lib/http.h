@@ -52,7 +52,6 @@
 #define HTTP_ERROR_HEADER_MALFORMED 5
 #define HTTP_ERROR_INVALID_VERSION 6
 #define HTTP_ERROR_URI_TOO_LONG 7
-#define HTTP_ERROR_
 
 #ifndef SERVER_STR
 #   define SERVER_STR "sesimos"

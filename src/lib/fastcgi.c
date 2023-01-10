@@ -6,6 +6,7 @@
  * @date 2020-12-26
  */
 
+#include "../defs.h"
 #include "fastcgi.h"
 #include "utils.h"
 #include "compress.h"
@@ -16,12 +17,10 @@
 #include <sys/socket.h>
 #include <string.h>
 
-
 char *fastcgi_add_param(char *buf, const char *key, const char *value) {
     char *ptr = buf;
     unsigned long key_len = strlen(key);
     unsigned long val_len = strlen(value);
-
 
     if (key_len <= 127) {
         ptr[0] = (char) (key_len & 0x7F);
@@ -44,9 +43,9 @@ char *fastcgi_add_param(char *buf, const char *key, const char *value) {
         ptr += 4;
     }
 
-    strcpy(ptr, key);
+    memcpy(ptr, key, key_len);
     ptr += key_len;
-    strcpy(ptr, value);
+    memcpy(ptr, value, val_len);
     ptr += val_len;
 
     return ptr;
@@ -117,13 +116,13 @@ int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int req_num, const sock
     socklen_t len = sizeof(addr_storage);
     getsockname(client->socket, (struct sockaddr *) &addr_storage, &len);
     addr = (struct sockaddr_in6 *) &addr_storage;
-    sprintf(buf0, "%i", addr->sin6_port);
+    sprintf(buf0, "%i", ntohs(addr->sin6_port));
     param_ptr = fastcgi_add_param(param_ptr, "SERVER_PORT", buf0);
 
     len = sizeof(addr_storage);
     getpeername(client->socket, (struct sockaddr *) &addr_storage, &len);
     addr = (struct sockaddr_in6 *) &addr_storage;
-    sprintf(buf0, "%i", addr->sin6_port);
+    sprintf(buf0, "%i", ntohs(addr->sin6_port));
     param_ptr = fastcgi_add_param(param_ptr, "REMOTE_PORT", buf0);
     param_ptr = fastcgi_add_param(param_ptr, "REMOTE_ADDR", conn->r_addr);
     param_ptr = fastcgi_add_param(param_ptr, "REMOTE_HOST", conn->r_host != NULL ? conn->r_host : conn->r_addr);
@@ -153,7 +152,7 @@ int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int req_num, const sock
     //    param_ptr = fastcgi_add_param(param_ptr, "REMOTE_INFO", conn->ctx->geoip);
     //}
 
-    for (int i = 0; i < list_size(&req->hdr); i++) {
+    for (int i = 0; i < list_size(req->hdr.fields); i++) {
         const http_field *f = &req->hdr.fields[i];
         const char *name = http_field_get_name(f);
         char *ptr = buf0;

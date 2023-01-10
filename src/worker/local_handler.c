@@ -52,7 +52,7 @@ static int local_handler(client_ctx_t *ctx) {
         ctx->msg_buf_ptr = malloc(4096);
         ctx->msg_buf = ctx->msg_buf_ptr;
         ctx->content_length = snprintf(ctx->msg_buf, 4096 - ctx->content_length, "%s %s HTTP/%s\r\n", req->method, req->uri, req->version);
-        for (int i = 0; i < list_size(&req->hdr); i++) {
+        for (int i = 0; i < list_size(req->hdr.fields); i++) {
             const http_field *f = &req->hdr.fields[i];
             ctx->content_length += snprintf(ctx->msg_buf + ctx->content_length, 4096 - ctx->content_length, "%s: %s\r\n", http_field_get_name(f), http_field_get_value(f));
         }
