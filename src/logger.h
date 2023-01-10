@@ -37,4 +37,6 @@ int logger_init(void);
 
 void logger_stop(void);
 
+int logger_join(void);
+
 #endif //SESIMOS_LOGGER_H

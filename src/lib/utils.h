@@ -41,4 +41,6 @@ long clock_micros(void);
 
 long clock_cpu(void);
 
+int rm_rf(const char *path);
+
 #endif //SESIMOS_UTILS_H

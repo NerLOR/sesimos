@@ -12,6 +12,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <unistd.h>
+#include <dirent.h>
 
 
 static const char base64_encode_table[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -215,4 +219,46 @@ long clock_cpu(void) {
     struct timespec time;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &time);
     return time.tv_sec * 1000000000 + time.tv_nsec;
+}
+
+int rm_rf(const char *path) {
+    struct stat stat_buf;
+    if (lstat(path, &stat_buf) != 0)
+        return (errno == ENOENT) ? 0 : -1;
+
+    if (S_ISREG(stat_buf.st_mode)) {
+        // regular file
+        return unlink(path);
+    } else if (S_ISLNK(stat_buf.st_mode)) {
+        // link
+        return unlink(path);
+    } else if (S_ISDIR(stat_buf.st_mode)) {
+        // directory
+        char buf[FILENAME_MAX];
+        DIR *dir;
+
+        // open directory
+        if ((dir = opendir(path)) == NULL)
+            return -1;
+
+        // read directory
+        for (struct dirent *ent; (ent = readdir(dir)) != NULL;) {
+            if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+                continue;
+
+            snprintf(buf, sizeof(buf), "%s/%s", path, ent->d_name);
+            if (rm_rf(buf) != 0) {
+                closedir(dir);
+                return -1;
+            }
+        }
+
+        // close and remove directory
+        closedir(dir);
+        return rmdir(path);
+    } else {
+        // other - not supported
+        errno = ENOTSUP;
+        return -1;
+    }
 }

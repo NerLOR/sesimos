@@ -278,4 +278,9 @@ int logger_init(void) {
 
 void logger_stop(void) {
     alive = 0;
+    pthread_kill(thread, SIGUSR1);
+}
+
+int logger_join(void) {
+    return pthread_join(thread, NULL);
 }

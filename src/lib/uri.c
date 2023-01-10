@@ -15,21 +15,26 @@
 
 
 int path_is_directory(const char *path) {
-    struct stat statbuf;
-    return stat(path, &statbuf) == 0 && S_ISDIR(statbuf.st_mode) != 0;
+    int e = errno;
+    struct stat stat_buf;
+    int ret = stat(path, &stat_buf);
+    errno = e;
+    return ret == 0 && S_ISDIR(stat_buf.st_mode) != 0;
 }
 
 int path_is_file(const char *path) {
-    struct stat statbuf;
-    int ret = stat(path, &statbuf);
-    errno = 0;
-    return ret == 0 && S_ISDIR(statbuf.st_mode) == 0;
+    int e = errno;
+    struct stat stat_buf;
+    int ret = stat(path, &stat_buf);
+    errno = e;
+    return ret == 0 && S_ISDIR(stat_buf.st_mode) == 0;
 }
 
 int path_exists(const char *path) {
-    struct stat statbuf;
-    int ret = stat(path, &statbuf);
-    errno = 0;
+    int e = errno;
+    struct stat stat_buf;
+    int ret = stat(path, &stat_buf);
+    errno = e;
     return ret == 0;
 }
 

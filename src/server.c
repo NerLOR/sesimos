@@ -43,10 +43,35 @@ static client_ctx_t **clients;
 
 static const char *color_table[] = {"\x1B[31m", "\x1B[32m", "\x1B[33m", "\x1B[34m", "\x1B[35m", "\x1B[36m"};
 
-static int clean() {
-    remove("/var/sesimos/server/cache");
-    rmdir("/var/sesimos/server/");
-    return 0;
+static void clean(void) {
+    notice("Cleaning sesimos cache and metadata files...");
+
+    // remove legacy files
+    //     /.../server/, /.../server/cache
+    if (rm_rf("/var/sesimos/server") != 0) {
+        error("Unable to remove /var/sesimos/server/");
+    } else if (!errno) {
+        notice("Successfully removed /var/sesimos/server/");
+    }
+    errno = 0;
+
+    // remove cache and metadata files
+    char buf[512];
+    for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
+        host_config_t *hc = &config.hosts[i];
+        if (hc->type == CONFIG_TYPE_UNSET) break;
+        if (hc->type != CONFIG_TYPE_LOCAL) continue;
+
+        snprintf(buf, sizeof(buf), "%s/.sesimos", hc->local.webroot);
+        if (rm_rf(buf) != 0) {
+            error("Unable to remove %s/", buf);
+        } else if (!errno) {
+            notice("Successfully removed %s/", buf);
+        }
+        errno = 0;
+    }
+
+    notice("Cleaned all sesimos cache and metadata files!");
 }
 
 static int ssl_servername_cb(SSL *ssl, int *ad, void *arg) {
@@ -154,6 +179,7 @@ static void nothing(int sig) {}
 int main(int argc, char *const argv[]) {
     const int YES = 1;
     int ret;
+    int mode = 0;
 
     memset(sockets, 0, sizeof(sockets));
     clients = list_create(sizeof(void *), 64);
@@ -167,8 +193,6 @@ int main(int argc, char *const argv[]) {
             {.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_ANY_INIT, .sin6_port = htons(443)}
     };
 
-    logger_init();
-
     logger_set_name("server");
 
     if (setvbuf(stdout, NULL, _IOLBF, 0) != 0 || setvbuf(stderr, NULL, _IOLBF, 0) != 0) {
@@ -179,13 +203,13 @@ int main(int argc, char *const argv[]) {
 
     static const struct option long_opts[] = {
             {"help",    no_argument,        0, 'h'},
+            {"clean",   no_argument,        0, 'C'},
             {"config",  required_argument,  0, 'c'},
             { 0,        0,                  0,  0 }
     };
 
     config_file = NULL;
-    int c, opt_idx;
-    while ((c = getopt_long(argc, argv, "hc:", long_opts, &opt_idx)) != -1) {
+    for (int c, opt_idx; (c = getopt_long(argc, argv, "hCc:", long_opts, &opt_idx)) != -1;) {
         switch (c) {
             case 'h':
                 fprintf(stderr,
@@ -193,10 +217,14 @@ int main(int argc, char *const argv[]) {
                         "\n"
                         "Options:\n"
                         "  -c, --config <CONFIG-FILE>  path to the config file. If not provided, default will be used\n"
+                        "  -C, --clean                 clear cached files and other metadata\n"
                         "  -h, --help                  print this dialogue\n");
                 return 0;
             case 'c':
                 config_file = optarg;
+                break;
+            case 'C':
+                mode = 1;
                 break;
             case '?':
             default:
@@ -212,6 +240,11 @@ int main(int argc, char *const argv[]) {
 
     if (config_load(config_file == NULL ? DEFAULT_CONFIG_FILE : config_file) != 0)
         return 1;
+
+    if (mode == 1) {
+        clean();
+        return 0;
+    }
 
     if ((sockets[0] = socket(AF_INET6, SOCK_STREAM, 0)) == -1 ||
         (sockets[1] = socket(AF_INET6, SOCK_STREAM, 0)) == -1)
@@ -303,6 +336,9 @@ int main(int argc, char *const argv[]) {
         }
     }
 
+    logger_init();
+    logger_set_name("server");
+
     workers_init();
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
@@ -321,5 +357,7 @@ int main(int argc, char *const argv[]) {
     proxy_unload();
     cache_join();
     async_free();
+    logger_stop();
+    logger_join();
     return 0;
 }
