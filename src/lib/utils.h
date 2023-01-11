@@ -27,7 +27,9 @@ int url_encode(const void *in, size_t size_in, char *out, size_t size_out);
 
 int url_decode(const char *str, char *dec, long *size);
 
-int mime_is_compressible(const char *type);
+int mime_is_compressible(const char *restrict type);
+
+int mime_is_text(const char *restrict type);
 
 int strcpy_rem_webroot(char *dst, const char *str, long len, const char *webroot);
 
@@ -52,5 +54,15 @@ long clock_cpu(void);
 long stat_mtime(const char *filename);
 
 int rm_rf(const char *path);
+
+long fsize(FILE *file);
+
+long flines(FILE *file);
+
+long file_get_line_pos(FILE *file, long line_num);
+
+int fseekl(FILE *file, long line_num);
+
+long ftelll(FILE *file);
 
 #endif //SESIMOS_UTILS_H

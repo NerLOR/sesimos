@@ -36,6 +36,76 @@ void local_handler_func(client_ctx_t *ctx) {
     }
 }
 
+static int range_handler(client_ctx_t *ctx) {
+    char buf[64];
+    long num0, num1, num2;
+    char *ptr;
+    int mode;
+    const char *range = http_get_header_field(&ctx->req.hdr, "Range");
+
+    if (strcontains(range, ","))
+        return -1;
+
+    ctx->file = fopen(ctx->uri.filename, "rb");
+
+    if (strstarts(range, "bytes=")) {
+        mode = 0;
+        range += 6;
+        num0 = fsize(ctx->file), num1 = 0, num2 = num0 - 1;
+        sprintf(buf, "bytes */%li", num0);
+    } else if (strstarts(range, "lines=") && mime_is_text(ctx->uri.meta->type)) {
+        mode = 1;
+        range += 6;
+        num0 = flines(ctx->file), num1 = 1, num2 = num0;
+        sprintf(buf, "lines */%li", num0);
+    } else {
+        return -1;
+    }
+
+    http_add_header_field(&ctx->res.hdr, "Content-Range", buf);
+
+    if ((ptr = strchr(range, '-')) == NULL)
+        return -1;
+
+    if (num0 == 0) {
+        ctx->content_length = 0;
+        return 0;
+    }
+
+    if (ptr[1] != 0) num2 = (long) strtoul(ptr + 1, NULL, 10);
+    if (ptr != range) {
+        num1 = (long) strtoul(range, NULL, 10);
+    } else {
+        if (mode == 0) {
+            num1 = num0 - num2 - 1;
+            num2 = num0 - 1;
+        } else if (mode == 1) {
+            num1 = num0 - num2 + 1;
+            num2 = num0;
+        }
+    }
+
+    if ((mode == 0 && (num1 >= num0 || num2 >= num0 || num1 > num2 || num1 < 0 || num2 < 0)) ||
+        (mode == 1 && (num1 > num0 || num2 > num0 || num1 > num2 || num1 <= 0 || num2 <= 0)))
+    {
+        return -1;
+    }
+
+    sprintf(buf, "%s %li-%li/%li", (mode == 0) ? "bytes" : "lines", num1, num2, num0);
+    http_remove_header_field(&ctx->res.hdr, "Content-Range", HTTP_REMOVE_ALL);
+    http_add_header_field(&ctx->res.hdr, "Content-Range", buf);
+
+    if (mode == 0) {
+        fseek(ctx->file, num1, SEEK_SET);
+        ctx->content_length = num2 - num1 + 1;
+    } else if (mode == 1) {
+        fseekl(ctx->file, num1);
+        ctx->content_length = file_get_line_pos(ctx->file, num2 + 1) - file_get_line_pos(ctx->file, num1);
+    }
+
+    return 0;
+}
+
 static int local_handler(client_ctx_t *ctx) {
     http_res *res = &ctx->res;
     http_req *req = &ctx->req;
@@ -87,7 +157,10 @@ static int local_handler(client_ctx_t *ctx) {
 
     if (uri->is_static) {
         res->status = http_get_status(200);
-        http_add_header_field(&res->hdr, "Accept-Ranges", "bytes");
+        cache_init_uri(ctx->conf->cache, uri);
+
+        http_add_header_field(&res->hdr, "Accept-Ranges", mime_is_text(uri->meta->type) ? "bytes, lines" : "bytes");
+
         if (!streq(req->method, "GET") && !streq(req->method, "HEAD")) {
             res->status = http_get_status(405);
             return 0;
@@ -99,13 +172,10 @@ static int local_handler(client_ctx_t *ctx) {
             return 0;
         }
 
-        cache_init_uri(ctx->conf->cache, uri);
-
         const char *last_modified = http_format_date(uri->meta->mtime, buf1, sizeof(buf1));
         http_add_header_field(&res->hdr, "Last-Modified", last_modified);
         sprintf(buf2, "%s; charset=%s", uri->meta->type, uri->meta->charset);
         http_add_header_field(&res->hdr, "Content-Type", buf2);
-
 
         const char *accept_encoding = http_get_header_field(&req->hdr, "Accept-Encoding");
         int enc = 0;
@@ -135,19 +205,15 @@ static int local_handler(client_ctx_t *ctx) {
         }
 
         if (uri->meta->etag[0] != 0) {
+            strcpy(buf1, uri->meta->etag);
             if (enc) {
-                sprintf(buf1, "%s-%s", uri->meta->etag, (enc & COMPRESS_BR) ? "br" : (enc & COMPRESS_GZ) ? "gzip" : "");
-                http_add_header_field(&res->hdr, "ETag", buf1);
-            } else {
-                http_add_header_field(&res->hdr, "ETag", uri->meta->etag);
+                strcat(buf1, "-");
+                strcat(buf1, (enc & COMPRESS_BR) ? "br" : (enc & COMPRESS_GZ) ? "gzip" : "");
             }
+            http_add_header_field(&res->hdr, "ETag", buf1);
         }
 
-        if (strstarts(uri->meta->type, "text/")) {
-            http_add_header_field(&res->hdr, "Cache-Control", "public, max-age=3600");
-        } else {
-            http_add_header_field(&res->hdr, "Cache-Control", "public, max-age=86400");
-        }
+        http_add_header_field(&res->hdr, "Cache-Control", mime_is_text(uri->meta->type) ? "public, max-age=3600" : "public, max-age=86400");
 
         const char *if_modified_since = http_get_header_field(&req->hdr, "If-Modified-Since");
         const char *if_none_match = http_get_header_field(&req->hdr, "If-None-Match");
@@ -158,57 +224,25 @@ static int local_handler(client_ctx_t *ctx) {
             return 0;
         }
 
-        const char *range = http_get_header_field(&req->hdr, "Range");
-        if (range != NULL) {
-            if (!strstarts(range, "bytes=")) {
-                res->status = http_get_status(416);
+        if (http_get_header_field(&req->hdr, "Range") != NULL) {
+            if (range_handler(ctx) == 0) {
+                res->status = http_get_status(206);
+            } else {
+                if (ctx->file) {
+                    fclose(ctx->file);
+                    ctx->file = NULL;
+                }
                 http_remove_header_field(&res->hdr, "Content-Type", HTTP_REMOVE_ALL);
                 http_remove_header_field(&res->hdr, "Last-Modified", HTTP_REMOVE_ALL);
                 http_remove_header_field(&res->hdr, "ETag", HTTP_REMOVE_ALL);
                 http_remove_header_field(&res->hdr, "Cache-Control", HTTP_REMOVE_ALL);
-                return 0;
-            }
-            range += 6;
-            char *ptr = strchr(range, '-');
-            if (ptr == NULL) {
                 res->status = http_get_status(416);
-                return 0;
             }
-            ctx->file = fopen(uri->filename, "rb");
-            fseek(ctx->file, 0, SEEK_END);
-            unsigned long file_len = ftell(ctx->file);
-            fseek(ctx->file, 0, SEEK_SET);
-            if (file_len == 0) {
-                ctx->content_length = 0;
-                return 0;
-            }
-            long num1 = 0;
-            long num2 = (long) file_len - 1;
-
-            if (ptr != range) num1 = (long) strtoul(range, NULL, 10);
-            if (ptr[1] != 0) num2 = (long) strtoul(ptr + 1, NULL, 10);
-
-            if (num1 >= file_len || num2 >= file_len || num1 > num2) {
-                res->status = http_get_status(416);
-                return 0;
-            }
-            sprintf(buf1, "bytes %li-%li/%li", num1, num2, file_len);
-            http_add_header_field(&res->hdr, "Content-Range", buf1);
-
-            res->status = http_get_status(206);
-            fseek(ctx->file, num1, SEEK_SET);
-            ctx->content_length = num2 - num1 + 1;
-
             return 0;
         }
 
-        if (ctx->file == NULL) {
-            ctx->file = fopen(uri->filename, "rb");
-        }
-
-        fseek(ctx->file, 0, SEEK_END);
-        ctx->content_length = ftell(ctx->file);
-        fseek(ctx->file, 0, SEEK_SET);
+        if (ctx->file == NULL) ctx->file = fopen(uri->filename, "rb");
+        ctx->content_length = fsize(ctx->file);
     } else {
         return 1;
     }

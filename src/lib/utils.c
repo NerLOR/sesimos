@@ -117,7 +117,26 @@ int url_decode(const char *str, char *dec, long *size) {
     return 0;
 }
 
-int mime_is_compressible(const char *type) {
+int mime_is_compressible(const char *restrict type) {
+    if (type == NULL) return 0;
+    char type_parsed[64];
+    snprintf(type_parsed, sizeof(type_parsed), "%s", type);
+    char *pos = strchr(type_parsed, ';');
+    if (pos != NULL) pos[0] = 0;
+    return
+        mime_is_text(type) ||
+        streq(type_parsed, "application/vnd.ms-fontobject") ||
+        streq(type_parsed, "application/x-font-ttf") ||
+        streq(type_parsed, "font/eot") ||
+        streq(type_parsed, "font/opentype") ||
+        streq(type_parsed, "image/bmp") ||
+        streq(type_parsed, "image/gif") ||
+        streq(type_parsed, "image/vnd.microsoft.icon") ||
+        streq(type_parsed, "image/vnd.microsoft.iconbinary") ||
+        streq(type_parsed, "image/x-icon");
+}
+
+int mime_is_text(const char *restrict type) {
     if (type == NULL) return 0;
     char type_parsed[64];
     snprintf(type_parsed, sizeof(type_parsed), "%s", type);
@@ -135,16 +154,7 @@ int mime_is_compressible(const char *type) {
         streq(type_parsed, "application/x-tex") ||
         streq(type_parsed, "application/x-httpd-php") ||
         streq(type_parsed, "application/x-latex") ||
-        streq(type_parsed, "application/vnd.ms-fontobject") ||
-        streq(type_parsed, "application/x-font-ttf") ||
-        streq(type_parsed, "application/x-javascript") ||
-        streq(type_parsed, "font/eot") ||
-        streq(type_parsed, "font/opentype") ||
-        streq(type_parsed, "image/bmp") ||
-        streq(type_parsed, "image/gif") ||
-        streq(type_parsed, "image/vnd.microsoft.icon") ||
-        streq(type_parsed, "image/vnd.microsoft.iconbinary") ||
-        streq(type_parsed, "image/x-icon");
+        streq(type_parsed, "application/x-javascript");
 }
 
 int strcpy_rem_webroot(char *dst, const char *src, long len, const char *webroot) {
@@ -287,4 +297,89 @@ int rm_rf(const char *path) {
         errno = ENOTSUP;
         return -1;
     }
+}
+
+long fsize(FILE *file) {
+    long cur_pos, len;
+    if ((cur_pos = ftell(file)) == -1)
+        return -1;
+    if (fseek(file, 0, SEEK_END) != 0)
+        return -1;
+    if ((len = ftell(file)) == -1)
+        return -1;
+    if (fseek(file, cur_pos, SEEK_SET) != 0)
+        return -1;
+    return len;
+}
+
+long flines(FILE *file) {
+    long cur_pos, lines = 0;
+    if ((cur_pos = ftell(file)) == -1)
+        return -1;
+    if (fseek(file, 0, SEEK_SET) != 0)
+        return -1;
+
+    for (int ch; (ch = fgetc(file)) != EOF;) {
+        if (ch == '\n') lines++;
+    }
+
+    if (fseek(file, cur_pos, SEEK_SET) != 0)
+        return -1;
+    return lines;
+}
+
+long file_get_line_pos(FILE *file, long line_num) {
+    if (line_num < 1) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    long cur_pos;
+    if ((cur_pos = ftell(file)) == -1)
+        return -1;
+    if (fseek(file, 0, SEEK_SET) != 0)
+        return -1;
+
+    long lines = 0, pos = 0;
+    for (int ch; lines < line_num - 1 && (ch = fgetc(file)) != EOF; pos++) {
+        if (ch == '\n') lines++;
+    }
+
+    if (fseek(file, cur_pos, SEEK_SET) != 0)
+        return -1;
+    return pos;
+}
+
+int fseekl(FILE *file, long line_num) {
+    if (line_num < 1) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (fseek(file, 0, SEEK_SET) != 0)
+        return -1;
+
+    long lines = 0;
+    for (int ch; lines < line_num - 1 && (ch = fgetc(file)) != EOF;) {
+        if (ch == '\n') lines++;
+    }
+
+    return 0;
+}
+
+long ftelll(FILE *file) {
+    long cur_pos;
+    if ((cur_pos = ftell(file)) == -1)
+        return -1;
+    if (fseek(file, 0, SEEK_SET) != 0)
+        return -1;
+
+    long lines = 0, pos = 0;
+    for (int ch; pos < cur_pos && (ch = fgetc(file)) != EOF; pos++) {
+        if (ch == '\n') lines++;
+    }
+
+    if (fseek(file, cur_pos, SEEK_SET) != 0)
+        return -1;
+    return lines + 1;
 }
