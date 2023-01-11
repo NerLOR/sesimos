@@ -325,7 +325,7 @@ long flines(FILE *file) {
 
     if (fseek(file, cur_pos, SEEK_SET) != 0)
         return -1;
-    return lines;
+    return lines + 1;
 }
 
 long file_get_line_pos(FILE *file, long line_num) {
