@@ -202,7 +202,7 @@ static void terminate_gracefully(int sig) {
     workers_destroy();
 
     while (list_size(clients) > 0)
-        server_free_client(clients[0]);
+        tcp_close(clients[0]);
 
     proxy_close_all();
     logger_set_prefix("");

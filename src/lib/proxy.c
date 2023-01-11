@@ -307,11 +307,9 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         goto proxy;
 
     retry:
-    if (proxy->initialized) {
-        info(BLUE_STR "Closing proxy connection");
-        sock_close(&proxy->proxy);
-        proxy->initialized = 0;
-    }
+    if (proxy->initialized)
+        proxy_close(proxy);
+
     retry = 0;
     tries++;
 
@@ -323,7 +321,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         return -1;
     }
 
-    if (sock_set_timeout(&proxy->proxy, SERVER_TIMEOUT_INIT) != 0)
+    if (sock_set_socket_timeout(&proxy->proxy, 1) != 0 || sock_set_timeout(&proxy->proxy, SERVER_TIMEOUT_INIT) != 0)
         goto proxy_timeout_err;
 
     struct hostent *host_ent = gethostbyname2(conf->proxy.hostname, AF_INET6);
@@ -383,6 +381,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         ret = SSL_do_handshake(proxy->proxy.ssl);
         if (ret != 1) {
             error_ssl(SSL_get_error(proxy->proxy.ssl, (int) ret));
+            SSL_free(proxy->proxy.ssl);
             res->status = http_get_status(502);
             ctx->origin = SERVER_REQ;
             error("Unable to perform handshake");
