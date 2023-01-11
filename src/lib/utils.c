@@ -124,27 +124,27 @@ int mime_is_compressible(const char *type) {
     char *pos = strchr(type_parsed, ';');
     if (pos != NULL) pos[0] = 0;
     return
-        strncmp(type_parsed, "text/", 5) == 0 ||
-        strncmp(type_parsed, "message/", 7) == 0 ||
-        strstr(type_parsed, "+xml") != NULL ||
-        strstr(type_parsed, "+json") != NULL ||
-        strcmp(type_parsed, "application/javascript") == 0 ||
-        strcmp(type_parsed, "application/json") == 0 ||
-        strcmp(type_parsed, "application/xml") == 0 ||
-        strcmp(type_parsed, "application/x-www-form-urlencoded") == 0 ||
-        strcmp(type_parsed, "application/x-tex") == 0 ||
-        strcmp(type_parsed, "application/x-httpd-php") == 0 ||
-        strcmp(type_parsed, "application/x-latex") == 0 ||
-        strcmp(type_parsed, "application/vnd.ms-fontobject") == 0 ||
-        strcmp(type_parsed, "application/x-font-ttf") == 0 ||
-        strcmp(type_parsed, "application/x-javascript") == 0 ||
-        strcmp(type_parsed, "font/eot") == 0 ||
-        strcmp(type_parsed, "font/opentype") == 0 ||
-        strcmp(type_parsed, "image/bmp") == 0 ||
-        strcmp(type_parsed, "image/gif") == 0 ||
-        strcmp(type_parsed, "image/vnd.microsoft.icon") == 0 ||
-        strcmp(type_parsed, "image/vnd.microsoft.iconbinary") == 0 ||
-        strcmp(type_parsed, "image/x-icon") == 0;
+        strstarts(type_parsed, "text/") ||
+        strstarts(type_parsed, "message/") ||
+        strends(type_parsed, "+xml") ||
+        strends(type_parsed, "+json") ||
+        streq(type_parsed, "application/javascript") ||
+        streq(type_parsed, "application/json") ||
+        streq(type_parsed, "application/xml") ||
+        streq(type_parsed, "application/x-www-form-urlencoded") ||
+        streq(type_parsed, "application/x-tex") ||
+        streq(type_parsed, "application/x-httpd-php") ||
+        streq(type_parsed, "application/x-latex") ||
+        streq(type_parsed, "application/vnd.ms-fontobject") ||
+        streq(type_parsed, "application/x-font-ttf") ||
+        streq(type_parsed, "application/x-javascript") ||
+        streq(type_parsed, "font/eot") ||
+        streq(type_parsed, "font/opentype") ||
+        streq(type_parsed, "image/bmp") ||
+        streq(type_parsed, "image/gif") ||
+        streq(type_parsed, "image/vnd.microsoft.icon") ||
+        streq(type_parsed, "image/vnd.microsoft.iconbinary") ||
+        streq(type_parsed, "image/x-icon");
 }
 
 int strcpy_rem_webroot(char *dst, const char *src, long len, const char *webroot) {
@@ -187,6 +187,26 @@ int str_trim_lws(char **start, char **end) {
     return 0;
 }
 
+int streq(const char *restrict str1, const char *restrict str2) {
+    return str1 != NULL && str2 != NULL && strcmp(str1, str2) == 0;
+}
+
+int strcontains(const char *restrict haystack, const char *restrict needle) {
+    return haystack != NULL && needle != NULL && strstr(haystack, needle) != NULL;
+}
+
+int strstarts(const char *restrict str, const char *restrict prefix) {
+    if (str == NULL || prefix == NULL) return 0;
+    unsigned long l1 = strlen(str), l2 = strlen(prefix);
+    return l2 <= l1 && strncmp(str, prefix, l2) == 0;
+}
+
+int strends(const char *restrict str, const char *restrict suffix) {
+    if (str == NULL || suffix == NULL) return 0;
+    unsigned long l1 = strlen(str), l2 = strlen(suffix);
+    return l2 <= l1 && strcmp(str + l1 - l2, suffix) == 0;
+}
+
 int base64_encode(void *data, unsigned long data_len, char *output, unsigned long *output_len) {
     unsigned long out_len = 4 * ((data_len + 2) / 3);
     if (output_len != NULL) *output_len = out_len;
@@ -221,6 +241,12 @@ long clock_cpu(void) {
     return time.tv_sec * 1000000000 + time.tv_nsec;
 }
 
+long stat_mtime(const char *filename) {
+    struct stat stat_buf;
+    stat(filename, &stat_buf);
+    return stat_buf.st_mtime;
+}
+
 int rm_rf(const char *path) {
     struct stat stat_buf;
     if (lstat(path, &stat_buf) != 0)
@@ -243,7 +269,7 @@ int rm_rf(const char *path) {
 
         // read directory
         for (struct dirent *ent; (ent = readdir(dir)) != NULL;) {
-            if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+            if (streq(ent->d_name, ".") || streq(ent->d_name, ".."))
                 continue;
 
             snprintf(buf, sizeof(buf), "%s/%s", path, ent->d_name);

@@ -35,11 +35,21 @@ int str_trim(char **start, char **end);
 
 int str_trim_lws(char **start, char **end);
 
+int streq(const char *restrict str1, const char *restrict str2);
+
+int strcontains(const char *restrict haystack, const char *restrict needle);
+
+int strstarts(const char *restrict str, const char *restrict prefix);
+
+int strends(const char *restrict str, const char *restrict suffix);
+
 int base64_encode(void *data, unsigned long data_len, char *output, unsigned long *output_len);
 
 long clock_micros(void);
 
 long clock_cpu(void);
+
+long stat_mtime(const char *filename);
 
 int rm_rf(const char *path);
 

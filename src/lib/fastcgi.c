@@ -236,16 +236,16 @@ int fastcgi_php_error(const fastcgi_cnx_t *conn, const char *msg, int msg_len, c
             goto next;
         }
 
-        if (len >= 14 && strncmp(ptr0, "PHP Warning:  ", 14) == 0) {
+        if (len >= 14 && strstarts(ptr0, "PHP Warning:  ")) {
             msg_type = LOG_WARNING;
             msg_pre_len = 14;
-        } else if (len >= 18 && strncmp(ptr0, "PHP Fatal error:  ", 18) == 0) {
+        } else if (len >= 18 && strstarts(ptr0, "PHP Fatal error:  ")) {
             msg_type = LOG_ERROR;
             msg_pre_len = 18;
-        } else if (len >= 18 && strncmp(ptr0, "PHP Parse error:  ", 18) == 0) {
+        } else if (len >= 18 && strstarts(ptr0, "PHP Parse error:  ")) {
             msg_type = LOG_ERROR;
             msg_pre_len = 18;
-        } else if (len >= 18 && strncmp(ptr0, "PHP Notice:  ", 13) == 0) {
+        } else if (len >= 18 && strstarts(ptr0, "PHP Notice:  ")) {
             msg_type = LOG_NOTICE;
             msg_pre_len = 13;
         }

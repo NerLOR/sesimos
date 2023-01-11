@@ -398,10 +398,10 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
 
     proxy:
     connection = http_get_header_field(&req->hdr, "Connection");
-    if (connection != NULL && (strstr(connection, "upgrade") != NULL || strstr(connection, "Upgrade") != NULL)) {
+    if (strcontains(connection, "upgrade") || strcontains(connection, "Upgrade")) {
         upgrade = http_get_header_field(&req->hdr, "Upgrade");
         ws_version = http_get_header_field(&req->hdr, "Sec-WebSocket-Version");
-        if (upgrade != NULL && ws_version != NULL && strcmp(upgrade, "websocket") == 0 && strcmp(ws_version, "13") == 0) {
+        if (streq(upgrade, "websocket") && streq(ws_version, "13")) {
             ctx->ws_key = http_get_header_field(&req->hdr, "Sec-WebSocket-Key");
         } else {
             res->status = http_get_status(501);
@@ -437,7 +437,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
     ret = 0;
     if (content_len > 0) {
         ret = sock_splice(&proxy->proxy, client, buffer, sizeof(buffer), content_len);
-    } else if (transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL) {
+    } else if (strcontains(transfer_encoding, "chunked")) {
         ret = sock_splice_chunked(&proxy->proxy, client, buffer, sizeof(buffer));
     }
 
@@ -510,7 +510,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
             goto proxy_err;
         }
         if (ptr == buf) {
-            if (strncmp(ptr, "HTTP/", 5) != 0) {
+            if (!strstarts(ptr, "HTTP/")) {
                 res->status = http_get_status(502);
                 ctx->origin = SERVER_RES;
                 error("Unable to parse header: Invalid header format");

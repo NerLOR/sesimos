@@ -33,7 +33,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
     struct sockaddr_in6 server_addr;
 
     inet_ntop(ctx->socket._addr.ipv6.sin6_family, &ctx->socket._addr.ipv6.sin6_addr, ctx->_c_addr, sizeof(ctx->_c_addr));
-    if (strncmp(ctx->_c_addr, "::ffff:", 7) == 0) {
+    if (strstarts(ctx->_c_addr, "::ffff:")) {
         ctx->socket.addr = ctx->_c_addr + 7;
     } else {
         ctx->socket.addr = ctx->_c_addr;
@@ -42,7 +42,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
     socklen_t len = sizeof(server_addr);
     getsockname(ctx->socket.socket, (struct sockaddr *) &server_addr, &len);
     inet_ntop(server_addr.sin6_family, (void *) &server_addr.sin6_addr, ctx->_s_addr, sizeof(ctx->_s_addr));
-    if (strncmp(ctx->_s_addr, "::ffff:", 7) == 0) {
+    if (strstarts(ctx->_s_addr, "::ffff:")) {
         ctx->socket.s_addr = ctx->_s_addr + 7;
     } else {
         ctx->socket.s_addr = ctx->_s_addr;

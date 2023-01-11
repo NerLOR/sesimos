@@ -26,7 +26,7 @@ typedef struct {
     char charset[URI_CHARSET_SIZE];
     char filename_comp_gz[256];
     char filename_comp_br[256];
-    struct stat stat;
+    long mtime;
 } metadata_t;
 
 typedef struct {

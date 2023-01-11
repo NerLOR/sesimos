@@ -390,15 +390,15 @@ const char *http_get_status_color(const http_status *status) {
 }
 
 char *http_format_date(time_t time, char *buf, size_t size) {
-    struct tm timeinfo;
-    strftime(buf, size, "%a, %d %b %Y %H:%M:%S GMT", gmtime_r(&time, &timeinfo));
+    struct tm time_info;
+    strftime(buf, size, "%a, %d %b %Y %H:%M:%S GMT", gmtime_r(&time, &time_info));
     return buf;
 }
 
 char *http_get_date(char *buf, size_t size) {
-    time_t rawtime;
-    time(&rawtime);
-    return http_format_date(rawtime, buf, size);
+    time_t raw_time;
+    time(&raw_time);
+    return http_format_date(raw_time, buf, size);
 }
 
 const http_doc_info *http_get_status_info(const http_status *status) {
@@ -426,9 +426,9 @@ int http_get_compression(const http_req *req, const http_res *res) {
     const char *content_type = http_get_header_field(&res->hdr, "Content-Type");
     const char *content_encoding = http_get_header_field(&res->hdr, "Content-Encoding");
     if (mime_is_compressible(content_type) && content_encoding == NULL && accept_encoding != NULL) {
-        if (strstr(accept_encoding, "br") != NULL) {
+        if (strcontains(accept_encoding, "br")) {
             return COMPRESS_BR;
-        } else if (strstr(accept_encoding, "gzip") != NULL) {
+        } else if (strcontains(accept_encoding, "gzip")) {
             return COMPRESS_GZ;
         }
     }

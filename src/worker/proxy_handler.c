@@ -63,12 +63,12 @@ static int proxy_handler_1(client_ctx_t *ctx) {
         const char *connection = http_get_header_field(&res->hdr, "Connection");
         const char *upgrade = http_get_header_field(&res->hdr, "Upgrade");
         if (connection != NULL && upgrade != NULL &&
-            (strstr(connection, "upgrade") != NULL || strstr(connection, "Upgrade") != NULL) &&
-             strcmp(upgrade, "websocket") == 0)
+            (strcontains(connection, "upgrade") || strcontains(connection, "Upgrade")) &&
+            streq(upgrade, "websocket"))
         {
             const char *ws_accept = http_get_header_field(&res->hdr, "Sec-WebSocket-Accept");
             if (ws_calc_accept_key(status->ws_key, buf) == 0) {
-                ctx->use_proxy = (strcmp(buf, ws_accept) == 0) ? 2 : 1;
+                ctx->use_proxy = streq(buf, ws_accept) ? 2 : 1;
             }
         } else {
             status->status = 101;
@@ -84,10 +84,10 @@ static int proxy_handler_1(client_ctx_t *ctx) {
         const char *content_encoding = http_get_header_field(&res->hdr, "Content-Encoding");
         if (content_encoding == NULL && (
                 content_length_f == NULL ||
-                (content_length_f != NULL && strcmp(content_length_f, "0") == 0) ||
-                (content_type != NULL && content_length_f != NULL && strncmp(content_type, "text/html", 9) == 0)))
+                streq(content_length_f, "0") ||
+                (content_length_f != NULL && strstarts(content_type, "text/html"))))
         {
-            long content_len = (strcmp(ctx->req.method, "HEAD") != 0 && content_length_f != NULL) ? strtol(content_length_f, NULL, 10) : 0;
+            long content_len = (!streq(ctx->req.method, "HEAD") && content_length_f != NULL) ? strtol(content_length_f, NULL, 10) : 0;
             if (content_len <= sizeof(ctx->msg_content) - 1) {
                 if (status->status != 101) {
                     status->status = res->status->code;
@@ -103,7 +103,7 @@ static int proxy_handler_1(client_ctx_t *ctx) {
         }
     }
 
-    if (strcmp(ctx->req.method, "HEAD") == 0) {
+    if (streq(ctx->req.method, "HEAD")) {
         return 1;
     }
 
@@ -119,7 +119,7 @@ static int proxy_handler_1(client_ctx_t *ctx) {
     }
 
     char *transfer_encoding = http_get_header_field(&res->hdr, "Transfer-Encoding");
-    int chunked = transfer_encoding != NULL && strcmp(transfer_encoding, "chunked") == 0;
+    int chunked = transfer_encoding != NULL && streq(transfer_encoding, "chunked");
     http_remove_header_field(&res->hdr, "Transfer-Encoding", HTTP_REMOVE_ALL);
     ret = sprintf(buf, "%s%s%s",
                   (use_proxy & PROXY_COMPRESS_BR) ? "br" :
@@ -136,7 +136,7 @@ static int proxy_handler_1(client_ctx_t *ctx) {
 
 static int proxy_handler_2(client_ctx_t *ctx) {
     const char *transfer_encoding = http_get_header_field(&ctx->res.hdr, "Transfer-Encoding");
-    int chunked = transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL;
+    int chunked = strcontains(transfer_encoding, "chunked");
 
     const char *content_len = http_get_header_field(&ctx->res.hdr, "Content-Length");
     unsigned long len_to_send = 0;

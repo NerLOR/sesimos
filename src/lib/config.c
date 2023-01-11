@@ -8,6 +8,7 @@
 
 #include "../logger.h"
 #include "config.h"
+#include "utils.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -133,7 +134,7 @@ int config_load(const char *filename) {
                 } else {
                     hc->type = CONFIG_TYPE_REVERSE_PROXY;
                 }
-            } else if (strcmp(ptr, "http") == 0) {
+            } else if (streq(ptr, "http")) {
                 if (hc->type != 0 && hc->type != CONFIG_TYPE_REVERSE_PROXY) {
                     goto err;
                 } else {
@@ -141,7 +142,7 @@ int config_load(const char *filename) {
                     hc->proxy.enc = 0;
                 }
                 continue;
-            } else if (strcmp(ptr, "https") == 0) {
+            } else if (streq(ptr, "https")) {
                 if (hc->type != 0 && hc->type != CONFIG_TYPE_REVERSE_PROXY) {
                     goto err;
                 } else {
@@ -166,11 +167,11 @@ int config_load(const char *filename) {
         if (target != NULL) {
             strcpy(target, source);
         } else if (mode == 1) {
-            if (strcmp(source, "forbidden") == 0) {
+            if (streq(source, "forbidden")) {
                 config.hosts[i - 1].local.dir_mode = URI_DIR_MODE_FORBIDDEN;
-            } else if (strcmp(source, "info") == 0) {
+            } else if (streq(source, "info")) {
                 config.hosts[i - 1].local.dir_mode = URI_DIR_MODE_INFO;
-            } else if (strcmp(source, "list") == 0) {
+            } else if (streq(source, "list")) {
                 config.hosts[i - 1].local.dir_mode = URI_DIR_MODE_LIST;
             } else {
                 goto err;
@@ -193,7 +194,7 @@ int config_load(const char *filename) {
         if (hc->cert_name[0] == 0) goto err2;
         int found = 0;
         for (int m = 0; m < j; m++) {
-            if (strcmp(config.certs[m].name, hc->cert_name) == 0) {
+            if (streq(config.certs[m].name, hc->cert_name)) {
                 hc->cert = m;
                 found = 1;
                 break;
@@ -213,7 +214,7 @@ host_config_t *get_host_config(const char *host) {
     for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
         host_config_t *hc = &config.hosts[i];
         if (hc->type == CONFIG_TYPE_UNSET) break;
-        if (strcmp(hc->name, host) == 0) return hc;
+        if (streq(hc->name, host)) return hc;
         if (hc->name[0] == '*' && hc->name[1] == '.') {
             const char *pos = strstr(host, hc->name + 1);
             if (pos != NULL && strlen(pos) == strlen(hc->name + 1)) return hc;

@@ -78,7 +78,7 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     if (query != NULL) {
         query[-1] = '?';
     }
-    if (strstr(uri->req_path, "/../") != NULL || strstr(uri->req_path, "/./") != NULL) {
+    if (strcontains(uri->req_path, "/../") || strcontains(uri->req_path, "/./")) {
         return 2;
     }
 
@@ -145,10 +145,10 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
         uri->filename = malloc(strlen(buf0) + 1);
         strcpy(uri->filename, buf0);
         long len = (long) strlen(uri->path);
-        if (strcmp(uri->path + len - 4, ".ncr") == 0 || strcmp(uri->path + len - 4, ".php") == 0) {
+        if (strends(uri->path, ".ncr") || strends(uri->path, ".php")) {
             uri->path[len - 4] = 0;
             uri->is_static = 0;
-        } else if (strcmp(uri->path + len - 5, ".html") == 0) {
+        } else if (strends(uri->path, ".html")) {
             uri->path[len - 5] = 0;
         }
     } else if (path_is_file(buf1)) {
@@ -195,12 +195,12 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
         }
     }
 
-    if (strcmp(uri->path + strlen(uri->path) - 5, "index") == 0) {
+    if (strends(uri->path + strlen(uri->path), "index")) {
         uri->path[strlen(uri->path) - 5] = 0;
     }
-    if (strcmp(uri->pathinfo, "index.ncr") == 0 ||
-        strcmp(uri->pathinfo, "index.php") == 0 ||
-        strcmp(uri->pathinfo, "index.html") == 0) {
+    if (streq(uri->pathinfo, "index.ncr") ||
+        streq(uri->pathinfo, "index.php") ||
+        streq(uri->pathinfo, "index.html")) {
         uri->pathinfo[0] = 0;
     }
 

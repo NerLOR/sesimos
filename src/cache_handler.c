@@ -25,7 +25,6 @@
 
 #define CACHE_BUF_SIZE 16
 
-
 static magic_t magic;
 static pthread_t thread;
 static sem_t sem_free, sem_used, sem_lock;
@@ -69,7 +68,7 @@ static cache_entry_t *cache_get_entry(cache_t *cache, const char *filename) {
     for (int i = 0; i < CACHE_ENTRIES; i++) {
         entry = &cache->entries[i];
         if (entry->filename[0] == 0) break;
-        if (strcmp(entry->filename, filename) == 0) {
+        if (streq(entry->filename, filename)) {
             // found
             return entry;
         }
@@ -344,9 +343,7 @@ static void cache_mark_entry_dirty(cache_entry_t *entry) {
 }
 
 static void cache_update_entry(cache_entry_t *entry, const char *filename, const char *webroot) {
-    struct stat statbuf;
-    stat(filename, &statbuf);
-    memcpy(&entry->meta.stat, &statbuf, sizeof(statbuf));
+    entry->meta.mtime = stat_mtime(filename);
 
     entry->webroot_len = (unsigned char) strlen(webroot);
     strcpy(entry->filename, filename);
@@ -355,10 +352,10 @@ static void cache_update_entry(cache_entry_t *entry, const char *filename, const
     const char *type = magic_file(magic, filename);
     char type_new[URI_TYPE_SIZE];
     sprintf(type_new, "%s", type);
-    if (strncmp(type, "text/", 5) == 0) {
-        if (strcmp(filename + strlen(filename) - 4, ".css") == 0) {
+    if (strstarts(type, "text/")) {
+        if (strends(filename, ".css")) {
             sprintf(type_new, "text/css");
-        } else if (strcmp(filename + strlen(filename) - 3, ".js") == 0) {
+        } else if (strends(filename, ".js")) {
             sprintf(type_new, "application/javascript");
         }
     }
@@ -394,9 +391,7 @@ void cache_init_uri(cache_t *cache, http_uri *uri) {
             return;
 
         // check, if file has changed
-        struct stat statbuf;
-        stat(uri->filename, &statbuf);
-        if (memcmp(&uri->meta->stat.st_mtime, &statbuf.st_mtime, sizeof(statbuf.st_mtime)) != 0) {
+        if (uri->meta->mtime != stat_mtime(uri->filename)) {
             // modify time has changed
             cache_update_entry(entry, uri->filename, uri->webroot);
         }

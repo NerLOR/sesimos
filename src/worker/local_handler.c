@@ -45,7 +45,7 @@ static int local_handler(client_ctx_t *ctx) {
     char buf1[1024], buf2[1024];
     int accept_if_modified_since = 0;
 
-    if (strcmp(req->method, "TRACE") == 0) {
+    if (streq(req->method, "TRACE")) {
         res->status = http_get_status(200);
         http_add_header_field(&res->hdr, "Content-Type", "message/http");
 
@@ -60,11 +60,11 @@ static int local_handler(client_ctx_t *ctx) {
         return 0;
     }
 
-    if (strncmp(uri->req_path, "/.well-known/", 13) == 0) {
+    if (strstarts(uri->req_path, "/.well-known/")) {
         http_add_header_field(&res->hdr, "Access-Control-Allow-Origin", "*");
     }
 
-    if (strncmp(uri->req_path, "/.well-known/", 13) != 0 && strstr(uri->path, "/.") != NULL) {
+    if (!strstarts(uri->req_path, "/.well-known/") && strcontains(uri->path, "/.")) {
         res->status = http_get_status(403);
         sprintf(err_msg, "Parts of this URI are hidden.");
         return 0;
@@ -88,7 +88,7 @@ static int local_handler(client_ctx_t *ctx) {
     if (uri->is_static) {
         res->status = http_get_status(200);
         http_add_header_field(&res->hdr, "Accept-Ranges", "bytes");
-        if (strcmp(req->method, "GET") != 0 && strcmp(req->method, "HEAD") != 0) {
+        if (!streq(req->method, "GET") && !streq(req->method, "HEAD")) {
             res->status = http_get_status(405);
             return 0;
         }
@@ -101,7 +101,7 @@ static int local_handler(client_ctx_t *ctx) {
 
         cache_init_uri(ctx->conf->cache, uri);
 
-        const char *last_modified = http_format_date(uri->meta->stat.st_mtime, buf1, sizeof(buf1));
+        const char *last_modified = http_format_date(uri->meta->mtime, buf1, sizeof(buf1));
         http_add_header_field(&res->hdr, "Last-Modified", last_modified);
         sprintf(buf2, "%s; charset=%s", uri->meta->type, uri->meta->charset);
         http_add_header_field(&res->hdr, "Content-Type", buf2);
@@ -110,7 +110,7 @@ static int local_handler(client_ctx_t *ctx) {
         const char *accept_encoding = http_get_header_field(&req->hdr, "Accept-Encoding");
         int enc = 0;
         if (accept_encoding != NULL) {
-            if (uri->meta->filename_comp_br[0] != 0 && strstr(accept_encoding, "br") != NULL) {
+            if (uri->meta->filename_comp_br[0] != 0 && strcontains(accept_encoding, "br")) {
                 ctx->file = fopen(uri->meta->filename_comp_br, "rb");
                 if (ctx->file == NULL) {
                     cache_mark_dirty(ctx->conf->cache, uri->filename);
@@ -119,7 +119,7 @@ static int local_handler(client_ctx_t *ctx) {
                     http_add_header_field(&res->hdr, "Content-Encoding", "br");
                     enc = COMPRESS_BR;
                 }
-            } else if (uri->meta->filename_comp_gz[0] != 0 && strstr(accept_encoding, "gzip") != NULL) {
+            } else if (uri->meta->filename_comp_gz[0] != 0 && strcontains(accept_encoding, "gzip")) {
                 ctx->file = fopen(uri->meta->filename_comp_gz, "rb");
                 if (ctx->file == NULL) {
                     cache_mark_dirty(ctx->conf->cache, uri->filename);
@@ -143,7 +143,7 @@ static int local_handler(client_ctx_t *ctx) {
             }
         }
 
-        if (strncmp(uri->meta->type, "text/", 5) == 0) {
+        if (strstarts(uri->meta->type, "text/")) {
             http_add_header_field(&res->hdr, "Cache-Control", "public, max-age=3600");
         } else {
             http_add_header_field(&res->hdr, "Cache-Control", "public, max-age=86400");
@@ -151,8 +151,8 @@ static int local_handler(client_ctx_t *ctx) {
 
         const char *if_modified_since = http_get_header_field(&req->hdr, "If-Modified-Since");
         const char *if_none_match = http_get_header_field(&req->hdr, "If-None-Match");
-        if ((if_none_match != NULL && strstr(if_none_match, uri->meta->etag) == NULL) ||
-            (accept_if_modified_since && if_modified_since != NULL && strcmp(if_modified_since, last_modified) == 0))
+        if ((if_none_match != NULL && !strcontains(if_none_match, uri->meta->etag)) ||
+            (accept_if_modified_since && streq(if_modified_since, last_modified)))
         {
             res->status = http_get_status(304);
             return 0;
@@ -160,7 +160,7 @@ static int local_handler(client_ctx_t *ctx) {
 
         const char *range = http_get_header_field(&req->hdr, "Range");
         if (range != NULL) {
-            if (strlen(range) <= 6 || strncmp(range, "bytes=", 6) != 0) {
+            if (!strstarts(range, "bytes=")) {
                 res->status = http_get_status(416);
                 http_remove_header_field(&res->hdr, "Content-Type", HTTP_REMOVE_ALL);
                 http_remove_header_field(&res->hdr, "Last-Modified", HTTP_REMOVE_ALL);

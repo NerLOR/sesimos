@@ -108,7 +108,7 @@ static int request_handler(client_ctx_t *ctx) {
     }
 
     const char *hdr_connection = http_get_header_field(&req->hdr, "Connection");
-    ctx->c_keep_alive = (hdr_connection != NULL && (strstr(hdr_connection, "keep-alive") != NULL || strstr(hdr_connection, "Keep-Alive") != NULL));
+    ctx->c_keep_alive = (strcontains(hdr_connection, "keep-alive") || strcontains(hdr_connection, "Keep-Alive"));
     const char *host_ptr = http_get_header_field(&req->hdr, "Host");
     if (host_ptr != NULL && strlen(host_ptr) > 255) {
         ctx->req_host[0] = 0;
@@ -131,8 +131,8 @@ static int request_handler(client_ctx_t *ctx) {
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
     info(BLD_STR "%s %s", req->method, req->uri);
 
-    if (strncmp(req->uri, "/.sesimos/res/", 14) == 0) {
-        if (strcmp(req->method, "GET") != 0 && strcmp(req->method, "HEAD") != 0) {
+    if (strstarts(req->uri, "/.sesimos/res/")) {
+        if (!streq(req->method, "GET") && !streq(req->method, "HEAD")) {
             res->status = http_get_status(405);
             http_add_header_field(&res->hdr, "Allow", "GET, HEAD");
             return 0;
@@ -150,7 +150,7 @@ static int request_handler(client_ctx_t *ctx) {
         res->status = http_get_status(404);
         for (int i = 0; i < sizeof(resources) / sizeof(res_t); i++) {
             const res_t *r = &resources[i];
-            if (strcmp(req->uri + 14, r->name) == 0) {
+            if (streq(req->uri + 14, r->name)) {
                 res->status = http_get_status(203);
                 http_add_header_field(&res->hdr, "Content-Type", r->type);
                 http_add_header_field(&res->hdr, "Cache-Control", "public, max-age=86400");
@@ -189,13 +189,13 @@ static int request_handler(client_ctx_t *ctx) {
         return 0;
     }
 
-    if (ctx->conf->type == CONFIG_TYPE_LOCAL && strcmp(req->method, "TRACE") == 0) {
+    if (ctx->conf->type == CONFIG_TYPE_LOCAL && streq(req->method, "TRACE")) {
         return 1;
     } else if (dir_mode != URI_DIR_MODE_NO_VALIDATION) {
         ssize_t size = sizeof(buf0);
         url_decode(req->uri, buf0, &size);
-        int change_proto = (!client->enc && strncmp(uri->uri, "/.well-known/", 13) != 0);
-        if (strcmp(uri->uri, buf0) != 0 || change_proto) {
+        int change_proto = (!client->enc && !strstarts(uri->uri, "/.well-known/"));
+        if (!streq(uri->uri, buf0) || change_proto) {
             res->status = http_get_status(308);
             size = url_encode(uri->uri, strlen(uri->uri), buf0, sizeof(buf0));
             if (change_proto) {
@@ -271,7 +271,7 @@ int respond(client_ctx_t *ctx) {
                         snprintf(ctx->msg_content, sizeof(ctx->msg_content), "      <ul>\n        <li><a href=\"%s\">%s</a></li>\n      </ul>\n", location, location);
                     }
                 }
-            } else if (strncmp(ctx->msg_content, "<!DOCTYPE html>", 15) == 0 || strncmp(ctx->msg_content, "<html", 5) == 0) {
+            } else if (strstarts(ctx->msg_content, "<!DOCTYPE html>") || strstarts(ctx->msg_content, "<html")) {
                 ctx->msg_content[0] = 0;
                 // TODO let relevant information pass?
             }
@@ -340,7 +340,7 @@ int respond(client_ctx_t *ctx) {
     if (ctx->use_proxy) {
         // reverse proxy
         return 3;
-    } else if (strcmp(req->method, "HEAD") != 0) {
+    } else if (!streq(req->method, "HEAD")) {
         // default response
         if (ctx->msg_buf != NULL) {
             ret = sock_send(client, ctx->msg_buf, ctx->content_length, 0);

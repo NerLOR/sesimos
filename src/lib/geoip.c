@@ -9,6 +9,7 @@
 #include "geoip.h"
 #include "../logger.h"
 #include "error.h"
+#include "utils.h"
 #include <memory.h>
 #include <dirent.h>
 
@@ -91,7 +92,7 @@ int geoip_init(const char *directory) {
     struct dirent *entry;
     int i = 0, status;
     while ((entry = readdir(geoip_dir)) != NULL) {
-        if (strcmp(entry->d_name + strlen(entry->d_name) - 5, ".mmdb") != 0)
+        if (!strends(entry->d_name, ".mmdb"))
             continue;
 
         if (i >= GEOIP_MAX_MMDB) {

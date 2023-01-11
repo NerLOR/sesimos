@@ -46,9 +46,9 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
     char buf[1024];
 
     int mode, ret;
-    if (strcmp(uri->filename + strlen(uri->filename) - 4, ".ncr") == 0) {
+    if (strends(uri->filename, ".ncr")) {
         mode = FASTCGI_SESIMOS;
-    } else if (strcmp(uri->filename + strlen(uri->filename) - 4, ".php") == 0) {
+    } else if (strends(uri->filename, ".php")) {
         mode = FASTCGI_PHP;
     } else {
         res->status = http_get_status(500);
@@ -73,7 +73,7 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
     if (client_content_length != NULL) {
         unsigned long client_content_len = strtoul(client_content_length, NULL, 10);
         ret = fastcgi_receive(fcgi_cnx, client, client_content_len);
-    } else if (client_transfer_encoding != NULL && strstr(client_transfer_encoding, "chunked") != NULL) {
+    } else if (strcontains(client_transfer_encoding, "chunked")) {
         ret = fastcgi_receive_chunked(fcgi_cnx, client);
     } else {
         ret = 0;
@@ -118,7 +118,7 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
     const char *content_encoding = http_get_header_field(&res->hdr, "Content-Encoding");
     if (content_encoding == NULL &&
         content_type != NULL &&
-        strncmp(content_type, "text/html", 9) == 0 &&
+        strstarts(content_type, "text/html") &&
         ctx->content_length != -1 &&
         ctx->content_length <= sizeof(ctx->msg_content) - 1)
     {
@@ -157,7 +157,7 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
 
 static int fastcgi_handler_2(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
     const char *transfer_encoding = http_get_header_field(&ctx->res.hdr, "Transfer-Encoding");
-    int chunked = (transfer_encoding != NULL && strstr(transfer_encoding, "chunked") != NULL);
+    int chunked = strcontains(transfer_encoding, "chunked");
 
     int flags = (chunked ? FASTCGI_CHUNKED : 0) | (ctx->use_fastcgi & (FASTCGI_COMPRESS | FASTCGI_COMPRESS_HOLD));
     int ret = fastcgi_send(fcgi_cnx, &ctx->socket, flags);
