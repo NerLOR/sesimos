@@ -105,7 +105,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
         if (ret != 1) {
             error_ssl(SSL_get_error(client->ssl, ret));
             info("Unable to perform handshake");
-            return - 1;
+            return -1;
         }
         client->ts_last = clock_micros();
     }
@@ -118,6 +118,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
 }
 
 void tcp_close(client_ctx_t *ctx) {
+    errno = 0;
     logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->socket.s_addr, ctx->log_prefix);
 
     sock_close(&ctx->socket);
