@@ -18,7 +18,7 @@
 typedef struct {
     sock socket;
     int req_num;
-    unsigned char in_use: 1, s_keep_alive:1, c_keep_alive:1, use_fastcgi:4, use_proxy:2, ws_close:2;
+    unsigned char s_keep_alive:1, c_keep_alive:1, use_fastcgi:4, use_proxy:2, ws_close:2;
     char cc[3], host[256];
     char req_host[256], err_msg[256];
     char log_prefix[128];

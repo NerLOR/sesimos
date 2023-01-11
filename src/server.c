@@ -32,11 +32,13 @@
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <openssl/conf.h>
+#include <semaphore.h>
 
 const char *config_file;
 static int sockets[NUM_SOCKETS];
 static SSL_CTX *contexts[CONFIG_MAX_CERT_CONFIG];
 static client_ctx_t **clients;
+static sem_t sem_clients_lock;
 
 static void clean(void) {
     notice("Cleaning sesimos cache and metadata files...");
@@ -79,7 +81,28 @@ static int ssl_servername_cb(SSL *ssl, int *ad, void *arg) {
 }
 
 void server_free_client(client_ctx_t *ctx) {
+    // try to lock clients list
+    retry:
+    if (sem_wait(&sem_clients_lock) != 0) {
+        if (errno == EINTR) {
+            goto retry;
+        } else {
+            critical("Unable to lock clients list");
+            return;
+        }
+    }
+
+    // delete from list
     clients = list_delete(clients, &ctx);
+    if (clients == NULL) {
+        critical("Unable to delete context from list");
+        return;
+    }
+
+    // unlock clients list
+    sem_post(&sem_clients_lock);
+
+    // free data
     free(ctx);
 }
 
@@ -101,7 +124,6 @@ static void accept_cb(void *arg) {
         errno = 0;
         return;
     }
-    client_ctx->in_use = 1;
     sock *client = &client_ctx->socket;
 
     client->ctx = contexts[0];
@@ -109,6 +131,7 @@ static void accept_cb(void *arg) {
     int client_fd = accept(fd, &client->_addr.sock, &addr_len);
     if (client_fd < 0) {
         critical("Unable to accept connection");
+        free(client_ctx);
         return;
     }
 
@@ -119,12 +142,28 @@ static void accept_cb(void *arg) {
     client_ctx->cnx_s = client->ts_start;
     client_ctx->cnx_e = -1, client_ctx->req_s = -1, client_ctx->req_e = -1, client_ctx->res_ts = -1;
 
+    // try to lock clients list
+    retry:
+    if (sem_wait(&sem_clients_lock) != 0) {
+        if (errno == EINTR) {
+            goto retry;
+        } else {
+            critical("Unable to lock clients list");
+            return;
+        }
+    }
+
+    // append to list
     clients = list_append(clients, &client_ctx);
     if (clients == NULL) {
         critical("Unable to add client context to list");
+        free(client_ctx);
         errno = 0;
         return;
     }
+
+    // unlock clients list
+    sem_post(&sem_clients_lock);
 
     tcp_accept(client_ctx);
 }
@@ -313,11 +352,19 @@ int main(int argc, char *const argv[]) {
         return 1;
     }
 
+    if (sem_init(&sem_clients_lock, 0, 1) != 0) {
+        critical("Unable to create clients lock semaphore");
+        ssl_free();
+        list_free(clients);
+        return 1;
+    }
+
     if (async_init() != 0) {
         critical("Unable to initialize async thread");
         ssl_free();
         geoip_free();
         list_free(clients);
+        sem_destroy(&sem_clients_lock);
         return 1;
     }
 
@@ -326,6 +373,7 @@ int main(int argc, char *const argv[]) {
         ssl_free();
         geoip_free();
         list_free(clients);
+        sem_destroy(&sem_clients_lock);
         async_free();
         return 1;
     }
@@ -336,6 +384,7 @@ int main(int argc, char *const argv[]) {
             ssl_free();
             geoip_free();
             list_free(clients);
+            sem_destroy(&sem_clients_lock);
             async_free();
             proxy_unload();
             return 1;
@@ -360,6 +409,7 @@ int main(int argc, char *const argv[]) {
     // cleanup
     ssl_free();
     list_free(clients);
+    sem_destroy(&sem_clients_lock);
     geoip_free();
     proxy_unload();
     cache_join();
