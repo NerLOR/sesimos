@@ -462,7 +462,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         return -1;
     }
 
-    ret = sock_recv(&proxy->proxy, buffer, sizeof(buffer), MSG_PEEK);
+    ret = sock_recv(&proxy->proxy, buffer, sizeof(buffer) - 1, MSG_PEEK);
     if (ret <= 0) {
         int e_sys = error_get_sys(), e_ssl = error_get_ssl();
         if (e_sys == EAGAIN || e_sys == EINPROGRESS || e_ssl == SSL_ERROR_WANT_READ || e_ssl == SSL_ERROR_WANT_WRITE) {
@@ -477,6 +477,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         retry = tries < 4;
         goto proxy_err;
     }
+    buffer[ret] = 0;
 
     char *buf = buffer;
     unsigned short header_len = (unsigned short) (strstr(buffer, "\r\n\r\n") - buffer + 4);

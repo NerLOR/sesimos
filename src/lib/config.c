@@ -42,7 +42,7 @@ int config_load(const char *filename) {
         if (comment != NULL) comment[0] = 0;
 
         unsigned long len = strlen(ptr);
-        char *end_ptr = ptr + len - 1;
+        char *end_ptr = (len > 0) ? ptr + len - 1 : ptr;
         while (end_ptr[0] == ' ' || end_ptr[0] == '\t') {
             end_ptr[0] = 0;
             end_ptr--;
@@ -161,6 +161,8 @@ int config_load(const char *filename) {
         if (strlen(source) == 0) {
             err:
             critical("Unable to parse config file (line %i)", line);
+            free(line);
+            fclose(file);
             return -2;
         }
 
@@ -182,6 +184,7 @@ int config_load(const char *filename) {
     }
 
     free(line);
+    fclose(file);
 
     for (int k = 0; k < i; k++) {
         host_config_t *hc = &config.hosts[k];

@@ -69,6 +69,9 @@ int compress_free(compress_ctx *ctx) {
         BrotliEncoderDestroyInstance(ctx->brotli);
         ctx->brotli = NULL;
     }
+    if (ctx->mode & COMPRESS_GZ) {
+        deflateEnd(&ctx->gzip);
+    }
     ctx->mode = 0;
     return 0;
 }

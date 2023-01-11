@@ -79,13 +79,16 @@ static int ssl_servername_cb(SSL *ssl, int *ad, void *arg) {
 }
 
 void server_free_client(client_ctx_t *ctx) {
-    for (int i = 0; i < list_size(clients); i++) {
-        if (clients[i] == ctx) {
-            clients = list_remove(clients, i);
-            break;
-        }
-    }
+    clients = list_delete(clients, &ctx);
     free(ctx);
+}
+
+static void ssl_free() {
+    for (int i = 0; i < CONFIG_MAX_CERT_CONFIG; i++) {
+        const cert_config_t *conf = &config.certs[i];
+        if (conf->name[0] == 0) break;
+        SSL_CTX_free(contexts[i]);
+    }
 }
 
 static void accept_cb(void *arg) {
@@ -98,14 +101,6 @@ static void accept_cb(void *arg) {
         errno = 0;
         return;
     }
-
-    clients = list_append(clients, &client_ctx);
-    if (clients == NULL) {
-        critical("Unable to add client context to list");
-        errno = 0;
-        return;
-    }
-
     client_ctx->in_use = 1;
     sock *client = &client_ctx->socket;
 
@@ -123,6 +118,13 @@ static void accept_cb(void *arg) {
     client->ts_last = client->ts_start;
     client_ctx->cnx_s = client->ts_start;
     client_ctx->cnx_e = -1, client_ctx->req_s = -1, client_ctx->req_e = -1, client_ctx->res_ts = -1;
+
+    clients = list_append(clients, &client_ctx);
+    if (clients == NULL) {
+        critical("Unable to add client context to list");
+        errno = 0;
+        return;
+    }
 
     tcp_accept(client_ctx);
 }
@@ -160,9 +162,9 @@ static void terminate_gracefully(int sig) {
     workers_stop();
     workers_destroy();
 
-    for (int i = 0; i < list_size(clients); i++) {
-        tcp_close(clients[i]);
-    }
+    while (list_size(clients) > 0)
+        server_free_client(clients[0]);
+
     proxy_close_all();
     logger_set_prefix("");
 
@@ -177,11 +179,6 @@ int main(int argc, char *const argv[]) {
     int mode = 0;
 
     memset(sockets, 0, sizeof(sockets));
-    clients = list_create(sizeof(void *), 64);
-    if (clients == NULL) {
-        critical("Unable to initialize client list");
-        return 1;
-    }
 
     const struct sockaddr_in6 addresses[2] = {
             {.sin6_family = AF_INET6, .sin6_addr = IN6ADDR_ANY_INIT, .sin6_port = htons(80)},
@@ -309,15 +306,26 @@ int main(int argc, char *const argv[]) {
         }
     }
 
+    clients = list_create(sizeof(client_ctx_t *), 64);
+    if (clients == NULL) {
+        critical("Unable to initialize client list");
+        ssl_free();
+        return 1;
+    }
+
     if (async_init() != 0) {
         critical("Unable to initialize async thread");
+        ssl_free();
         geoip_free();
+        list_free(clients);
         return 1;
     }
 
     if (proxy_preload() != 0) {
         critical("Unable to initialize proxy");
+        ssl_free();
         geoip_free();
+        list_free(clients);
         async_free();
         return 1;
     }
@@ -325,7 +333,10 @@ int main(int argc, char *const argv[]) {
     for (int i = 0; i < NUM_SOCKETS; i++) {
         if (listen(sockets[i], LISTEN_BACKLOG) < 0) {
             critical("Unable to listen on socket %i", i);
+            ssl_free();
             geoip_free();
+            list_free(clients);
+            async_free();
             proxy_unload();
             return 1;
         }
@@ -347,6 +358,7 @@ int main(int argc, char *const argv[]) {
     notice("Goodbye!");
 
     // cleanup
+    ssl_free();
     list_free(clients);
     geoip_free();
     proxy_unload();

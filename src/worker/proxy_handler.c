@@ -29,12 +29,14 @@ void proxy_handler_func(client_ctx_t *ctx) {
 
     if (ret == 1) {
         proxy_unlock_ctx(ctx->proxy);
+        ctx->proxy->client = NULL;
         ctx->proxy = NULL;
     } else if (ctx->use_proxy == 0) {
         proxy_close(ctx->proxy);
     } else if (ctx->use_proxy == 1) {
         proxy_handler_2(ctx);
         proxy_unlock_ctx(ctx->proxy);
+        ctx->proxy->client = NULL;
         ctx->proxy = NULL;
     } else if (ctx->use_proxy == 2) {
         // WebSocket
