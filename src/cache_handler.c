@@ -27,7 +27,7 @@
 
 static magic_t magic;
 static pthread_t thread;
-static sem_t sem_free, sem_used, sem_lock;
+static sem_t sem_free, sem_used, sem_lock, sem_cache;
 volatile sig_atomic_t alive = 1;
 
 typedef struct {
@@ -60,6 +60,13 @@ static void cache_free(void) {
 
         munmap(hc->cache, sizeof(cache_t));
     }
+
+    magic_close(magic);
+
+    sem_destroy(&sem_lock);
+    sem_destroy(&sem_free);
+    sem_destroy(&sem_used);
+    sem_destroy(&sem_cache);
 }
 
 static cache_entry_t *cache_get_entry(cache_t *cache, const char *filename) {
@@ -79,13 +86,29 @@ static cache_entry_t *cache_get_entry(cache_t *cache, const char *filename) {
 }
 
 static cache_entry_t *cache_get_new_entry(cache_t *cache) {
+    // globally lock cache
+    retry:
+    if (sem_wait(&sem_cache) != 0) {
+        if (errno == EINTR) {
+            goto retry;
+        } else {
+            return NULL;
+        }
+    }
+
     // search empty slot
     cache_entry_t *entry;
     for (int i = 0; i < CACHE_ENTRIES; i++) {
         entry = &cache->entries[i];
-        if (entry->filename[0] == 0)
+        if (entry->filename[0] == 0) {
+            // unlock cache
+            sem_post(&sem_cache);
             return entry;
+        }
     }
+
+    // unlock cache
+    sem_post(&sem_cache);
 
     // not found
     return NULL;
@@ -97,7 +120,7 @@ static void cache_process_entry(cache_entry_t *entry) {
     info("Hashing file %s", entry->filename);
 
     EVP_MD_CTX *ctx = EVP_MD_CTX_new();
-    EVP_DigestInit(ctx, EVP_sha1());
+    EVP_DigestInit(ctx, EVP_sha256());
     FILE *file = fopen(entry->filename, "rb");
     int compress = mime_is_compressible(entry->meta.type);
 
@@ -119,9 +142,7 @@ static void cache_process_entry(cache_entry_t *entry) {
 
         char *rel_path = entry->filename + entry->webroot_len + 1;
         for (int j = 0; j < strlen(rel_path); j++) {
-            char ch = rel_path[j];
-            if (ch == '/') ch = '_';
-            buf[j] = ch;
+            buf[j] = (char) ((rel_path[j] == '/') ? '_' : rel_path[j]);
         }
         buf[strlen(rel_path)] = 0;
 
@@ -273,7 +294,8 @@ int cache_init(void) {
     // try to initialize all three semaphores
     if (sem_init(&sem_lock, 0, 1) != 0 ||
         sem_init(&sem_free, 0, 1) != 0 ||
-        sem_init(&sem_used, 0, 0) != 0)
+        sem_init(&sem_used, 0, 0) != 0 ||
+        sem_init(&sem_cache, 0, 1) != 0)
     {
         critical("Unable to initialize semaphore");
         return -1;
