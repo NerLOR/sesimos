@@ -9,6 +9,7 @@
 #ifndef SESIMOS_FUNC_H
 #define SESIMOS_FUNC_H
 
+#include "../defs.h"
 #include "../lib/sock.h"
 #include "../lib/http.h"
 #include "../lib/uri.h"
@@ -22,7 +23,7 @@ typedef struct {
     char cc[3], host[256];
     char req_host[256], err_msg[256];
     char log_prefix[128];
-    char _c_addr[INET6_ADDRSTRLEN + 1], _s_addr[INET6_ADDRSTRLEN + 1];
+    char _c_addr[ADDRSTRLEN + 1], _s_addr[ADDRSTRLEN + 1];
     long cnx_s, cnx_e, req_s, res_ts, req_e;
     http_req req;
     http_res res;
@@ -61,8 +62,6 @@ void request_complete(client_ctx_t *ctx);
 void timeout_request(client_ctx_t *ctx);
 
 void tcp_close(client_ctx_t *ctx);
-
-void proxy_close(proxy_ctx_t *ctx);
 
 int ws_handle_connection(client_ctx_t *ctx);
 

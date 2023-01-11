@@ -23,7 +23,7 @@
 static int request_handler(client_ctx_t *ctx);
 
 void request_handler_func(client_ctx_t *ctx) {
-    logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->socket.s_addr, ctx->log_prefix);
+    logger_set_prefix("[%*s]%s", ADDRSTRLEN, ctx->socket.s_addr, ctx->log_prefix);
 
     switch (request_handler(ctx)) {
         case 0:
@@ -128,7 +128,7 @@ static int request_handler(client_ctx_t *ctx) {
         strcpy(ctx->req_host, host_ptr);
     }
 
-    logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
+    logger_set_prefix("[%s%*s%s]%s", BLD_STR, ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
     info(BLD_STR "%s %s", req->method, req->uri);
 
     if (strstarts(req->uri, "/.sesimos/res/")) {
@@ -386,7 +386,7 @@ void request_complete(client_ctx_t *ctx) {
 
 void timeout_request(client_ctx_t *ctx) {
     init_ctx(ctx);
-    logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->socket.s_addr, ctx->log_prefix);
+    logger_set_prefix("[%*s]%s", ADDRSTRLEN, ctx->socket.s_addr, ctx->log_prefix);
 
     ctx->s_keep_alive = 0;
     ctx->res.status = http_get_status(408);

@@ -89,8 +89,10 @@ void proxy_unload(void) {
 void proxy_close_all(void) {
     proxy_ctx_t *ptr = proxies;
     for (int i = 0; i < MAX_PROXY_CNX_PER_HOST * num_proxy_hosts; i++, ptr++) {
-        if (ptr->initialized)
+        if (ptr->initialized) {
             proxy_close(ptr);
+            logger_set_prefix("");
+        }
     }
 }
 
@@ -670,4 +672,17 @@ int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int 
 int proxy_dump(proxy_ctx_t *proxy, char *buf, long len) {
     sock_recv(&proxy->proxy, buf, len, 0);
     return 0;
+}
+
+void proxy_close(proxy_ctx_t *ctx) {
+    client_ctx_t *cctx = ctx->client;
+    if (cctx) {
+        logger_set_prefix("[%s%*s%s]%s", BLD_STR, ADDRSTRLEN, cctx->req_host, CLR_STR, cctx->log_prefix);
+    }
+
+    info(BLUE_STR "Closing proxy connection");
+    sock_close(&ctx->proxy);
+
+    memset(ctx, 0, sizeof(*ctx));
+    errno = 0;
 }

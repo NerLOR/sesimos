@@ -16,7 +16,7 @@
 static int ws_frame_handler(ws_ctx_t *ctx);
 
 void ws_frame_handler_func(ws_ctx_t *ctx) {
-    logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->client->socket.s_addr, ctx->client->log_prefix);
+    logger_set_prefix("[%*s]%s", ADDRSTRLEN, ctx->client->socket.s_addr, ctx->client->log_prefix);
 
     if (ws_frame_handler(ctx) == 0) {
         if (ctx->client->ws_close == 3) {
@@ -84,7 +84,7 @@ void ws_close(ws_ctx_t *ctx) {
     ws_ctx_t *other = ctx->other;
     if (other) {
         other->other = NULL;
-        logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->client->socket.s_addr, ctx->client->log_prefix);
+        logger_set_prefix("[%*s]%s", ADDRSTRLEN, ctx->client->socket.s_addr, ctx->client->log_prefix);
         info("Closing WebSocket connection");
         proxy_close(ctx->client->proxy);
         tcp_close(ctx->client);

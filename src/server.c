@@ -204,8 +204,8 @@ static void terminate_gracefully(int sig) {
     while (list_size(clients) > 0)
         tcp_close(clients[0]);
 
-    proxy_close_all();
     logger_set_prefix("");
+    proxy_close_all();
 
     async_stop();
 }

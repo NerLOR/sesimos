@@ -19,7 +19,7 @@
 static int local_handler(client_ctx_t *ctx);
 
 void local_handler_func(client_ctx_t *ctx) {
-    logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
+    logger_set_prefix("[%s%*s%s]%s", BLD_STR, ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
 
     switch (local_handler(ctx)) {
         case 0:

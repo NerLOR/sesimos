@@ -49,10 +49,10 @@ static int tcp_acceptor(client_ctx_t *ctx) {
     }
 
     sprintf(ctx->log_prefix, "[%s%4i%s]%s[%*s][%5i]%s", (int) ctx->socket.enc ? HTTPS_STR : HTTP_STR,
-            ntohs(server_addr.sin6_port), CLR_STR, /*color_table[0]*/ "", INET6_ADDRSTRLEN, ctx->socket.addr,
+            ntohs(server_addr.sin6_port), CLR_STR, /*color_table[0]*/ "", ADDRSTRLEN, ctx->socket.addr,
             ntohs(ctx->socket._addr.ipv6.sin6_port), CLR_STR);
 
-    logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->socket.s_addr, ctx->log_prefix);
+    logger_set_prefix("[%*s]%s", ADDRSTRLEN, ctx->socket.s_addr, ctx->log_prefix);
 
     int ret;
     char buf[1024];
@@ -119,7 +119,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
 
 void tcp_close(client_ctx_t *ctx) {
     errno = 0;
-    logger_set_prefix("[%*s]%s", INET6_ADDRSTRLEN, ctx->socket.s_addr, ctx->log_prefix);
+    logger_set_prefix("[%*s]%s", ADDRSTRLEN, ctx->socket.s_addr, ctx->log_prefix);
 
     sock_close(&ctx->socket);
 

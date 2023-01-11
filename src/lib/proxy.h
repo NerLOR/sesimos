@@ -48,4 +48,6 @@ int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int 
 
 int proxy_dump(proxy_ctx_t *proxy, char *buf, long len);
 
+void proxy_close(proxy_ctx_t *ctx);
+
 #endif //SESIMOS_PROXY_H

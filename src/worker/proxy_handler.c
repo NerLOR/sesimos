@@ -20,7 +20,7 @@ static int proxy_handler_1(client_ctx_t *ctx);
 static int proxy_handler_2(client_ctx_t *ctx);
 
 void proxy_handler_func(client_ctx_t *ctx) {
-    logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
+    logger_set_prefix("[%s%*s%s]%s", BLD_STR, ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
 
     // TODO handle 1xx responses
 
@@ -154,19 +154,4 @@ static int proxy_handler_2(client_ctx_t *ctx) {
     }
 
     return ret;
-}
-
-void proxy_close(proxy_ctx_t *ctx) {
-    client_ctx_t *cctx = ctx->client;
-    if (cctx) {
-        logger_set_prefix("[%s%*s%s]%s", BLD_STR, INET6_ADDRSTRLEN, cctx->req_host, CLR_STR, cctx->log_prefix);
-    } else {
-        logger_set_prefix("");
-    }
-
-    info(BLUE_STR "Closing proxy connection");
-    sock_close(&ctx->proxy);
-
-    memset(ctx, 0, sizeof(*ctx));
-    errno = 0;
 }

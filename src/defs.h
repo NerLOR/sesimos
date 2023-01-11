@@ -15,6 +15,7 @@
 
 #define CHUNK_SIZE 8192
 #define MAX_PROXY_CNX_PER_HOST 16
+#define ADDRSTRLEN 39
 
 #ifndef DEFAULT_HOST
 #   define DEFAULT_HOST "www.necronda.net"
