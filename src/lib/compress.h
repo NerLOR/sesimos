@@ -18,6 +18,8 @@
 #define COMPRESS_GZ 1
 #define COMPRESS_BR 2
 #define COMPRESS 3
+#define COMPRESS_UTF8 4
+#define COMPRESS_WOFF 8
 
 typedef struct {
     int mode;
