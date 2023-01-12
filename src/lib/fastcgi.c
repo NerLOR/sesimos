@@ -17,6 +17,8 @@
 #include <string.h>
 #include <unistd.h>
 
+// TODO use pipes for stdin, stdout, stderr in FastCGI
+
 char *fastcgi_add_param(char *buf, const char *key, const char *value) {
     char *ptr = buf;
     unsigned long key_len = strlen(key);

@@ -24,10 +24,13 @@
 #define LOG_NAME_LEN 12
 #define LOG_PREFIX_LEN 256
 
-#define LOG_PREFIX "[%-8s][%-6s]"
+#define LOG_PREFIX "[%8s][%-8s][%-6s]"
+#define LOG_TIME_BUF_SIZE 9
+#define LOG_TIME_FMT "%H:%M:%S"
 
 typedef struct {
     log_lvl_t lvl;
+    long time;
     char name[LOG_NAME_LEN];
     char prefix[LOG_PREFIX_LEN];
     char txt[LOG_MAX_MSG_SIZE];
@@ -58,14 +61,20 @@ static const char *level_keywords[] = {
         "DEBUG"
 };
 
+static const char *timestr(time_t ts, char *buf) {
+    struct tm time_info;
+    strftime(buf, LOG_TIME_BUF_SIZE, LOG_TIME_FMT, localtime_r(&ts, &time_info));
+    return buf;
+}
+
 static void err(const char *restrict msg) {
-    char err_buf[64];
-    fprintf(stderr, ERR_STR LOG_PREFIX " %s: %s" CLR_STR "\n", "logger",
+    char err_buf[64], time_buf[LOG_TIME_BUF_SIZE];
+    fprintf(stderr, ERR_STR LOG_PREFIX " %s: %s" CLR_STR "\n", timestr(time(NULL), time_buf), "logger",
             level_keywords[LOG_CRITICAL], msg, error_str(errno, err_buf, sizeof(err_buf)));
 }
 
 void logmsgf(log_lvl_t level, const char *restrict format, ...) {
-    char buf[256], err_buf[256];
+    char buf[256], err_buf[256], time_buf[LOG_TIME_BUF_SIZE];
     va_list args;
     va_start(args, format);
 
@@ -84,7 +93,11 @@ void logmsgf(log_lvl_t level, const char *restrict format, ...) {
     if (!alive) {
         // no logger thread running
         // simply write to stdout without synchronization
-        printf("%s" LOG_PREFIX "%s%s ", color, (name != NULL) ? (char *) name : "", level_keywords[level], CLR_STR, (prefix != NULL) ? (char *) prefix : "");
+        printf("%s" LOG_PREFIX "%s%s ", color,
+               timestr(time(NULL), time_buf),
+               (name != NULL) ? (char *) name : "",
+               level_keywords[level], CLR_STR,
+               (prefix != NULL) ? (char *) prefix : "");
         vprintf(buf, args);
         printf("\n");
     } else {
@@ -125,6 +138,7 @@ void logmsgf(log_lvl_t level, const char *restrict format, ...) {
 
         vsnprintf(msg->txt, sizeof(msg->txt), buf, args);
         msg->lvl = level;
+        msg->time = time(NULL);
 
         if (name != NULL) {
             snprintf(msg->name, sizeof(msg->name), "%s", (char *) name);
@@ -220,6 +234,8 @@ void logger_set_prefix(const char *restrict format, ...) {
 }
 
 static void *logger_thread(void *arg) {
+    char time_buf[LOG_TIME_BUF_SIZE];
+
     logger_set_name("logger");
     alive = 1;
 
@@ -241,6 +257,7 @@ static void *logger_thread(void *arg) {
 
         printf("%s" LOG_PREFIX "%s%s %s\n",
                (msg->lvl <= LOG_ERROR) ? ERR_STR : ((msg->lvl <= LOG_WARNING) ? WRN_STR : ""),
+               (timestr(msg->time, time_buf)),
                (msg->name[0] != 0) ? (char *) msg->name : "", level_keywords[msg->lvl], CLR_STR,
                (msg->prefix[0] != 0) ? (char *) msg->prefix : "",  msg->txt);
 
