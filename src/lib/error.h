@@ -11,11 +11,13 @@
 
 const char *error_str(int err_no, char *buf, int buf_len);
 
-void error_ssl(int err);
+void error_ssl(unsigned long err);
+
+void error_ssl_err(unsigned long err);
 
 void error_mmdb(int err);
 
-int error_http(int err);
+void error_http(int err);
 
 int error_get_sys();
 

@@ -105,7 +105,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
 
         ret = SSL_accept(client->ssl);
         if (ret != 1) {
-            error_ssl(SSL_get_error(client->ssl, ret));
+            sock_error(client, ret);
             info("Unable to perform handshake");
             return -1;
         }

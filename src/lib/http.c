@@ -13,7 +13,36 @@
 #include "error.h"
 
 #include <string.h>
+#include <errno.h>
 
+static int http_error(int err) {
+    if (err == 0) {
+        errno = 0;
+    } else if (err == HTTP_ERROR_SYSCALL) {
+        // errno already set
+    } else {
+        error_http(err);
+    }
+    return -1;
+}
+
+const char *http_error_str(int err) {
+    switch (err) {
+        case HTTP_ERROR_TOO_MANY_HEADER_FIELDS:
+            return "too many header fields";
+        case HTTP_ERROR_EOH_NOT_FOUND:
+            return "end of http header not found";
+        case HTTP_ERROR_HEADER_MALFORMED:
+            return "http header malformed";
+        case HTTP_ERROR_INVALID_VERSION:
+            return "invalid http version";
+        case HTTP_ERROR_URI_TOO_LONG:
+            return "uri too long";
+        case HTTP_ERROR_GENERAL:
+        default:
+            return "unknown error";
+    }
+}
 
 void http_to_camel_case(char *str, int mode) {
     if (mode == HTTP_PRESERVE)
@@ -91,19 +120,19 @@ int http_init_hdr(http_hdr *hdr) {
     hdr->last_field_num = -1;
     hdr->fields = list_create(sizeof(http_field), HTTP_INIT_HEADER_FIELD_NUM);
     if (hdr->fields == NULL)
-        return error_http(HTTP_ERROR_SYSCALL);
+        return http_error(HTTP_ERROR_SYSCALL);
 
     return 0;
 }
 
 int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr, int flags) {
     if (hdr->last_field_num > list_size(hdr->fields))
-        return error_http(HTTP_ERROR_GENERAL);
+        return http_error(HTTP_ERROR_GENERAL);
 
     char *pos1 = (char *) buf, *pos2 = (char *) end_ptr;
     if (buf[0] == ' ' || buf[0] == '\t') {
         if (hdr->last_field_num == -1)
-            return error_http(HTTP_ERROR_GENERAL);
+            return http_error(HTTP_ERROR_GENERAL);
 
         http_field *f = &hdr->fields[(int) hdr->last_field_num];
 
@@ -115,7 +144,7 @@ int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr,
 
     pos1 = memchr(buf, ':', end_ptr - buf);
     if (pos1 == NULL)
-        return error_http(HTTP_ERROR_GENERAL);
+        return http_error(HTTP_ERROR_GENERAL);
 
     long len1 = pos1 - buf;
 
@@ -130,7 +159,7 @@ int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr,
     int found = http_get_header_field_num(hdr, header_name);
     if (!(flags & HTTP_MERGE_FIELDS) || found == -1) {
         if (http_add_header_field_len(hdr, buf, len1, pos1, len2 < 0 ? 0 : len2) != 0)
-            return error_http(HTTP_ERROR_TOO_MANY_HEADER_FIELDS);
+            return http_error(HTTP_ERROR_TOO_MANY_HEADER_FIELDS);
     } else {
         field_num = found;
         http_append_to_header_field(&hdr->fields[found], ", ", 2);
@@ -147,44 +176,44 @@ int http_parse_request(char *buf, http_req *req) {
 
     unsigned long header_len = strstr(buf, "\r\n\r\n") - buf + 4;
     if (header_len <= 0)
-        return error_http(HTTP_ERROR_EOH_NOT_FOUND);
+        return http_error(HTTP_ERROR_EOH_NOT_FOUND);
 
     for (int i = 0; i < header_len; i++) {
         if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F)
-            return error_http(HTTP_ERROR_HEADER_MALFORMED);
+            return http_error(HTTP_ERROR_HEADER_MALFORMED);
     }
 
     ptr = buf;
     while (header_len > (ptr - buf + 2)) {
         pos0 = strstr(ptr, "\r\n");
         if (pos0 == NULL)
-            return error_http(HTTP_ERROR_HEADER_MALFORMED);
+            return http_error(HTTP_ERROR_HEADER_MALFORMED);
 
         if (req->version[0] == 0) {
             pos1 = (char *) strchr(ptr, ' ') + 1;
             if (pos1 == NULL) goto err_hdr_fmt;
 
             if (pos1 - ptr - 1 >= sizeof(req->method))
-                return error_http(HTTP_ERROR_HEADER_MALFORMED);
+                return http_error(HTTP_ERROR_HEADER_MALFORMED);
 
             for (int i = 0; i < (pos1 - ptr - 1); i++) {
                 if (ptr[i] < 'A' || ptr[i] > 'Z')
-                    return error_http(HTTP_ERROR_HEADER_MALFORMED);
+                    return http_error(HTTP_ERROR_HEADER_MALFORMED);
             }
             snprintf(req->method, sizeof(req->method), "%.*s", (int) (pos1 - ptr - 1), ptr);
 
             pos2 = (char *) strchr(pos1, ' ') + 1;
             if (pos2 == NULL) {
                 err_hdr_fmt:
-                return error_http(HTTP_ERROR_HEADER_MALFORMED);
+                return http_error(HTTP_ERROR_HEADER_MALFORMED);
             }
 
             if (memcmp(pos2, "HTTP/", 5) != 0 || memcmp(pos2 + 8, "\r\n", 2) != 0)
-                return error_http(HTTP_ERROR_INVALID_VERSION);
+                return http_error(HTTP_ERROR_INVALID_VERSION);
 
             len = pos2 - pos1 - 1;
             if (len >= 2048)
-                return error_http(HTTP_ERROR_URI_TOO_LONG);
+                return http_error(HTTP_ERROR_URI_TOO_LONG);
 
             req->uri = malloc(len + 1);
             sprintf(req->uri, "%.*s", (int) len, pos1);
@@ -200,7 +229,7 @@ int http_parse_request(char *buf, http_req *req) {
         return (int) header_len;
     }
 
-    return error_http(HTTP_ERROR_GENERAL);
+    return http_error(HTTP_ERROR_GENERAL);
 }
 
 int http_receive_request(sock *client, http_req *req) {

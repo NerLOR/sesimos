@@ -15,6 +15,50 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <openssl/err.h>
+
+static void ssl_error(unsigned long err) {
+    if (err == SSL_ERROR_NONE) {
+        errno = 0;
+    } else if (err == SSL_ERROR_SYSCALL) {
+        // errno already set
+    } else if (err == SSL_ERROR_SSL) {
+        error_ssl_err(ERR_get_error());
+    } else {
+        error_ssl(err);
+    }
+}
+
+void sock_error(sock *s, int ret) {
+    ssl_error(SSL_get_error(s->ssl, ret));
+}
+
+const char *sock_error_str(unsigned long err) {
+    switch (err) {
+        case SSL_ERROR_ZERO_RETURN:
+            return "closed";
+        case SSL_ERROR_WANT_READ:
+            return "want read";
+        case SSL_ERROR_WANT_WRITE:
+            return "want write";
+        case SSL_ERROR_WANT_CONNECT:
+            return "want connect";
+        case SSL_ERROR_WANT_ACCEPT:
+            return "want accept";
+        case SSL_ERROR_WANT_X509_LOOKUP:
+            return "want x509 lookup";
+        case SSL_ERROR_WANT_ASYNC:
+            return "want async";
+        case SSL_ERROR_WANT_ASYNC_JOB:
+            return "want async job";
+        case SSL_ERROR_WANT_CLIENT_HELLO_CB:
+            return "want client hello callback";
+            //case SSL_ERROR_WANT_RETRY_VERIFY:
+            //    return "want retry verify";
+        default:
+            return "unknown error";
+    }
+}
 
 int sock_set_socket_timeout_micros(sock *s, long recv_micros, long send_micros) {
     struct timeval recv_to = {.tv_sec = recv_micros / 1000000, .tv_usec = recv_micros % 1000000},
@@ -49,7 +93,7 @@ long sock_send(sock *s, void *buf, unsigned long len, int flags) {
     long ret;
     if (s->enc) {
         ret = SSL_write(s->ssl, buf, (int) len);
-        if (ret <= 0) error_ssl(SSL_get_error(s->ssl, (int) ret));
+        if (ret <= 0) sock_error(s, (int) ret);
     } else {
         ret = send(s->socket, buf, len, flags);
     }
@@ -67,7 +111,7 @@ long sock_recv(sock *s, void *buf, unsigned long len, int flags) {
     if (s->enc) {
         int (*func)(SSL*, void*, int) = (flags & MSG_PEEK) ? SSL_peek : SSL_read;
         ret = func(s->ssl, buf, (int) len);
-        if (ret <= 0) error_ssl(SSL_get_error(s->ssl, (int) ret));
+        if (ret <= 0) sock_error(s, (int) ret);
     } else {
         ret = recv(s->socket, buf, len, flags);
     }

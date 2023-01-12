@@ -383,7 +383,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
 
         ret = SSL_do_handshake(proxy->proxy.ssl);
         if (ret != 1) {
-            error_ssl(SSL_get_error(proxy->proxy.ssl, (int) ret));
+            sock_error(&proxy->proxy, ret);
             SSL_free(proxy->proxy.ssl);
             res->status = http_get_status(502);
             ctx->origin = SERVER_REQ;

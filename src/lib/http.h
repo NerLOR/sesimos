@@ -134,6 +134,8 @@ extern const int http_status_messages_size;
 
 extern const char http_error_doc[], http_warning_doc[], http_success_doc[], http_info_doc[];
 
+const char *http_error_str(int err);
+
 void http_to_camel_case(char *str, int mode);
 
 const char *http_field_get_name(const http_field *field);

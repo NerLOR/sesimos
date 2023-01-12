@@ -10,11 +10,22 @@
 #include "../logger.h"
 #include "error.h"
 #include "utils.h"
+
 #include <memory.h>
 #include <dirent.h>
-
+#include <errno.h>
 
 static MMDB_s mmdbs[GEOIP_MAX_MMDB];
+
+static void mmdb_error(int err) {
+    if (err == MMDB_SUCCESS) {
+        errno = 0;
+    } else if (err == MMDB_IO_ERROR) {
+        // errno already set
+    } else {
+        error_mmdb(err);
+    }
+}
 
 static MMDB_entry_data_list_s *geoip_json(MMDB_entry_data_list_s *list, char *str, long *str_off, long str_len) {
     switch (list->entry_data.type) {
@@ -103,7 +114,7 @@ int geoip_init(const char *directory) {
 
         sprintf(buf, "%s/%s", directory, entry->d_name);
         if ((status = MMDB_open(buf, 0, &mmdbs[i])) != MMDB_SUCCESS) {
-            error_mmdb(status);
+            mmdb_error(status);
             critical("Unable to initialize geoip: Unable to open .mmdb file");
             closedir(geoip_dir);
             return 1;
@@ -167,7 +178,7 @@ int geoip_lookup_json(struct sockaddr *addr, char *json, long len) {
         int mmdb_res;
         MMDB_lookup_result_s result = MMDB_lookup_sockaddr(&mmdbs[i], addr, &mmdb_res);
         if (mmdb_res != MMDB_SUCCESS) {
-            error_mmdb(mmdb_res);
+            mmdb_error(mmdb_res);
             error("Unable to lookup geoip info");
             continue;
         } else if (!result.found_entry) {
@@ -176,7 +187,7 @@ int geoip_lookup_json(struct sockaddr *addr, char *json, long len) {
 
         MMDB_entry_data_list_s *list;
         if ((mmdb_res = MMDB_get_entry_data_list(&result.entry, &list)) != MMDB_SUCCESS) {
-            error_mmdb(mmdb_res);
+            mmdb_error(mmdb_res);
             error("Unable to lookup geoip info");
             continue;
         }
