@@ -313,12 +313,6 @@ int main(int argc, char *const argv[]) {
         return 1;
     }
 
-    if ((ret = cache_init()) != 0) {
-        geoip_free();
-        if (ret == -1) critical("Unable to initialize cache");
-        return 1;
-    }
-
     for (int i = 0; i < CONFIG_MAX_CERT_CONFIG; i++) {
         const cert_config_t *conf = &config.certs[i];
         if (conf->name[0] == 0) break;
@@ -392,7 +386,21 @@ int main(int argc, char *const argv[]) {
     }
 
     logger_init();
-    logger_set_name("server");
+
+    if ((ret = cache_init()) != 0) {
+        if (ret == -1) critical("Unable to initialize cache");
+        ssl_free();
+        geoip_free();
+        list_free(clients);
+        sem_destroy(&sem_clients_lock);
+        async_free();
+        proxy_unload();
+        logger_stop();
+        logger_join();
+        return 1;
+    }
+
+    logger_set_name("main");
 
     workers_init();
 
