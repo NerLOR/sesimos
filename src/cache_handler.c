@@ -27,7 +27,7 @@
 
 static magic_t magic;
 static pthread_t thread;
-static sem_t sem_free, sem_used, sem_lock, sem_cache;
+static sem_t sem_free, sem_used, sem_lock, sem_cache, sem_magic;
 volatile sig_atomic_t alive = 1;
 
 typedef struct {
@@ -52,6 +52,54 @@ static int magic_init(void) {
     return 0;
 }
 
+static void magic_mime_type(const char *restrict filename, char *buf) {
+    retry:
+    if (sem_wait(&sem_magic) != 0) {
+        if (errno == EINTR) {
+            errno = 0;
+            goto retry;
+        } else {
+            critical("Unable to lock magic semaphore");
+            return;
+        }
+    }
+
+    magic_setflags(magic, MAGIC_MIME_TYPE);
+    const char *type = magic_file(magic, filename);
+
+    if (strstarts(type, "text/")) {
+        if (strends(filename, ".css")) {
+            strcpy(buf, "text/css");
+            sem_post(&sem_magic);
+            return;
+        } else if (strends(filename, ".js")) {
+            strcpy(buf, "application/javascript");
+            sem_post(&sem_magic);
+            return;
+        }
+    }
+
+    strcpy(buf, type);
+    sem_post(&sem_magic);
+}
+
+static void magic_charset(const char *restrict filename, char *buf) {
+    retry:
+    if (sem_wait(&sem_magic) != 0) {
+        if (errno == EINTR) {
+            errno = 0;
+            goto retry;
+        } else {
+            critical("Unable to lock magic semaphore");
+            return;
+        }
+    }
+
+    magic_setflags(magic, MAGIC_MIME_ENCODING);
+    strcpy(buf, magic_file(magic, filename));
+    sem_post(&sem_magic);
+}
+
 static void cache_free(void) {
     for (int i = 0; i < CONFIG_MAX_HOST_CONFIG; i++) {
         host_config_t *hc = &config.hosts[i];
@@ -67,6 +115,7 @@ static void cache_free(void) {
     sem_destroy(&sem_free);
     sem_destroy(&sem_used);
     sem_destroy(&sem_cache);
+    sem_destroy(&sem_magic);
 }
 
 static cache_entry_t *cache_get_entry(cache_t *cache, const char *filename) {
@@ -166,7 +215,7 @@ static void cache_process_entry(cache_entry_t *entry) {
             comp_err:
             compress = 0;
         } else {
-            if ((compress_init(&comp_ctx, COMPRESS_GZ | COMPRESS_BR)) != 0) {
+            if ((compress_init(&comp_ctx, COMPRESS_GZ | COMPRESS_BR | (mime_is_text(entry->meta.type) ? COMPRESS_UTF8 : 0))) != 0) {
                 error("Unable to init compression");
                 compress = 0;
                 fclose(comp_file_gz);
@@ -175,11 +224,9 @@ static void cache_process_entry(cache_entry_t *entry) {
         }
     }
 
-    unsigned long read;
-    while ((read = fread(buf, 1, sizeof(buf), file)) > 0) {
+    for (unsigned long read, avail_in, avail_out; (read = fread(buf, 1, sizeof(buf), file)) > 0;) {
         EVP_DigestUpdate(ctx, buf, read);
         if (compress) {
-            unsigned long avail_in, avail_out;
             avail_in = read;
             do {
                 avail_out = sizeof(comp_buf);
@@ -295,7 +342,8 @@ int cache_init(void) {
     if (sem_init(&sem_lock, 0, 1) != 0 ||
         sem_init(&sem_free, 0, 1) != 0 ||
         sem_init(&sem_used, 0, 0) != 0 ||
-        sem_init(&sem_cache, 0, 1) != 0)
+        sem_init(&sem_cache, 0, 1) != 0 ||
+        sem_init(&sem_magic, 0, 1) != 0)
     {
         critical("Unable to initialize semaphore");
         return -1;
@@ -323,10 +371,10 @@ static void cache_mark_entry_dirty(cache_entry_t *entry) {
     if (entry->flags & CACHE_DIRTY)
         return;
 
+    entry->flags |= CACHE_DIRTY;
     memset(entry->meta.etag, 0, sizeof(entry->meta.etag));
     memset(entry->meta.filename_comp_gz, 0, sizeof(entry->meta.filename_comp_gz));
     memset(entry->meta.filename_comp_br, 0, sizeof(entry->meta.filename_comp_br));
-    entry->flags |= CACHE_DIRTY;
 
     try_again_free:
     if (sem_wait(&sem_free) != 0) {
@@ -366,25 +414,11 @@ static void cache_mark_entry_dirty(cache_entry_t *entry) {
 
 static void cache_update_entry(cache_entry_t *entry, const char *filename, const char *webroot) {
     entry->meta.mtime = stat_mtime(filename);
-
     entry->webroot_len = (unsigned char) strlen(webroot);
     strcpy(entry->filename, filename);
 
-    magic_setflags(magic, MAGIC_MIME_TYPE);
-    const char *type = magic_file(magic, filename);
-    char type_new[URI_TYPE_SIZE];
-    sprintf(type_new, "%s", type);
-    if (strstarts(type, "text/")) {
-        if (strends(filename, ".css")) {
-            sprintf(type_new, "text/css");
-        } else if (strends(filename, ".js")) {
-            sprintf(type_new, "application/javascript");
-        }
-    }
-    strcpy(entry->meta.type, type_new);
-
-    magic_setflags(magic, MAGIC_MIME_ENCODING);
-    strcpy(entry->meta.charset, magic_file(magic, filename));
+    magic_mime_type(filename, entry->meta.type);
+    magic_charset(filename, entry->meta.charset);
 
     cache_mark_entry_dirty(entry);
 }
