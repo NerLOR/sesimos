@@ -14,8 +14,11 @@ typedef struct {
 } list_meta_t;
 
 static void *list_resize(list_meta_t *list, int new_size) {
-    if (new_size <= 0)
+    if (new_size <= 0) {
         return NULL;
+    } else if (new_size == list->max_size) {
+        return list;
+    }
 
     list_meta_t *new_ptr = realloc(list, sizeof(list_meta_t) + list->elem_size * new_size);
     if (new_ptr == NULL)
@@ -59,6 +62,10 @@ int list_find(void *list_ptr, void *elem) {
     }
 
     return -1;
+}
+
+int list_contains(void *list_ptr, void *elem) {
+    return list_find(list_ptr, elem) != -1;
 }
 
 void *list_insert(void *list_ptr, void *elem, int n) {

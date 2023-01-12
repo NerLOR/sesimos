@@ -8,6 +8,8 @@ int list_size(const void *list_ptr);
 
 int list_find(void *list_ptr, void *elem);
 
+int list_contains(void *list_ptr, void *elem);
+
 void *list_insert(void *list_ptr, void *elem, int n);
 
 void *list_insert_ptr(void *list_ptr, void **elem, int n);
