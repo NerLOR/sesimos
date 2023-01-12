@@ -33,8 +33,7 @@ const char *error_str(int err_no, char *buf, int buf_len) {
     int e = err_no & 0x00FFFFFF;
     if (mode == 0x00) {
         // normal
-        strerror_r(e, buf, buf_len);
-        return buf;
+        return strerror_r(e, buf, buf_len);
     } else if (mode == 0x01) {
         // ssl
         return sock_error_str(error_decompress(e));

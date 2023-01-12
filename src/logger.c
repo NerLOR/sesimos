@@ -65,8 +65,7 @@ static void err(const char *restrict msg) {
 }
 
 void logmsgf(log_lvl_t level, const char *restrict format, ...) {
-    char buf[256];
-    char err_buf[64];
+    char buf[256], err_buf[256];
     va_list args;
     va_start(args, format);
 
