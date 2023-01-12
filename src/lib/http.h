@@ -61,14 +61,16 @@
 #   define SERVER_STR_HTML "sesimos&nbsp;web&nbsp;server"
 #endif
 
+typedef unsigned short status_code_t;
+
 typedef struct {
-    unsigned short code:10;
+    status_code_t code:10;
     unsigned char type:3;
     char msg[64];
 } http_status;
 
 typedef struct {
-    unsigned short code:10;
+    status_code_t code:10;
     const char *msg;
 } http_status_msg;
 
@@ -120,7 +122,7 @@ typedef enum {
 } http_error_origin;
 
 typedef struct {
-    unsigned short status;
+    status_code_t status;
     http_error_origin origin;
     const char* ws_key;
 } http_status_ctx;
@@ -170,17 +172,17 @@ int http_send_response(sock *client, http_res *res);
 
 int http_send_request(sock *server, http_req *req);
 
-const http_status *http_get_status(unsigned short status_code);
+const http_status *http_get_status(status_code_t status_code);
 
-const http_status_msg *http_get_error_msg(const http_status *status);
+const http_status_msg *http_get_error_msg(status_code_t status_code);
 
-const char *http_get_status_color(const http_status *status);
+const char *http_get_status_color(status_code_t status_code);
 
 char *http_format_date(time_t time, char *buf, size_t size);
 
 char *http_get_date(char *buf, size_t size);
 
-const http_doc_info *http_get_status_info(const http_status *status);
+const http_doc_info *http_get_status_info(status_code_t status_code);
 
 int http_get_compression(const http_req *req, const http_res *res);
 

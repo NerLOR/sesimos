@@ -349,7 +349,7 @@ int http_send_request(sock *server, http_req *req) {
     return 0;
 }
 
-const http_status *http_get_status(unsigned short status_code) {
+const http_status *http_get_status(status_code_t status_code) {
     for (int i = 0; i < http_statuses_size; i++) {
         if (http_statuses[i].code == status_code) {
             return &http_statuses[i];
@@ -358,30 +358,25 @@ const http_status *http_get_status(unsigned short status_code) {
     return NULL;
 }
 
-const http_status_msg *http_get_error_msg(const http_status *status) {
-    unsigned short code = status->code;
+const http_status_msg *http_get_error_msg(status_code_t status_code) {
     for (int i = 0; i < http_status_messages_size; i++) {
-        if (http_status_messages[i].code == code) {
+        if (http_status_messages[i].code == status_code) {
             return &http_status_messages[i];
         }
     }
     return NULL;
 }
 
-const char *http_get_status_color(const http_status *status) {
-    unsigned short code = status->code;
-    if (code >= 100 && code < 200) {
-        return HTTP_1XX_STR;
-    } else if ((code >= 200 && code < 300) || code == 304) {
-        return HTTP_2XX_STR;
-    } else if (code >= 300 && code < 400) {
-        return HTTP_3XX_STR;
-    } else if (code >= 400 && code < 500) {
-        return HTTP_4XX_STR;
-    } else if (code >= 500 && code < 600) {
-        return HTTP_5XX_STR;
+const char *http_get_status_color(status_code_t status_code) {
+    if (status_code == 304) return HTTP_2XX_STR;
+    switch (status_code / 100) {
+        case 1: return HTTP_1XX_STR;
+        case 2: return HTTP_2XX_STR;
+        case 3: return HTTP_3XX_STR;
+        case 4: return HTTP_4XX_STR;
+        case 5: return HTTP_5XX_STR;
+        default: return "";
     }
-    return "";
 }
 
 char *http_format_date(time_t time, char *buf, size_t size) {
@@ -396,24 +391,22 @@ char *http_get_date(char *buf, size_t size) {
     return http_format_date(raw_time, buf, size);
 }
 
-const http_doc_info *http_get_status_info(const http_status *status) {
-    unsigned short code = status->code;
-    static http_doc_info info[] = {
+const http_doc_info *http_get_status_info(status_code_t status_code) {
+    static const http_doc_info info[] = {
             {"info",    HTTP_COLOR_INFO,    "/.sesimos/res/icon-info.svg",    http_info_doc},
             {"success", HTTP_COLOR_SUCCESS, "/.sesimos/res/icon-success.svg", http_success_doc},
             {"warning", HTTP_COLOR_WARNING, "/.sesimos/res/icon-warning.svg", http_warning_doc},
             {"error",   HTTP_COLOR_ERROR,   "/.sesimos/res/icon-error.svg",   http_error_doc}
     };
-    if (code >= 100 && code < 200) {
-        return &info[0];
-    } else if ((code >= 200 && code < 300) || code == 304) {
-        return &info[1];
-    } else if (code >= 300 && code < 400) {
-        return &info[2];
-    } else if (code >= 400 && code < 600) {
-        return &info[3];
+    if (status_code == 304) return &info[1];
+    switch (status_code / 100) {
+        case 1: return &info[0];
+        case 2: return &info[1];
+        case 3: return &info[2];
+        case 4: // see case 5
+        case 5: return &info[3];
+        default: return NULL;
     }
-    return NULL;
 }
 
 int http_get_compression(const http_req *req, const http_res *res) {

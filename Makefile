@@ -1,6 +1,6 @@
 
 CC=gcc
-CFLAGS=-std=gnu11 -Wno-unused-but-set-variable -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_SVID_SOURCE -D_POSIX_C_SOURCE=200809L
+CFLAGS=-std=gnu11 -Wno-unused-but-set-variable -D_DEFAULT_SOURCE -D_GNU_SOURCE -D_BSD_SOURCE -D_SVID_SOURCE -D_POSIX_C_SOURCE=200809L
 LDFLAGS=-pthread -lssl -lcrypto -lmagic -lz -lmaxminddb -lbrotlienc
 
 DEBIAN_OPTS=-D CACHE_MAGIC_FILE="\"/usr/share/file/magic.mgc\"" -D PHP_FPM_SOCKET="\"/var/run/php/php7.4-fpm.sock\""

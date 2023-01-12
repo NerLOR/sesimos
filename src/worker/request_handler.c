@@ -259,8 +259,8 @@ int respond(client_ctx_t *ctx) {
             http_add_header_field(&res->hdr, "Content-Type", "text/html; charset=UTF-8");
 
             // TODO list Locations on 3xx Redirects
-            const http_doc_info *http_info = http_get_status_info(res->status);
-            const http_status_msg *http_msg = http_get_error_msg(res->status);
+            const http_doc_info *http_info = http_get_status_info(res->status->code);
+            const http_status_msg *http_msg = http_get_error_msg(res->status->code);
 
             if (ctx->msg_content[0] == 0) {
                 if (res->status->code >= 300 && res->status->code < 400) {
@@ -329,7 +329,7 @@ int respond(client_ctx_t *ctx) {
     http_send_response(client, res);
     ctx->res_ts = clock_micros();
     const char *location = http_get_header_field(&res->hdr, "Location");
-    info("%s%s%03i %s%s%s (%s)%s", http_get_status_color(res->status), ctx->use_proxy ? "-> " : "", res->status->code,
+    info("%s%s%03i %s%s%s (%s)%s", http_get_status_color(res->status->code), ctx->use_proxy ? "-> " : "", res->status->code,
          res->status->msg, location != NULL ? " -> " : "", location != NULL ? location : "",
          format_duration(ctx->res_ts - ctx->req_s, buf0), CLR_STR);
 
