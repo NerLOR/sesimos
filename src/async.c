@@ -272,7 +272,7 @@ void async_thread(void) {
 
         for (int i = 0; i < num_fds; i++) {
             evt_listen_t *evt = events[i].data.ptr;
-            if (evt == NULL) continue;
+            if (!list_contains(local, &evt)) continue;
 
             if (async_exec(evt, async_e2a(events[i].events)) == 0) {
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, evt->fd, NULL) == -1) {
@@ -292,7 +292,6 @@ void async_thread(void) {
                 }
 
                 free(evt);
-                events[i].data.ptr = NULL;
             }
         }
 
