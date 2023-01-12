@@ -187,7 +187,8 @@ void logger_set_name(const char *restrict format, ...) {
     }
 
     // set thread name
-    pthread_setname_np(pthread_self(), global_name);
+    // warning: max length is 16 (incl. terminating null byte)
+    pthread_setname_np(pthread_self(), ptr);
 
     // cleanup
     va_end(args);
