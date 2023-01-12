@@ -110,9 +110,9 @@ void *list_remove(void *list_ptr, int n) {
     if (list->size > 1 && n < list->size)
         memmove(array + n * list->elem_size, array + (n + 1) * list->elem_size, (list->size - n - 1) * list->elem_size);
 
+    list->size--;
     memset(array + list->size * list->elem_size, 0, list->elem_size);
 
-    list->size--;
     if (list->size <= list->max_size / FACTOR * 3 / 4 && list->max_size / FACTOR >= list->init_size) {
         if ((list = list_resize(list, list->max_size / FACTOR)) == NULL) {
             return NULL;
