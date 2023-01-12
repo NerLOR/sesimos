@@ -212,8 +212,9 @@ void async_thread(void) {
     int num_fds;
     long ts, min_ts, cur_ts;
     listen_queue_t *l;
-    evt_listen_t **local = list_create(sizeof(evt_listen_t *), 16);
-    if (local == NULL) {
+    evt_listen_t **local;
+
+    if ((local = list_create(sizeof(evt_listen_t *), 16)) == NULL) {
         critical("Unable to create async local list");
         return;
     }
@@ -246,6 +247,7 @@ void async_thread(void) {
         // reset size of queue
         l->n = 0;
 
+        // TODO timeout calculation = O(n)
         // calculate wait timeout
         min_ts = -1000, cur_ts = clock_micros();;
         for (int i = 0; i < list_size(local); i++) {
@@ -270,6 +272,8 @@ void async_thread(void) {
 
         for (int i = 0; i < num_fds; i++) {
             evt_listen_t *evt = events[i].data.ptr;
+            if (evt == NULL) continue;
+
             if (async_exec(evt, async_e2a(events[i].events)) == 0) {
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, evt->fd, NULL) == -1) {
                     if (errno == EBADF) {
@@ -288,6 +292,7 @@ void async_thread(void) {
                 }
 
                 free(evt);
+                events[i].data.ptr = NULL;
             }
         }
 
