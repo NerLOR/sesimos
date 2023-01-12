@@ -18,8 +18,9 @@ extern const char *MMDB_strerror(int err);
 extern const char *ERR_reason_error_string(unsigned long err);
 
 static int error_compress(unsigned long err) {
-    if (err & 0xFF0000) warning("Lossy error code compression!");
-    return ((int) err & 0xFFFF) | (((int) err >> 8) & 0xFF0000);
+    int comp = ((int) err & 0xFFFF) | (((int) err >> 8) & 0xFF0000);
+    if (err & 0xFF0000) warning("Lossy error code compression! (%08lX -> %08X)", err, comp);
+    return comp;
 }
 
 static unsigned long error_decompress(int err) {
