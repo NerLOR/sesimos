@@ -113,7 +113,7 @@ void *list_remove(void *list_ptr, int n) {
     memset(array + list->size * list->elem_size, 0, list->elem_size);
 
     list->size--;
-    if (list->size < list->max_size / FACTOR / 2 && list->max_size / FACTOR >= list->init_size) {
+    if (list->size <= list->max_size / FACTOR * 3 / 4 && list->max_size / FACTOR >= list->init_size) {
         if ((list = list_resize(list, list->max_size / FACTOR)) == NULL) {
             return NULL;
         }
@@ -135,8 +135,7 @@ void *list_clear(void *list_ptr) {
     list_meta_t *list = meta(list_ptr);
     list->size = 0;
     memset(list_ptr, 0, list->max_size * list->elem_size);
-    list->max_size = list->init_size;
-    return data(list_resize(list, list->max_size));
+    return data(list_resize(list, list->init_size));
 }
 
 void list_free(void *list_ptr) {

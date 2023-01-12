@@ -32,6 +32,8 @@ void tcp_acceptor_func(client_ctx_t *ctx) {
 static int tcp_acceptor(client_ctx_t *ctx) {
     struct sockaddr_in6 server_addr;
 
+    memset(ctx->_c_addr, 0, sizeof(ctx->_c_addr));
+    memset(ctx->_s_addr, 0, sizeof(ctx->_s_addr));
     inet_ntop(ctx->socket._addr.ipv6.sin6_family, &ctx->socket._addr.ipv6.sin6_addr, ctx->_c_addr, sizeof(ctx->_c_addr));
     if (strstarts(ctx->_c_addr, "::ffff:")) {
         ctx->socket.addr = ctx->_c_addr + 7;

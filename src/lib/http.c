@@ -88,6 +88,7 @@ void http_free_res(http_res *res) {
 }
 
 int http_init_hdr(http_hdr *hdr) {
+    hdr->last_field_num = -1;
     hdr->fields = list_create(sizeof(http_field), HTTP_INIT_HEADER_FIELD_NUM);
     if (hdr->fields == NULL)
         return error_http(HTTP_ERROR_SYSCALL);
@@ -122,8 +123,11 @@ int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr,
     str_trim_lws(&pos1, &pos2);
     long len2 = pos2 - pos1;
 
+    char header_name[256];
+    sprintf(header_name, "%.*s", (int) len1, buf);
+
     int field_num = list_size(hdr->fields);
-    int found = http_get_header_field_num_len(hdr, buf, len1);
+    int found = http_get_header_field_num(hdr, header_name);
     if (!(flags & HTTP_MERGE_FIELDS) || found == -1) {
         if (http_add_header_field_len(hdr, buf, len1, pos1, len2 < 0 ? 0 : len2) != 0)
             return error_http(HTTP_ERROR_TOO_MANY_HEADER_FIELDS);
@@ -206,7 +210,6 @@ int http_receive_request(sock *client, http_req *req) {
     memset(req->method, 0, sizeof(req->method));
     memset(req->version, 0, sizeof(req->version));
     req->uri = NULL;
-    req->hdr.last_field_num = -1;
     http_init_hdr(&req->hdr);
 
     rcv_len = sock_recv(client, buf, CLIENT_MAX_HEADER_SIZE - 1, MSG_PEEK);
@@ -227,21 +230,13 @@ int http_receive_request(sock *client, http_req *req) {
 }
 
 const char *http_get_header_field(const http_hdr *hdr, const char *field_name) {
-    return http_get_header_field_len(hdr, field_name, strlen(field_name));
-}
-
-const char *http_get_header_field_len(const http_hdr *hdr, const char *field_name, unsigned long len) {
-    int num = http_get_header_field_num_len(hdr, field_name, len);
+    int num = http_get_header_field_num(hdr, field_name);
     return (num >= 0 && num < list_size(hdr->fields)) ? http_field_get_value(&hdr->fields[num]) : NULL;
 }
 
 int http_get_header_field_num(const http_hdr *hdr, const char *field_name) {
-    return http_get_header_field_num_len(hdr, field_name, strlen(field_name));
-}
-
-int http_get_header_field_num_len(const http_hdr *hdr, const char *field_name, unsigned long len) {
     for (int i = 0; i < list_size(hdr->fields); i++) {
-        if (strncasecmp(field_name, http_field_get_name(&hdr->fields[i]), len) == 0)
+        if (strcasecmp(field_name, http_field_get_name(&hdr->fields[i])) == 0)
             return i;
     }
 

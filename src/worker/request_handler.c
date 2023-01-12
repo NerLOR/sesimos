@@ -62,10 +62,8 @@ static void init_ctx(client_ctx_t *ctx) {
     memset(&ctx->req, 0, sizeof(ctx->req));
     memset(&ctx->res, 0, sizeof(ctx->res));
 
-
     ctx->res.status = http_get_status(501);
     http_init_hdr(&ctx->res.hdr);
-    ctx->res.hdr.last_field_num = -1;
     sprintf(ctx->res.version, "1.1");
 
     ctx->status.status = 0;

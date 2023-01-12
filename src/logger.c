@@ -165,14 +165,15 @@ static int logger_remaining(void) {
 void logger_set_name(const char *restrict format, ...) {
     va_list args;
 
+    void *ptr;
     if (key_name == -1) {
         // not initialized
         va_start(args, format);
         vsnprintf(global_name, sizeof(global_name), format, args);
+        ptr = global_name;
     } else {
         int ret;
-        void *ptr = pthread_getspecific(key_name);
-        if (!ptr) {
+        if ((ptr = pthread_getspecific(key_name)) == NULL) {
             ptr = malloc(LOG_NAME_LEN);
             if ((ret = pthread_setspecific(key_name, ptr)) != 0) {
                 errno = ret;
@@ -184,6 +185,9 @@ void logger_set_name(const char *restrict format, ...) {
         va_start(args, format);
         vsnprintf(ptr, LOG_NAME_LEN, format, args);
     }
+
+    // set thread name
+    pthread_setname_np(pthread_self(), global_name);
 
     // cleanup
     va_end(args);

@@ -14,7 +14,6 @@
 #include "../workers.h"
 
 #include <string.h>
-#include <errno.h>
 
 static int proxy_handler_1(client_ctx_t *ctx);
 static int proxy_handler_2(client_ctx_t *ctx);

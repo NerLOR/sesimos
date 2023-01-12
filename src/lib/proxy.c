@@ -163,20 +163,19 @@ int proxy_request_header(http_req *req, sock *sock) {
         http_add_header_field(&req->hdr, "Via", buf2);
     }
 
-    const char *host = http_get_header_field(&req->hdr, "Host");
-    const char *forwarded = http_get_header_field(&req->hdr, "Forwarded");
     int client_ipv6 = strchr(sock->addr, ':') != NULL;
     int server_ipv6 = strchr(sock->s_addr, ':') != NULL;
 
     p_len = snprintf(buf1, sizeof(buf1), "by=%s%s%s;for=%s%s%s;host=%s;proto=%s",
                      server_ipv6 ? "\"[" : "", sock->s_addr, server_ipv6 ? "]\"" : "",
                      client_ipv6 ? "\"[" : "", sock->addr, client_ipv6 ? "]\"" : "",
-                     host, sock->enc ? "https" : "http");
+                     http_get_header_field(&req->hdr, "Host"), sock->enc ? "https" : "http");
     if (p_len < 0 || p_len >= sizeof(buf1)) {
         error("Appended part of header field 'Forwarded' too long");
         return -1;
     }
 
+    const char *forwarded = http_get_header_field(&req->hdr, "Forwarded");
     if (forwarded == NULL) {
         http_add_header_field(&req->hdr, "Forwarded", buf1);
     } else {
@@ -199,9 +198,10 @@ int proxy_request_header(http_req *req, sock *sock) {
     }
 
     const char *xfh = http_get_header_field(&req->hdr, "X-Forwarded-Host");
+    forwarded = http_get_header_field(&req->hdr, "Forwarded");
     if (xfh == NULL) {
         if (forwarded == NULL) {
-            http_add_header_field(&req->hdr, "X-Forwarded-Host", host);
+            http_add_header_field(&req->hdr, "X-Forwarded-Host", http_get_header_field(&req->hdr, "Host"));
         } else {
             char *ptr = strchr(forwarded, ',');
             unsigned long len;
@@ -220,6 +220,7 @@ int proxy_request_header(http_req *req, sock *sock) {
     }
 
     const char *xfp = http_get_header_field(&req->hdr, "X-Forwarded-Proto");
+    forwarded = http_get_header_field(&req->hdr, "Forwarded");
     if (xfp == NULL) {
         if (forwarded == NULL) {
             http_add_header_field(&req->hdr, "X-Forwarded-Proto", sock->enc ? "https" : "http");

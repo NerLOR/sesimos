@@ -156,11 +156,7 @@ int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr,
 
 const char *http_get_header_field(const http_hdr *hdr, const char *field_name);
 
-const char *http_get_header_field_len(const http_hdr *hdr, const char *field_name, unsigned long len);
-
 int http_get_header_field_num(const http_hdr *hdr, const char *field_name);
-
-int http_get_header_field_num_len(const http_hdr *hdr, const char *field_name, unsigned long len);
 
 int http_add_header_field(http_hdr *hdr, const char *field_name, const char *field_value);
 
