@@ -54,7 +54,7 @@ bin/res/%.o: bin/res/%.txt
 
 bin/res/%.txt: res/%.*
 	cp $^ $@
-	echo -ne "\x00" >> $@
+	/bin/echo -ne "\x00" >> $@
 
 bin/sesimos: bin/server.o bin/logger.o bin/cache_handler.o bin/async.o bin/workers.o \
              bin/worker/request_handler.o bin/worker/tcp_acceptor.o \

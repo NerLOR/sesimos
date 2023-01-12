@@ -89,7 +89,7 @@ static int proxy_handler_1(client_ctx_t *ctx) {
                 (content_length_f != NULL && strstarts(content_type, "text/html"))))
         {
             long content_len = (!streq(ctx->req.method, "HEAD") && content_length_f != NULL) ? strtol(content_length_f, NULL, 10) : 0;
-            if (content_len <= sizeof(ctx->msg_content) - 1) {
+            if (content_len < sizeof(ctx->msg_content)) {
                 if (status->status != 101) {
                     status->status = res->status->code;
                     status->origin = res->status->code >= 400 ? SERVER : NONE;

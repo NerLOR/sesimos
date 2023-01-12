@@ -671,7 +671,9 @@ int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int 
 }
 
 int proxy_dump(proxy_ctx_t *proxy, char *buf, long len) {
-    sock_recv(&proxy->proxy, buf, len, 0);
+    long ret = sock_recv(&proxy->proxy, buf, len, 0);
+    if (ret == -1) return -1;
+    buf[ret] = 0;
     return 0;
 }
 

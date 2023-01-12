@@ -300,10 +300,10 @@ int respond(client_ctx_t *ctx) {
             ctx->msg_buf_ptr = malloc(4096);
             ctx->msg_buf = ctx->msg_buf_ptr;
             snprintf(msg_pre_buf_1, sizeof(msg_pre_buf_1), http_info->doc,
-                     res->status->code, res->status->msg, http_msg != NULL ? http_msg->msg : "", err_msg[0] != 0 ? err_msg : "");
-            ctx->content_length = snprintf(ctx->msg_buf, 4096, http_default_doc, res->status->code,
-                                           res->status->msg, msg_pre_buf_1, http_info->mode, http_info->icon, http_info->color, ctx->req_host,
-                                           proxy_doc, ctx->msg_content[0] != 0 ? ctx->msg_content : "", SERVER_STR_HTML);
+                     res->status->code, res->status->msg, http_msg != NULL ? http_msg->msg : "", err_msg);
+            ctx->content_length = snprintf(ctx->msg_buf, 4096, http_default_doc, res->status->code, res->status->msg,
+                                           msg_pre_buf_1, http_info->mode, http_info->icon, http_info->color,
+                                           ctx->req_host, proxy_doc, ctx->msg_content, SERVER_STR_HTML);
         }
         if (ctx->content_length >= 0) {
             sprintf(buf0, "%li", ctx->content_length);
