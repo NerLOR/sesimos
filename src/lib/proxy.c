@@ -635,14 +635,14 @@ int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int 
                     len = sprintf(buf, "%lX\r\n", buf_len);
                     ret = 1;
 
-                    if (flags & PROXY_CHUNKED) ret = sock_send(client, buf, len, 0);
+                    if (flags & PROXY_CHUNKED) ret = sock_send_x(client, buf, len, 0);
                     if (ret <= 0) goto err;
 
-                    ret = sock_send(client, ptr, buf_len, 0);
+                    ret = sock_send_x(client, ptr, buf_len, 0);
                     if (ret <= 0) goto err;
                     if (!(flags & PROXY_COMPRESS)) snd_len += ret;
 
-                    if (flags & PROXY_CHUNKED) ret = sock_send(client, "\r\n", 2, 0);
+                    if (flags & PROXY_CHUNKED) ret = sock_send_x(client, "\r\n", 2, 0);
                     if (ret <= 0) {
                         err:
                         error("Unable to send");
@@ -660,7 +660,7 @@ int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int 
     if (ret <= 0) return -1;
 
     if (flags & PROXY_CHUNKED) {
-        ret = sock_send(client, "0\r\n\r\n", 5, 0);
+        ret = sock_send_x(client, "0\r\n\r\n", 5, 0);
         if (ret <= 0) {
             error("Unable to send");
             return -1;

@@ -9,13 +9,13 @@
 #include "../defs.h"
 #include "fastcgi.h"
 #include "utils.h"
-#include "compress.h"
 #include "../logger.h"
 #include "list.h"
 
 #include <sys/un.h>
 #include <sys/socket.h>
 #include <string.h>
+#include <unistd.h>
 
 char *fastcgi_add_param(char *buf, const char *key, const char *value) {
     char *ptr = buf;
@@ -66,9 +66,7 @@ int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int req_num, const sock
     conn->socket = fcgi_sock;
 
     struct sockaddr_un sock_addr = {AF_UNIX};
-    if (conn->mode == FASTCGI_SESIMOS) {
-        snprintf(sock_addr.sun_path, sizeof(sock_addr.sun_path) - 1, "%s", SESIMOS_BACKEND_SOCKET);
-    } else if (conn->mode == FASTCGI_PHP) {
+    if (conn->mode == FASTCGI_BACKEND_PHP) {
         snprintf(sock_addr.sun_path, sizeof(sock_addr.sun_path) - 1, "%s", PHP_FPM_SOCKET);
     }
 
@@ -219,8 +217,8 @@ int fastcgi_php_error(const fastcgi_cnx_t *conn, const char *msg, int msg_len, c
     memcpy(msg_str, msg, msg_len);
     msg_str[msg_len] = 0;
     char *ptr1 = NULL;
-    int len;
-    int err = 0;
+    int len, err = 0;
+
     // FIXME *msg is part of a stream, handle fragmented lines
     while (1) {
         log_lvl_t msg_type = LOG_INFO;
@@ -289,12 +287,7 @@ int fastcgi_header(fastcgi_cnx_t *conn, http_res *res, char *err_msg) {
 
     while (1) {
         ret = recv(conn->socket, &header, sizeof(header), 0);
-        if (ret < 0) {
-            res->status = http_get_status(500);
-            sprintf(err_msg, "Unable to communicate with FastCGI socket.");
-            error("Unable to receive from FastCGI socket");
-            return 1;
-        } else if (ret != sizeof(header)) {
+        if (ret != sizeof(header)) {
             res->status = http_get_status(500);
             sprintf(err_msg, "Unable to communicate with FastCGI socket.");
             error("Unable to receive from FastCGI socket");
@@ -304,13 +297,7 @@ int fastcgi_header(fastcgi_cnx_t *conn, http_res *res, char *err_msg) {
         content_len = (header.contentLengthB1 << 8) | header.contentLengthB0;
         content = malloc(content_len + header.paddingLength);
         ret = recv(conn->socket, content, content_len + header.paddingLength, 0);
-        if (ret < 0) {
-            res->status = http_get_status(500);
-            sprintf(err_msg, "Unable to communicate with FastCGI socket.");
-            error("Unable to receive from FastCGI socket");
-            free(content);
-            return 1;
-        } else if (ret != (content_len + header.paddingLength)) {
+        if (ret != (content_len + header.paddingLength)) {
             res->status = http_get_status(500);
             sprintf(err_msg, "Unable to communicate with FastCGI socket.");
             error("Unable to receive from FastCGI socket");
@@ -337,8 +324,7 @@ int fastcgi_header(fastcgi_cnx_t *conn, http_res *res, char *err_msg) {
             free(content);
             return 1;
         } else if (header.type == FCGI_STDERR) {
-            // TODO implement Sesimos backend error handling
-            if (conn->mode == FASTCGI_PHP) {
+            if (conn->mode == FASTCGI_BACKEND_PHP) {
                 err = err || fastcgi_php_error(conn, content, content_len, err_msg);
             }
         } else if (header.type == FCGI_STDOUT) {
@@ -395,27 +381,9 @@ int fastcgi_header(fastcgi_cnx_t *conn, http_res *res, char *err_msg) {
 int fastcgi_send(fastcgi_cnx_t *conn, sock *client, int flags) {
     FCGI_Header header;
     long ret;
-    char buf0[256];
+    char buf0[256], *content, *ptr;
     int len;
-    char *content, *ptr;
     unsigned short req_id, content_len;
-    char comp_out[4096];
-    int finish_comp = 0;
-
-    compress_ctx comp_ctx;
-    if (flags & FASTCGI_COMPRESS_BR) {
-        flags &= ~FASTCGI_COMPRESS_GZ;
-        if (compress_init(&comp_ctx, COMPRESS_BR) != 0) {
-            error("Unable to init brotli");
-            flags &= ~FASTCGI_COMPRESS_BR;
-        }
-    } else if (flags & FASTCGI_COMPRESS_GZ) {
-        flags &= ~FASTCGI_COMPRESS_BR;
-        if (compress_init(&comp_ctx, COMPRESS_GZ) != 0) {
-            error("Unable to init gzip");
-            flags &= ~FASTCGI_COMPRESS_GZ;
-        }
-    }
 
     if (conn->out_buf != NULL && conn->out_len > conn->out_off) {
         content = conn->out_buf;
@@ -464,45 +432,23 @@ int fastcgi_send(fastcgi_cnx_t *conn, sock *client, int flags) {
             conn->socket = 0;
             free(content);
 
-            if (flags & FASTCGI_COMPRESS) {
-                finish_comp = 1;
-                content_len = 0;
-                goto out;
-                finish:
-                compress_free(&comp_ctx);
-            }
-
             if (flags & FASTCGI_CHUNKED) {
-                sock_send(client, "0\r\n\r\n", 5, 0);
+                sock_send_x(client, "0\r\n\r\n", 5, 0);
             }
 
             return 0;
         } else if (header.type == FCGI_STDERR) {
-            // TODO implement Sesimos backend error handling
-            if (conn->mode == FASTCGI_PHP) {
+            if (conn->mode == FASTCGI_BACKEND_PHP) {
                 fastcgi_php_error(conn, content, content_len, buf0);
             }
         } else if (header.type == FCGI_STDOUT) {
-            unsigned long avail_in, avail_out;
             out:
-            avail_in = content_len;
-            char *next_in = ptr;
-            do {
-                int buf_len = content_len;
-                if (flags & FASTCGI_COMPRESS) {
-                    avail_out = sizeof(comp_out);
-                    compress_compress(&comp_ctx, next_in + content_len - avail_in, &avail_in, comp_out, &avail_out, finish_comp);
-                    ptr = comp_out;
-                    buf_len = (int) (sizeof(comp_out) - avail_out);
-                }
-                if (buf_len != 0) {
-                    len = sprintf(buf0, "%X\r\n", buf_len);
-                    if (flags & FASTCGI_CHUNKED) sock_send(client, buf0, len, 0);
-                    sock_send(client, ptr, buf_len, 0);
-                    if (flags & FASTCGI_CHUNKED) sock_send(client, "\r\n", 2, 0);
-                }
-            } while ((flags & FASTCGI_COMPRESS) && (avail_in != 0 || avail_out != sizeof(comp_out)));
-            if (finish_comp) goto finish;
+            if (content_len != 0) {
+                len = sprintf(buf0, "%X\r\n", content_len);
+                if (flags & FASTCGI_CHUNKED) sock_send_x(client, buf0, len, 0);
+                sock_send_x(client, ptr, content_len, 0);
+                if (flags & FASTCGI_CHUNKED) sock_send_x(client, "\r\n", 2, 0);
+            }
         } else {
             error("Unknown FastCGI type: %i", header.type);
         }
@@ -562,8 +508,7 @@ int fastcgi_dump(fastcgi_cnx_t *conn, char *buf, long len) {
 
             return 0;
         } else if (header.type == FCGI_STDERR) {
-            // TODO implement Sesimos backend error handling
-            if (conn->mode == FASTCGI_PHP) {
+            if (conn->mode == FASTCGI_BACKEND_PHP) {
                 fastcgi_php_error(conn, content, content_len, buf0);
             }
         } else if (header.type == FCGI_STDOUT) {

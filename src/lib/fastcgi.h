@@ -14,28 +14,20 @@
 #include "uri.h"
 
 #define FASTCGI_CHUNKED 1
-#define FASTCGI_COMPRESS_GZ 2
-#define FASTCGI_COMPRESS_BR 4
-#define FASTCGI_COMPRESS 6
-#define FASTCGI_COMPRESS_HOLD 8
 
-#define FASTCGI_PHP 1
-#define FASTCGI_SESIMOS 2
+#define FASTCGI_BACKEND_PHP 1
 
 #ifndef PHP_FPM_SOCKET
 #   define PHP_FPM_SOCKET "/var/run/php-fpm/php-fpm.sock"
 #endif
 
-#define SESIMOS_BACKEND_SOCKET "/var/run/sesimos/backend.sock"
-
 typedef struct {
     int mode;
     int socket;
     unsigned short req_id;
-    char *out_buf;
     const char *webroot;
-    unsigned short out_len;
-    unsigned short out_off;
+    char *out_buf;
+    unsigned short out_len, out_off;
     char *r_addr;
     char *r_host;
 } fastcgi_cnx_t;

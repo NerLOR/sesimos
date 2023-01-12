@@ -125,7 +125,7 @@ int ws_send_frame_header(sock *s, ws_frame *frame) {
         ptr += 4;
     }
 
-    long ret = sock_send(s, buf, ptr - buf, frame->len != 0 ? MSG_MORE : 0);
+    long ret = sock_send_x(s, buf, ptr - buf, frame->len != 0 ? MSG_MORE : 0);
     if (ret < 0) {
         error("Unable to send to socket");
         return -1;

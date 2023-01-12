@@ -106,6 +106,16 @@ long sock_send(sock *s, void *buf, unsigned long len, int flags) {
     }
 }
 
+long sock_send_x(sock *s, void *buf, unsigned long len, int flags) {
+    long sent = 0;
+    for (long ret; sent < len; sent += ret) {
+        ret = sock_send(s, buf + sent, len - sent, flags);
+        if (ret <= 0)
+            return ret;
+    }
+    return sent;
+}
+
 long sock_recv(sock *s, void *buf, unsigned long len, int flags) {
     long ret;
     if (s->enc) {

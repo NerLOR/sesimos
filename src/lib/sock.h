@@ -40,6 +40,8 @@ int sock_set_timeout(sock *s, double sec);
 
 long sock_send(sock *s, void *buf, unsigned long len, int flags);
 
+long sock_send_x(sock *s, void *buf, unsigned long len, int flags);
+
 long sock_recv(sock *s, void *buf, unsigned long len, int flags);
 
 long sock_splice(sock *dst, sock *src, void *buf, unsigned long buf_len, unsigned long len);

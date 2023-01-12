@@ -358,7 +358,7 @@ int http_send_response(sock *client, http_res *res) {
         off += sprintf(buf + off, "%s: %s\r\n", http_field_get_name(f), http_field_get_value(f));
     }
     off += sprintf(buf + off, "\r\n");
-    if (sock_send(client, buf, off, 0) != off)
+    if (sock_send_x(client, buf, off, 0) != off)
         return -1;
 
     return 0;
@@ -372,7 +372,7 @@ int http_send_request(sock *server, http_req *req) {
         off += sprintf(buf + off, "%s: %s\r\n", http_field_get_name(f), http_field_get_value(f));
     }
     off += sprintf(buf + off, "\r\n");
-    if (sock_send(server, buf, off, 0) != off)
+    if (sock_send_x(server, buf, off, 0) != off)
         return -1;
 
     return 0;

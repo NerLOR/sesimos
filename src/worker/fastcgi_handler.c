@@ -46,10 +46,8 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
     char buf[1024];
 
     int mode, ret;
-    if (strends(uri->filename, ".ncr")) {
-        mode = FASTCGI_SESIMOS;
-    } else if (strends(uri->filename, ".php")) {
-        mode = FASTCGI_PHP;
+    if (strends(uri->filename, ".php")) {
+        mode = FASTCGI_BACKEND_PHP;
     } else {
         res->status = http_get_status(500);
         error("Invalid FastCGI extension: %s", uri->filename);
@@ -127,26 +125,7 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
     }
 
     ctx->use_fastcgi = 1;
-
-    if (ctx->content_length != -1 && ctx->content_length < 1024000) {
-        ctx->use_fastcgi |= FASTCGI_COMPRESS_HOLD;
-    }
-
     ctx->content_length = -1;
-
-    int http_comp = http_get_compression(req, res);
-    if (http_comp & COMPRESS) {
-        if (http_comp & COMPRESS_BR) {
-            ctx->use_fastcgi |= FASTCGI_COMPRESS_BR;
-            sprintf(buf, "br");
-        } else if (http_comp & COMPRESS_GZ) {
-            ctx->use_fastcgi |= FASTCGI_COMPRESS_GZ;
-            sprintf(buf, "gzip");
-        }
-        http_add_header_field(&res->hdr, "Vary", "Accept-Encoding");
-        http_add_header_field(&res->hdr, "Content-Encoding", buf);
-        http_remove_header_field(&res->hdr, "Content-Length", HTTP_REMOVE_ALL);
-    }
 
     if (http_get_header_field(&res->hdr, "Content-Length") == NULL) {
         http_add_header_field(&res->hdr, "Transfer-Encoding", "chunked");
@@ -156,10 +135,9 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
 }
 
 static int fastcgi_handler_2(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
-    const char *transfer_encoding = http_get_header_field(&ctx->res.hdr, "Transfer-Encoding");
-    int chunked = strcontains(transfer_encoding, "chunked");
+    int chunked = strcontains(http_get_header_field(&ctx->res.hdr, "Transfer-Encoding"), "chunked");
 
-    int flags = (chunked ? FASTCGI_CHUNKED : 0) | (ctx->use_fastcgi & (FASTCGI_COMPRESS | FASTCGI_COMPRESS_HOLD));
+    int flags = (chunked ? FASTCGI_CHUNKED : 0);
     int ret = fastcgi_send(fcgi_cnx, &ctx->socket, flags);
     if (ret < 0) {
         ctx->c_keep_alive = 0;

@@ -341,7 +341,7 @@ int respond(client_ctx_t *ctx) {
     } else if (!streq(req->method, "HEAD")) {
         // default response
         if (ctx->msg_buf != NULL) {
-            ret = sock_send(client, ctx->msg_buf, ctx->content_length, 0);
+            ret = sock_send_x(client, ctx->msg_buf, ctx->content_length, 0);
             if (ret <= 0) {
                 error("Unable to send");
             }
@@ -352,7 +352,7 @@ int respond(client_ctx_t *ctx) {
                 if (snd_len + len > ctx->content_length) {
                     len = ctx->content_length - snd_len;
                 }
-                ret = sock_send(client, buffer, len, feof(ctx->file) ? 0 : MSG_MORE);
+                ret = sock_send_x(client, buffer, len, feof(ctx->file) ? 0 : MSG_MORE);
                 if (ret <= 0) {
                     error("Unable to send");
                     break;
