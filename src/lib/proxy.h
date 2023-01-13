@@ -21,6 +21,7 @@
 typedef struct {
     unsigned char initialized:1, in_use:1;
     sock proxy;
+    long cnx_s, cnx_e;
     char *host;
     void *client;
 } proxy_ctx_t;

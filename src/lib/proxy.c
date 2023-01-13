@@ -393,6 +393,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
     }
 
     proxy->initialized = 1;
+    proxy->cnx_s = clock_micros();
     proxy->host = conf->name;
     info(BLUE_STR "Established new connection with " BLD_STR "[%s]:%i", buffer, conf->proxy.port);
 
@@ -638,7 +639,12 @@ void proxy_close(proxy_ctx_t *ctx) {
         logger_set_prefix("[%s%*s%s]%s", BLD_STR, ADDRSTRLEN, cctx->req_host, CLR_STR, cctx->log_prefix);
     }
 
-    info(BLUE_STR "Closing proxy connection");
+    if (ctx->initialized) {
+        ctx->cnx_e = clock_micros();
+        char buf[32];
+        info(BLUE_STR "Closing proxy connection (%s)", format_duration(ctx->cnx_e - ctx->cnx_s, buf));
+    }
+
     sock_close(&ctx->proxy);
 
     memset(ctx, 0, sizeof(*ctx));
