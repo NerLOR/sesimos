@@ -23,7 +23,8 @@
 
 typedef struct {
     int mode;
-    int socket;
+    sock socket;
+    int in, out, err;
     unsigned short req_id;
     const char *webroot;
     char *out_buf;

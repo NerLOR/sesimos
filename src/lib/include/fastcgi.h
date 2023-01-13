@@ -54,8 +54,7 @@ typedef struct {
 #define FCGI_NULL_REQUEST_ID     0
 
 typedef struct {
-    unsigned char roleB1;
-    unsigned char roleB0;
+    unsigned short role;
     unsigned char flags;
     unsigned char reserved[5];
 } FCGI_BeginRequestBody;
@@ -78,10 +77,7 @@ typedef struct {
 #define FCGI_FILTER     3
 
 typedef struct {
-    unsigned char appStatusB3;
-    unsigned char appStatusB2;
-    unsigned char appStatusB1;
-    unsigned char appStatusB0;
+    unsigned int appStatus;
     unsigned char protocolStatus;
     unsigned char reserved[3];
 } FCGI_EndRequestBody;

@@ -15,7 +15,6 @@
 #include <sys/un.h>
 #include <sys/socket.h>
 #include <string.h>
-#include <unistd.h>
 
 // TODO use pipes for stdin, stdout, stderr in FastCGI
 
@@ -28,20 +27,14 @@ char *fastcgi_add_param(char *buf, const char *key, const char *value) {
         ptr[0] = (char) (key_len & 0x7F);
         ptr++;
     } else {
-        ptr[0] = (char) (0x80 | (key_len >> 24));
-        ptr[1] = (char) ((key_len >> 16) & 0xFF);
-        ptr[2] = (char) ((key_len >> 8) & 0xFF);
-        ptr[3] = (char) (key_len & 0xFF);
+        *((int *) ptr) = htonl(0x80000000 | key_len);
         ptr += 4;
     }
     if (val_len <= 127) {
         ptr[0] = (char) (val_len & 0x7F);
         ptr++;
     } else {
-        ptr[0] = (char) (0x80 | (val_len >> 24));
-        ptr[1] = (char) ((val_len >> 16) & 0xFF);
-        ptr[2] = (char) ((val_len >> 8) & 0xFF);
-        ptr[3] = (char) (val_len & 0xFF);
+        *((int *) ptr) = htonl(0x80000000 | val_len);
         ptr += 4;
     }
 
@@ -53,6 +46,33 @@ char *fastcgi_add_param(char *buf, const char *key, const char *value) {
     return ptr;
 }
 
+int fastcgi_send_data(fastcgi_cnx_t *cnx, unsigned char type, unsigned short len, void *data) {
+    // build header
+    FCGI_Header header = {
+            .version = FCGI_VERSION_1,
+            .type = type,
+            .requestId = htons(cnx->req_id),
+            .contentLength = htons(len),
+            .paddingLength = 0,
+            .reserved = 0,
+    };
+
+    // send FastCGI header with MSG_MORE flag
+    if (sock_send_x(&cnx->socket, &header, sizeof(header), (len != 0) ? MSG_MORE : 0) == -1) {
+        error("Unable to send to FastCGI socket");
+        return -1;
+    }
+
+    // send data (if available)
+    if (sock_send_x(&cnx->socket, data, len, 0) == -1) {
+        error("Unable to send to FastCGI socket");
+        return -1;
+    }
+
+    // return bytes sent totally
+    return len + (int) sizeof(header);
+}
+
 int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int req_num, const sock *client, const http_req *req, const http_uri *uri) {
     conn->mode = mode;
     conn->req_id = (req_num + 1) & 0xFFFF;
@@ -60,45 +80,32 @@ int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int req_num, const sock
     conn->out_off = 0;
     conn->webroot = uri->webroot;
 
-    int fcgi_sock = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (fcgi_sock < 0) {
+    conn->socket.enc = 0;
+    if ((conn->socket.socket = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
         error("Unable to create unix socket");
         return -1;
     }
-    conn->socket = fcgi_sock;
 
-    struct sockaddr_un sock_addr = {AF_UNIX};
+    struct sockaddr_un sock_addr = { AF_UNIX };
     if (conn->mode == FASTCGI_BACKEND_PHP) {
-        snprintf(sock_addr.sun_path, sizeof(sock_addr.sun_path) - 1, "%s", PHP_FPM_SOCKET);
+        strcpy(sock_addr.sun_path, PHP_FPM_SOCKET);
     }
 
-    if (connect(conn->socket, (struct sockaddr *) &sock_addr, sizeof(sock_addr)) < 0) {
+    if (connect(conn->socket.socket, (struct sockaddr *) &sock_addr, sizeof(sock_addr)) != 0) {
         error("Unable to connect to unix socket of FastCGI socket");
         return -1;
     }
 
-    FCGI_Header header = {
-            .version = FCGI_VERSION_1,
-            .requestId = htons(conn->req_id),
-            .paddingLength = 0,
-            .reserved = 0
+    FCGI_BeginRequestBody begin = {
+            .role = htons(FCGI_RESPONDER),
+            .flags = 0,
+            .reserved = {0},
     };
 
-    header.type = FCGI_BEGIN_REQUEST;
-    header.contentLength = htons(sizeof(FCGI_BeginRequestBody));
-    FCGI_BeginRequestRecord begin = {
-            header,
-            {.roleB1 = (FCGI_RESPONDER >> 8) & 0xFF, .roleB0 = FCGI_RESPONDER & 0xFF, .flags = 0}
-    };
-    if (send(conn->socket, &begin, sizeof(begin), 0) != sizeof(begin)) {
-        error("Unable to send to FastCGI socket");
-        return -2;
-    }
+    if (fastcgi_send_data(conn, FCGI_BEGIN_REQUEST, sizeof(begin), &begin) == -1)
+        return -1;
 
-    char param_buf[4096];
-    char buf0[256];
-    char *param_ptr = param_buf + sizeof(header);
-
+    char param_buf[4096], buf0[256], *param_ptr = param_buf;
     param_ptr = fastcgi_add_param(param_ptr, "REDIRECT_STATUS", "CGI");
     param_ptr = fastcgi_add_param(param_ptr, "DOCUMENT_ROOT", uri->webroot);
     param_ptr = fastcgi_add_param(param_ptr, "GATEWAY_INTERFACE", "CGI/1.1");
@@ -170,39 +177,18 @@ int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int req_num, const sock
         param_ptr = fastcgi_add_param(param_ptr, buf0, http_field_get_value(f));
     }
 
-    unsigned short param_len = param_ptr - param_buf - sizeof(header);
-    header.type = FCGI_PARAMS;
-    header.contentLength = htons(param_len);
-    memcpy(param_buf, &header, sizeof(header));
-    if (send(conn->socket, param_buf, param_len + sizeof(header), 0) != param_len + sizeof(header)) {
-        error("Unable to send to FastCGI socket");
-        return -2;
-    }
+    if (fastcgi_send_data(conn, FCGI_PARAMS, param_ptr - param_buf, param_buf) == -1)
+        return -1;
 
-    header.type = FCGI_PARAMS;
-    header.contentLength = htons(0);
-    if (send(conn->socket, &header, sizeof(header), 0) != sizeof(header)) {
-        error("Unable to send to FastCGI socket");
-        return -2;
-    }
+    if (fastcgi_send_data(conn, FCGI_PARAMS, 0, NULL) == -1)
+        return -1;
 
     return 0;
 }
 
 int fastcgi_close_stdin(fastcgi_cnx_t *conn) {
-    FCGI_Header header = {
-            .version = FCGI_VERSION_1,
-            .type = FCGI_STDIN,
-            .requestId = htons(conn->req_id),
-            .contentLength = htons(0),
-            .paddingLength = 0,
-            .reserved = 0
-    };
-
-    if (send(conn->socket, &header, sizeof(header), 0) != sizeof(header)) {
-        error("Unable to send to FastCGI socket");
-        return -2;
-    }
+    if (fastcgi_send_data(conn, FCGI_STDIN, 0, NULL) == -1)
+        return -1;
 
     return 0;
 }
@@ -282,8 +268,7 @@ int fastcgi_header(fastcgi_cnx_t *conn, http_res *res, char *err_msg) {
     int err = 0;
 
     while (1) {
-        ret = recv(conn->socket, &header, sizeof(header), 0);
-        if (ret != sizeof(header)) {
+        if (sock_recv_x(&conn->socket, &header, sizeof(header), 0) == -1) {
             res->status = http_get_status(500);
             sprintf(err_msg, "Unable to communicate with FastCGI socket.");
             error("Unable to receive from FastCGI socket");
@@ -292,8 +277,7 @@ int fastcgi_header(fastcgi_cnx_t *conn, http_res *res, char *err_msg) {
         req_id = ntohs(header.requestId);
         content_len = ntohs(header.contentLength);
         content = malloc(content_len + header.paddingLength);
-        ret = recv(conn->socket, content, content_len + header.paddingLength, 0);
-        if (ret != (content_len + header.paddingLength)) {
+        if (sock_recv_x(&conn->socket, content, content_len + header.paddingLength, 0) == -1) {
             res->status = http_get_status(500);
             sprintf(err_msg, "Unable to communicate with FastCGI socket.");
             error("Unable to receive from FastCGI socket");
@@ -307,16 +291,14 @@ int fastcgi_header(fastcgi_cnx_t *conn, http_res *res, char *err_msg) {
 
         if (header.type == FCGI_END_REQUEST) {
             FCGI_EndRequestBody *body = (FCGI_EndRequestBody *) content;
-            int app_status = (body->appStatusB3 << 24) | (body->appStatusB2 << 16) | (body->appStatusB1 << 8) |
-                             body->appStatusB0;
+            int app_status = ntohl(body->appStatus);
             if (body->protocolStatus != FCGI_REQUEST_COMPLETE) {
                 error("FastCGI protocol error: %i", body->protocolStatus);
             }
             if (app_status != 0) {
                 error("FastCGI app terminated with exit code %i", app_status);
             }
-            close(conn->socket);
-            conn->socket = 0;
+            sock_close(&conn->socket);
             free(content);
             return 1;
         } else if (header.type == FCGI_STDERR) {
@@ -379,7 +361,7 @@ int fastcgi_send(fastcgi_cnx_t *conn, sock *client, int flags) {
     long ret;
     char buf0[256], *content, *ptr;
     int len;
-    unsigned short req_id, content_len;
+    unsigned short content_len;
 
     if (conn->out_buf != NULL && conn->out_len > conn->out_off) {
         content = conn->out_buf;
@@ -389,23 +371,18 @@ int fastcgi_send(fastcgi_cnx_t *conn, sock *client, int flags) {
     }
 
     while (1) {
-        ret = recv(conn->socket, &header, sizeof(header), 0);
-        if (ret < 0) {
+        if ((sock_recv_x(&conn->socket, &header, sizeof(header), 0)) == -1) {
             error("Unable to receive from FastCGI socket");
-            return -1;
-        } else if (ret != sizeof(header)) {
-            error("Unable to receive from FastCGI socket: received len (%li) != header len (%li)", ret, sizeof(header));
             return -1;
         }
 
-        req_id = ntohs(header.requestId);
         content_len = ntohs(header.contentLength);
         content = malloc(content_len + header.paddingLength);
         ptr = content;
 
         long rcv_len = 0;
         while (rcv_len < content_len + header.paddingLength) {
-            ret = recv(conn->socket, content + rcv_len, content_len + header.paddingLength - rcv_len, 0);
+            ret = sock_recv(&conn->socket, content + rcv_len, content_len + header.paddingLength - rcv_len, 0);
             if (ret < 0) {
                 error("Unable to receive from FastCGI socket");
                 free(content);
@@ -416,16 +393,14 @@ int fastcgi_send(fastcgi_cnx_t *conn, sock *client, int flags) {
 
         if (header.type == FCGI_END_REQUEST) {
             FCGI_EndRequestBody *body = (FCGI_EndRequestBody *) content;
-            int app_status = (body->appStatusB3 << 24) | (body->appStatusB2 << 16) | (body->appStatusB1 << 8) |
-                             body->appStatusB0;
+            int app_status = ntohl(body->appStatus);
             if (body->protocolStatus != FCGI_REQUEST_COMPLETE) {
                 error("FastCGI protocol error: %i", body->protocolStatus);
             }
             if (app_status != 0) {
                 error("FastCGI app terminated with exit code %i", app_status);
             }
-            close(conn->socket);
-            conn->socket = 0;
+            sock_close(&conn->socket);
             free(content);
 
             if (flags & FASTCGI_CHUNKED) {
@@ -457,29 +432,24 @@ int fastcgi_dump(fastcgi_cnx_t *conn, char *buf, long len) {
     long ret;
     char buf0[256];
     char *content, *ptr = buf;
-    unsigned short req_id, content_len;
+    unsigned short content_len;
 
     if (conn->out_buf != NULL && conn->out_len > conn->out_off) {
         ptr += snprintf(ptr, len, "%.*s", conn->out_len - conn->out_off, conn->out_buf + conn->out_off);
     }
 
     while (1) {
-        ret = recv(conn->socket, &header, sizeof(header), 0);
-        if (ret < 0) {
+        if (sock_recv_x(&conn->socket, &header, sizeof(header), 0) == -1) {
             error("Unable to receive from FastCGI socket");
-            return -1;
-        } else if (ret != sizeof(header)) {
-            error("Unable to receive from FastCGI socket: received len (%li) != header len (%li)", ret, sizeof(header));
             return -1;
         }
 
-        req_id = ntohs(header.requestId);
         content_len = ntohs(header.contentLength);
         content = malloc(content_len + header.paddingLength);
 
         long rcv_len = 0;
         while (rcv_len < content_len + header.paddingLength) {
-            ret = recv(conn->socket, content + rcv_len, content_len + header.paddingLength - rcv_len, 0);
+            ret = sock_recv(&conn->socket, content + rcv_len, content_len + header.paddingLength - rcv_len, 0);
             if (ret < 0) {
                 error("Unable to receive from FastCGI socket");
                 free(content);
@@ -490,16 +460,14 @@ int fastcgi_dump(fastcgi_cnx_t *conn, char *buf, long len) {
 
         if (header.type == FCGI_END_REQUEST) {
             FCGI_EndRequestBody *body = (FCGI_EndRequestBody *) content;
-            int app_status = (body->appStatusB3 << 24) | (body->appStatusB2 << 16) | (body->appStatusB1 << 8) |
-                             body->appStatusB0;
+            int app_status = ntohl(body->appStatus);
             if (body->protocolStatus != FCGI_REQUEST_COMPLETE) {
                 error("FastCGI protocol error: %i", body->protocolStatus);
             }
             if (app_status != 0) {
                 error("FastCGI app terminated with exit code %i", app_status);
             }
-            close(conn->socket);
-            conn->socket = 0;
+            sock_close(&conn->socket);
             free(content);
 
             return 0;
@@ -517,50 +485,31 @@ int fastcgi_dump(fastcgi_cnx_t *conn, char *buf, long len) {
 }
 
 int fastcgi_receive(fastcgi_cnx_t *conn, sock *client, unsigned long len) {
-    unsigned long rcv_len = 0;
     char *buf[16384];
-    long ret;
-    FCGI_Header header = {
-            .version = FCGI_VERSION_1,
-            .type = FCGI_STDIN,
-            .requestId = htons(conn->req_id),
-            .contentLength = htons(0),
-            .paddingLength = 0,
-            .reserved = 0
-    };
 
-    while (rcv_len < len) {
-        ret = sock_recv(client, buf, sizeof(buf), 0);
-        if (ret <= 0) {
+    for (long to_send = (long) len, ret; to_send > 0; to_send -= ret) {
+        if ((ret = sock_recv(client, buf, (to_send > sizeof(buf)) ? sizeof(buf) : to_send, 0)) <= 0) {
             error("Unable to receive");
             return -1;
         }
 
-        rcv_len += ret;
-        header.contentLength = htons(ret);
-        if (send(conn->socket, &header, sizeof(header), 0) != sizeof(header)) goto err;
-        if (send(conn->socket, buf, ret, 0) != ret) {
-            err:
-            error("Unable to send to FastCGI socket");
-            return -2;
-        }
+        if (fastcgi_send_data(conn, FCGI_STDIN, ret, buf) == -1)
+            return -1;
     }
+
     return 0;
 }
 
 int fastcgi_receive_chunked(fastcgi_cnx_t *conn, sock *client) {
-    long ret;
-    unsigned long next_len;
+    for (long ret;;) {
+        if ((ret = sock_get_chunk_header(client)) < 0) {
+            return (int) ret;
+        } else if (ret == 0) {
+            break;
+        }
 
-    while (1) {
-        ret = sock_get_chunk_header(client);
-        if (ret < 0) return (int) ret;
-
-        next_len = ret;
-        if (next_len <= 0) break;
-
-        ret = fastcgi_receive(conn, client, next_len);
-        if (ret < 0) return (int) ret;
+        if ((ret = fastcgi_receive(conn, client, ret)) < 0)
+            return (int) ret;
     }
 
     return 0;

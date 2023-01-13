@@ -38,7 +38,8 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
     sock *client = &ctx->socket;
     char *err_msg = ctx->err_msg;
 
-    fcgi_cnx->socket = 0;
+    fcgi_cnx->socket.socket = 0;
+    fcgi_cnx->socket.enc = 0;
     fcgi_cnx->req_id = 0;
     fcgi_cnx->r_addr = ctx->socket.addr;
     fcgi_cnx->r_host = (ctx->host[0] != 0) ? ctx->host : NULL;
@@ -144,9 +145,8 @@ static int fastcgi_handler_2(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
         errno = 0;
     }
 
-    if (fcgi_cnx->socket != 0) {
-        close(fcgi_cnx->socket);
-        fcgi_cnx->socket = 0;
+    if (fcgi_cnx->socket.socket != 0) {
+        sock_close(&fcgi_cnx->socket);
     }
 
     return ret;

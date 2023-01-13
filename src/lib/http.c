@@ -251,8 +251,7 @@ int http_receive_request(sock *client, http_req *req) {
     if (header_len < 0)
         return (int) -header_len;
 
-    rcv_len = sock_recv(client, buf, header_len, 0);
-    if (rcv_len != header_len)
+    if (sock_recv_x(client, buf, header_len, 0) == -1)
         return -1;
 
     return 0;

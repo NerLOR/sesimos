@@ -36,13 +36,9 @@ int ws_calc_accept_key(const char *key, char *accept_key) {
 int ws_recv_frame_header(sock *s, ws_frame *frame) {
     unsigned char buf[12];
 
-    long ret = sock_recv(s, buf, 2, 0);
-    if (ret < 0) {
+    if (sock_recv_x(s, buf, 2, 0) == -1) {
         error("Unable to receive from socket");
         return -1;
-    } else if (ret != 2) {
-        error("Unable to receive 2 bytes from socket");
-        return -2;
     }
 
     unsigned short bits = (buf[0] << 8) | buf[1];
@@ -61,13 +57,9 @@ int ws_recv_frame_header(sock *s, ws_frame *frame) {
         remaining += 8;
     }
 
-    ret = sock_recv(s, buf, remaining, 0);
-    if (ret < 0) {
+    if (sock_recv_x(s, buf, remaining, 0) == -1) {
         error("Unable to receive from socket");
         return -1;
-    } else if (ret != remaining) {
-        error("Unable to receive correct number of bytes from socket");
-        return -2;
     }
 
     if (len == 126) {

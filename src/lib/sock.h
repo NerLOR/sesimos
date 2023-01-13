@@ -44,6 +44,8 @@ long sock_send_x(sock *s, void *buf, unsigned long len, int flags);
 
 long sock_recv(sock *s, void *buf, unsigned long len, int flags);
 
+long sock_recv_x(sock *s, void *buf, unsigned long len, int flags);
+
 long sock_splice(sock *dst, sock *src, void *buf, unsigned long buf_len, unsigned long len);
 
 long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len);

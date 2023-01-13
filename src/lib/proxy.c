@@ -549,7 +549,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         }
         ptr = pos0 + 2;
     }
-    sock_recv(&proxy->proxy, buffer, header_len, 0);
+    sock_recv_x(&proxy->proxy, buffer, header_len, 0);
 
     ret = proxy_response_header(req, res, conf);
     if (ret != 0) {
@@ -654,7 +654,7 @@ int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int 
             if (finish_comp) goto finish;
         }
         if (ret <= 0) break;
-        if (flags & PROXY_CHUNKED) sock_recv(&proxy->proxy, buffer, 2, 0);
+        if (flags & PROXY_CHUNKED) sock_recv_x(&proxy->proxy, buffer, 2, 0);
     } while ((flags & PROXY_CHUNKED) && len_to_send > 0);
 
     if (ret <= 0) return -1;

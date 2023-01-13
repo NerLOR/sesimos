@@ -107,13 +107,17 @@ long sock_send(sock *s, void *buf, unsigned long len, int flags) {
 }
 
 long sock_send_x(sock *s, void *buf, unsigned long len, int flags) {
-    long sent = 0;
-    for (long ret; sent < len; sent += ret) {
-        ret = sock_send(s, (unsigned char *) buf + sent, len - sent, flags);
-        if (ret <= 0)
-            return ret;
+    for (long ret, sent = 0; sent < len; sent += ret) {
+        if ((ret = sock_send(s, (unsigned char *) buf + sent, len - sent, flags)) <= 0) {
+            if (errno == EINTR) {
+                errno = 0, ret = 0;
+                continue;
+            } else {
+                return -1;
+            }
+        }
     }
-    return sent;
+    return (long) len;
 }
 
 long sock_recv(sock *s, void *buf, unsigned long len, int flags) {
@@ -132,6 +136,20 @@ long sock_recv(sock *s, void *buf, unsigned long len, int flags) {
     } else {
         return -1;
     }
+}
+
+long sock_recv_x(sock *s, void *buf, unsigned long len, int flags) {
+    for (long ret, rcv = 0; rcv < len; rcv += ret) {
+        if ((ret = sock_recv(s, (unsigned char *) buf + rcv, len - rcv, flags)) <= 0) {
+            if (errno == EINTR) {
+                errno = 0, ret = 0;
+                continue;
+            } else {
+                return -1;
+            }
+        }
+    }
+    return (long) len;
 }
 
 long sock_splice(sock *dst, sock *src, void *buf, unsigned long buf_len, unsigned long len) {
@@ -213,16 +231,24 @@ long sock_get_chunk_header(sock *s) {
     char buf[16];
 
     do {
-        ret = sock_recv(s, buf, sizeof(buf), MSG_PEEK);
-        if (ret <= 0) return -2;
-        else if (ret < 2) continue;
+        if ((ret = sock_recv(s, buf, sizeof(buf) - 1, MSG_PEEK)) <= 0) {
+            if (errno == EINTR) {
+                errno = 0;
+                continue;
+            } else {
+                return -1;
+            }
+        } else if (ret < 2) {
+            continue;
+        }
+        buf[ret] = 0;
 
-        ret = sock_parse_chunk_header(buf, ret, &len);
-        if (ret == -2) return -1;
+        if ((ret = sock_parse_chunk_header(buf, ret, &len)) == -2)
+            return -1;
     } while (ret < 0);
 
-    if (sock_recv(s, buf, len, 0) != len)
-        return -2;
+    if (sock_recv_x(s, buf, len, 0) == -1)
+        return -1;
 
     return ret;
 }
