@@ -11,7 +11,6 @@
 #include "../logger.h"
 #include "proxy.h"
 #include "utils.h"
-#include "compress.h"
 #include "config.h"
 #include "error.h"
 
@@ -381,9 +380,8 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         SSL_set_fd(proxy->proxy.ssl, proxy->proxy.socket);
         SSL_set_connect_state(proxy->proxy.ssl);
 
-        ret = SSL_do_handshake(proxy->proxy.ssl);
-        if (ret != 1) {
-            sock_error(&proxy->proxy, ret);
+        if ((ret = SSL_do_handshake(proxy->proxy.ssl)) != 1) {
+            sock_error(&proxy->proxy, (int) ret);
             SSL_free(proxy->proxy.ssl);
             res->status = http_get_status(502);
             ctx->origin = SERVER_REQ;
@@ -567,24 +565,8 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
 }
 
 int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int flags) {
-    char buffer[CHUNK_SIZE], comp_out[CHUNK_SIZE], buf[256], *ptr;
+    char buffer[CHUNK_SIZE], buf[256], *ptr;
     long ret = 0, len, snd_len;
-    int finish_comp = 0;
-
-    compress_ctx comp_ctx;
-    if (flags & PROXY_COMPRESS_BR) {
-        flags &= ~PROXY_COMPRESS_GZ;
-        if (compress_init(&comp_ctx, COMPRESS_BR) != 0) {
-            error("Unable to init brotli");
-            flags &= ~PROXY_COMPRESS_BR;
-        }
-    } else if (flags & PROXY_COMPRESS_GZ) {
-        flags &= ~PROXY_COMPRESS_BR;
-        if (compress_init(&comp_ctx, COMPRESS_GZ) != 0) {
-            error("Unable to init gzip");
-            flags &= ~PROXY_COMPRESS_GZ;
-        }
-    }
 
     do {
         snd_len = 0;
@@ -601,57 +583,31 @@ int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int 
 
             len_to_send = ret;
             ret = 1;
-            if (len_to_send == 0 && (flags & PROXY_COMPRESS)) {
-                finish_comp = 1;
-                len = 0;
-                ptr = NULL;
-                goto out;
-                finish:
-                compress_free(&comp_ctx);
-            }
         }
         while (snd_len < len_to_send) {
-            unsigned long avail_in, avail_out;
             ret = sock_recv(&proxy->proxy, buffer, CHUNK_SIZE < (len_to_send - snd_len) ? CHUNK_SIZE : len_to_send - snd_len, 0);
             if (ret <= 0) {
                 error("Unable to receive from server");
                 break;
             }
-            len = ret;
             ptr = buffer;
-            out:
-            avail_in = len;
-            char *next_in = ptr;
-            do {
-                long buf_len = len;
-                if (flags & PROXY_COMPRESS) {
-                    avail_out = sizeof(comp_out);
-                    compress_compress(&comp_ctx, next_in + len - avail_in, &avail_in, comp_out, &avail_out, finish_comp);
-                    ptr = comp_out;
-                    buf_len = (int) (sizeof(comp_out) - avail_out);
-                    snd_len += (long) (len - avail_in);
-                }
-                if (buf_len != 0) {
-                    len = sprintf(buf, "%lX\r\n", buf_len);
-                    ret = 1;
+            long buf_len = ret;
+            len = sprintf(buf, "%lX\r\n", buf_len);
+            ret = 1;
 
-                    if (flags & PROXY_CHUNKED) ret = sock_send_x(client, buf, len, 0);
-                    if (ret <= 0) goto err;
+            if (flags & PROXY_CHUNKED) ret = sock_send_x(client, buf, len, 0);
+            if (ret <= 0) goto err;
 
-                    ret = sock_send_x(client, ptr, buf_len, 0);
-                    if (ret <= 0) goto err;
-                    if (!(flags & PROXY_COMPRESS)) snd_len += ret;
+            ret = sock_send_x(client, ptr, buf_len, 0);
+            if (ret <= 0) goto err;
+            snd_len += ret;
 
-                    if (flags & PROXY_CHUNKED) ret = sock_send_x(client, "\r\n", 2, 0);
-                    if (ret <= 0) {
-                        err:
-                        error("Unable to send");
-                        break;
-                    }
-                }
-            } while ((flags & PROXY_COMPRESS) && (avail_in != 0 || avail_out != sizeof(comp_out)));
-            if (ret <= 0) break;
-            if (finish_comp) goto finish;
+            if (flags & PROXY_CHUNKED) ret = sock_send_x(client, "\r\n", 2, 0);
+            if (ret <= 0) {
+                err:
+                error("Unable to send");
+                break;
+            }
         }
         if (ret <= 0) break;
         if (flags & PROXY_CHUNKED) sock_recv_x(&proxy->proxy, buffer, 2, 0);
@@ -660,8 +616,7 @@ int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int 
     if (ret <= 0) return -1;
 
     if (flags & PROXY_CHUNKED) {
-        ret = sock_send_x(client, "0\r\n\r\n", 5, 0);
-        if (ret <= 0) {
+        if (sock_send_x(client, "0\r\n\r\n", 5, 0) == -1) {
             error("Unable to send");
             return -1;
         }

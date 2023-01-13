@@ -10,9 +10,6 @@
 #define SESIMOS_PROXY_H
 
 #define PROXY_CHUNKED 1
-#define PROXY_COMPRESS_GZ 2
-#define PROXY_COMPRESS_BR 4
-#define PROXY_COMPRESS 6
 
 #ifndef SERVER_NAME
 #   define SERVER_NAME "reverse proxy"

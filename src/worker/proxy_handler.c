@@ -104,35 +104,7 @@ static int proxy_handler_1(client_ctx_t *ctx) {
         }
     }
 
-    if (streq(ctx->req.method, "HEAD")) {
-        return 1;
-    }
-
-    /*
-    char *content_encoding = http_get_header_field(&res->hdr, "Content-Encoding");
-    if (use_proxy && content_encoding == NULL) {
-        int http_comp = http_get_compression(&req, &res);
-        if (http_comp & COMPRESS_BR) {
-            use_proxy |= PROXY_COMPRESS_BR;
-        } else if (http_comp & COMPRESS_GZ) {
-            use_proxy |= PROXY_COMPRESS_GZ;
-        }
-    }
-
-    char *transfer_encoding = http_get_header_field(&res->hdr, "Transfer-Encoding");
-    int chunked = transfer_encoding != NULL && streq(transfer_encoding, "chunked");
-    http_remove_header_field(&res->hdr, "Transfer-Encoding", HTTP_REMOVE_ALL);
-    ret = sprintf(buf, "%s%s%s",
-                  (use_proxy & PROXY_COMPRESS_BR) ? "br" :
-                  ((use_proxy & PROXY_COMPRESS_GZ) ? "gzip" : ""),
-                  ((use_proxy & PROXY_COMPRESS) && chunked) ? ", " : "",
-                  chunked ? "chunked" : "");
-    if (ret > 0) {
-        http_add_header_field(&res->hdr, "Transfer-Encoding", buf);
-    }
-    */
-
-    return 0;
+    return streq(ctx->req.method, "HEAD") ? 1 : 0;
 }
 
 static int proxy_handler_2(client_ctx_t *ctx) {
@@ -140,12 +112,9 @@ static int proxy_handler_2(client_ctx_t *ctx) {
     int chunked = strcontains(transfer_encoding, "chunked");
 
     const char *content_len = http_get_header_field(&ctx->res.hdr, "Content-Length");
-    unsigned long len_to_send = 0;
-    if (content_len != NULL) {
-        len_to_send = strtol(content_len, NULL, 10);
-    }
+    unsigned long len_to_send = (content_len != NULL) ? strtol(content_len, NULL, 10) : 0;
 
-    int flags = (chunked ? PROXY_CHUNKED : 0) | (ctx->use_proxy & PROXY_COMPRESS);
+    int flags = (chunked ? PROXY_CHUNKED : 0);
     int ret = proxy_send(ctx->proxy, &ctx->socket, len_to_send, flags);
 
     if (ret < 0) {
