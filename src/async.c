@@ -124,7 +124,6 @@ static int async_exec(evt_listen_t *evt, async_evt_t r_events) {
         ret = -1;
     }
 
-    logger_set_prefix("");
     errno = e;
     return ret;
 }
@@ -254,7 +253,7 @@ void async_thread(void) {
 
         // TODO timeout calculation = O(n)
         // calculate wait timeout
-        min_ts = -1000, cur_ts = clock_micros();;
+        min_ts = -1000, cur_ts = clock_micros();
         for (int i = 0; i < list_size(local); i++) {
             evt_listen_t *evt = local[i];
             if (!evt->socket) continue;
@@ -280,6 +279,7 @@ void async_thread(void) {
             if (!list_contains(local, &evt)) continue;
 
             if (async_exec(evt, async_e2a(events[i].events)) == 0) {
+                logger_set_prefix("");
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, evt->fd, NULL) == -1) {
                     if (errno == EBADF) {
                         // already closed fd, do not die
@@ -298,6 +298,7 @@ void async_thread(void) {
 
                 free(evt);
             }
+            logger_set_prefix("");
         }
 
         // check, if some socket ran into a timeout
