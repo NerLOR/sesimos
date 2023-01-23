@@ -182,11 +182,31 @@ long sock_splice(sock *dst, sock *src, void *buf, unsigned long buf_len, unsigne
     return send_len;
 }
 
+long sock_splice_all(sock *dst, sock *src, void *buf, unsigned long buf_len) {
+    long send_len = 0;
+    for (long ret;; send_len += ret) {
+        if ((ret = sock_recv(src, buf, buf_len, 0)) <= 0) {
+            if (errno == EINTR) {
+                errno = 0, ret = 0;
+                continue;
+            } else if (ret == 0) {
+                break;
+            } else {
+                return -1;
+            }
+        }
+
+        if (sock_send_x(dst, buf, ret, 0) == -1)
+            return -1;
+    }
+    return send_len;
+}
+
 long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len, int flags) {
     long ret;
     unsigned long send_len = 0, next_len;
 
-    while (!(flags & SOCK_SINGLE_CHUNK)) {
+    do {
         ret = sock_get_chunk_header(src);
         if (ret < 0) {
             errno = EPROTO;
@@ -199,9 +219,6 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len,
             if (sock_send_x(dst, buf, sprintf(buf, "%lX\r\n", next_len), 0) == -1)
                 return -1;
         }
-
-        if (next_len == 0)
-            break;
 
         if ((ret = sock_splice(dst, src, buf, buf_len, next_len)) < 0)
             return ret;
@@ -219,7 +236,7 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len,
             errno = EPROTO;
             return -2;
         }
-    }
+    } while (!(flags & SOCK_SINGLE_CHUNK) && next_len != 0);
 
     return (long) send_len;
 }
@@ -263,7 +280,7 @@ long sock_parse_chunk_header(const char *buf, long len, long *ret_len) {
 }
 
 long sock_get_chunk_header(sock *s) {
-    long ret, len;
+    long ret, len = 0;
     char buf[16];
 
     do {
