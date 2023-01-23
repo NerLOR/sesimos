@@ -439,7 +439,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
     if (content_len > 0) {
         ret = sock_splice(&proxy->proxy, client, buffer, sizeof(buffer), content_len);
     } else if (strcontains(transfer_encoding, "chunked")) {
-        ret = sock_splice_chunked(&proxy->proxy, client, buffer, sizeof(buffer));
+        ret = sock_splice_chunked(&proxy->proxy, client, buffer, sizeof(buffer), SOCK_CHUNKED);
     }
 
     if (ret < 0 || (content_len != 0 && ret != content_len)) {

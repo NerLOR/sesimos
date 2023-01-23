@@ -13,6 +13,9 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#define SOCK_CHUNKED 1
+#define SOCK_SINGLE_CHUNK 2
+
 typedef struct {
     unsigned int enc:1;
     int socket;
@@ -48,7 +51,7 @@ long sock_recv_x(sock *s, void *buf, unsigned long len, int flags);
 
 long sock_splice(sock *dst, sock *src, void *buf, unsigned long buf_len, unsigned long len);
 
-long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len);
+long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len, int flags);
 
 int sock_close(sock *s);
 

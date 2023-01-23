@@ -90,6 +90,11 @@ int sock_set_timeout(sock *s, double sec) {
 }
 
 long sock_send(sock *s, void *buf, unsigned long len, int flags) {
+    if (s->socket == 0) {
+        errno = ENOTCONN;
+        return -1;
+    }
+
     long ret;
     if (s->enc) {
         ret = SSL_write(s->ssl, buf, (int) len);
@@ -121,6 +126,11 @@ long sock_send_x(sock *s, void *buf, unsigned long len, int flags) {
 }
 
 long sock_recv(sock *s, void *buf, unsigned long len, int flags) {
+    if (s->socket == 0) {
+        errno = ENOTCONN;
+        return -1;
+    }
+
     long ret;
     if (s->enc) {
         int (*func)(SSL*, void*, int) = (flags & MSG_PEEK) ? SSL_peek : SSL_read;
@@ -140,7 +150,7 @@ long sock_recv(sock *s, void *buf, unsigned long len, int flags) {
 
 long sock_recv_x(sock *s, void *buf, unsigned long len, int flags) {
     for (long ret, rcv = 0; rcv < len; rcv += ret) {
-        if ((ret = sock_recv(s, (unsigned char *) buf + rcv, len - rcv, flags)) <= 0) {
+        if ((ret = sock_recv(s, (unsigned char *) buf + rcv, len - rcv, flags | MSG_WAITALL)) <= 0) {
             if (errno == EINTR) {
                 errno = 0, ret = 0;
                 continue;
@@ -169,20 +179,37 @@ long sock_splice(sock *dst, sock *src, void *buf, unsigned long buf_len, unsigne
     return (long) send_len;
 }
 
-long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len) {
+long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len, int flags) {
     long ret;
-    unsigned long send_len = 0;
-    unsigned long next_len;
+    unsigned long send_len = 0, next_len;
 
-    while (1) {
+    while (!(flags & SOCK_SINGLE_CHUNK)) {
         ret = sock_get_chunk_header(src);
         if (ret < 0) return -2;
 
         next_len = ret;
-        if (next_len <= 0) break;
 
-        ret = sock_splice(dst, src, buf, buf_len, next_len);
-        if (ret < 0) return ret;
+        if (flags & SOCK_CHUNKED) {
+            ret = sprintf(buf, "%lX\r\n", next_len);
+            if (sock_send_x(dst, buf, ret, 0) == -1)
+                return -1;
+        }
+
+        if (next_len == 0)
+            break;
+
+        if ((ret = sock_splice(dst, src, buf, buf_len, next_len)) < 0)
+            return ret;
+
+        send_len += ret;
+
+        if (flags & SOCK_CHUNKED) {
+            if (sock_send_x(dst, "\r\n", 2, 0) == -1)
+                return -1;
+        }
+
+        if (sock_recv_x(src, buf, 2, 0) == -1)
+            return -1;
     }
 
     return (long) send_len;

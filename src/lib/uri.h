@@ -38,8 +38,7 @@ typedef struct {
     char *filename;       // "/account/index.php"
     char *uri;            // "/account/login?username=test"
     metadata_t *meta;
-    unsigned int is_static:1;
-    unsigned int is_dir:1;
+    unsigned int is_static:1, is_dir:1;
 } http_uri;
 
 
