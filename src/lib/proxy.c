@@ -567,7 +567,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
 
 int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int flags) {
     char buffer[CHUNK_SIZE], buf[256], *ptr;
-    long ret = 0, len, snd_len;
+    long ret = 0, snd_len;
 
     do {
         snd_len = 0;
@@ -593,10 +593,9 @@ int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int 
             }
             ptr = buffer;
             long buf_len = ret;
-            len = sprintf(buf, "%lX\r\n", buf_len);
             ret = 1;
 
-            if (flags & PROXY_CHUNKED) ret = sock_send_x(client, buf, len, 0);
+            if (flags & PROXY_CHUNKED) ret = sock_send_x(client, buf, sprintf(buf, "%lX\r\n", buf_len), 0);
             if (ret <= 0) goto err;
 
             ret = sock_send_x(client, ptr, buf_len, 0);

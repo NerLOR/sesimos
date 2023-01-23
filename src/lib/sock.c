@@ -163,20 +163,23 @@ long sock_recv_x(sock *s, void *buf, unsigned long len, int flags) {
 }
 
 long sock_splice(sock *dst, sock *src, void *buf, unsigned long buf_len, unsigned long len) {
-    long ret;
-    unsigned long send_len = 0;
-    unsigned long next_len;
-    while (send_len < len) {
-        next_len = (buf_len < (len - send_len)) ? buf_len : (len - send_len);
-        ret = sock_recv(src, buf, next_len, 0);
-        if (ret <= 0) return -2;
-        next_len = ret;
-        ret = sock_send(dst, buf, next_len, send_len + next_len < len ? MSG_MORE : 0);
-        if (ret < 0) return -1;
-        if (ret != next_len) return -3;
-        send_len += next_len;
+    long send_len = 0;
+    for (long ret, next_len; send_len < len; send_len += ret) {
+        next_len = (long) ((buf_len < (len - send_len)) ? buf_len : (len - send_len));
+
+        if ((ret = sock_recv(src, buf, next_len, MSG_WAITALL)) <= 0) {
+            if (errno == EINTR) {
+                errno = 0, ret = 0;
+                continue;
+            } else {
+                return -1;
+            }
+        }
+
+        if (sock_send_x(dst, buf, ret, send_len + ret < len ? MSG_MORE : 0) == -1)
+            return -1;
     }
-    return (long) send_len;
+    return send_len;
 }
 
 long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len, int flags) {
@@ -185,13 +188,15 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len,
 
     while (!(flags & SOCK_SINGLE_CHUNK)) {
         ret = sock_get_chunk_header(src);
-        if (ret < 0) return -2;
+        if (ret < 0) {
+            errno = EPROTO;
+            return -2;
+        }
 
         next_len = ret;
 
         if (flags & SOCK_CHUNKED) {
-            ret = sprintf(buf, "%lX\r\n", next_len);
-            if (sock_send_x(dst, buf, ret, 0) == -1)
+            if (sock_send_x(dst, buf, sprintf(buf, "%lX\r\n", next_len), 0) == -1)
                 return -1;
         }
 
@@ -208,8 +213,12 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len,
                 return -1;
         }
 
-        if (sock_recv_x(src, buf, 2, 0) == -1)
+        if (sock_recv_x(src, buf, 2, 0) == -1) {
             return -1;
+        } else if (strncmp(buf, "\r\n", 2) != 0) {
+            errno = EPROTO;
+            return -2;
+        }
     }
 
     return (long) send_len;
