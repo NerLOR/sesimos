@@ -135,10 +135,7 @@ static void accept_cb(void *arg) {
         return;
     }
 
-    client->socket = client_fd;
-    client->enc = (i == 1);
-    client->ts_start = clock_micros();
-    client->ts_last = client->ts_start;
+    sock_init(client, client_fd, (i == 1));
     client_ctx->cnx_s = client->ts_start;
     client_ctx->cnx_e = -1, client_ctx->req_s = -1, client_ctx->req_e = -1, client_ctx->res_ts = -1;
 

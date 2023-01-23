@@ -60,6 +60,15 @@ const char *sock_error_str(unsigned long err) {
     }
 }
 
+int sock_init(sock *s, int fd, int enc) {
+    s->socket = fd;
+    s->enc = enc;
+    s->ts_start = clock_micros();
+    s->ts_last = s->ts_start;
+    s->timeout_us = -1;
+    return 0;
+}
+
 int sock_set_socket_timeout_micros(sock *s, long recv_micros, long send_micros) {
     struct timeval recv_to = {.tv_sec = recv_micros / 1000000, .tv_usec = recv_micros % 1000000},
                    send_to = {.tv_sec = send_micros / 1000000, .tv_usec = send_micros % 1000000};

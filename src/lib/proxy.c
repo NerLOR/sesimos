@@ -315,13 +315,14 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
     retry = 0;
     tries++;
 
-    proxy->proxy.socket = socket(AF_INET6, SOCK_STREAM, 0);
-    if (proxy->proxy.socket < 0) {
+    int fd;
+    if ((fd = socket(AF_INET6, SOCK_STREAM, 0)) == -1) {
         error("Unable to create socket");
         res->status = http_get_status(500);
         ctx->origin = INTERNAL;
         return -1;
     }
+    sock_init(&proxy->proxy, fd, 0);
 
     if (sock_set_socket_timeout(&proxy->proxy, 1) != 0 || sock_set_timeout(&proxy->proxy, SERVER_TIMEOUT_INIT) != 0)
         goto proxy_timeout_err;
