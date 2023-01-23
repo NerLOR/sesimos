@@ -136,10 +136,15 @@ static int async_check(evt_listen_t *evt) {
     }};
 
     // check, if fd is already ready
-    if (poll(fds, 1, 0) == 1) {
-        // fd already ready
-        if (async_exec(evt, async_p2a(fds[0].revents)) == 0)
-            return 1;
+    switch (poll(fds, 1, 0)) {
+        case 1:
+            // fd already ready
+            if (async_exec(evt, async_p2a(fds[0].revents)) == 0)
+                return 1;
+            break;
+        case -1:
+            error("Unable to poll");
+            return -1;
     }
 
     return 0;
