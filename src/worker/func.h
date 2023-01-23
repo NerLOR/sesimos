@@ -19,7 +19,7 @@
 typedef struct {
     sock socket;
     int req_num;
-    unsigned char s_keep_alive:1, c_keep_alive:1, use_fastcgi:4, use_proxy:2, ws_close:2;
+    unsigned char s_keep_alive:1, c_keep_alive:1, use_fastcgi:4, use_proxy:2, ws_close:2, chunks_transferred:1;
     char cc[3], host[256];
     char req_host[256], err_msg[256];
     char log_prefix[128];
@@ -43,6 +43,14 @@ typedef struct {
     void *other;
 } ws_ctx_t;
 
+typedef struct {
+    client_ctx_t *client;
+    sock *socket;
+    int flags;
+    void (*next_cb)(void *);
+    void (*err_cb)(void *);
+} chunk_ctx_t;
+
 void tcp_acceptor_func(client_ctx_t *ctx);
 
 void request_handler_func(client_ctx_t *ctx);
@@ -54,6 +62,8 @@ void fastcgi_handler_func(client_ctx_t *ctx);
 void proxy_handler_func(client_ctx_t *ctx);
 
 void ws_frame_handler_func(ws_ctx_t *ctx);
+
+void chunk_handler_func(chunk_ctx_t *ctx);
 
 int respond(client_ctx_t *ctx);
 

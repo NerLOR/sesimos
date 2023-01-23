@@ -29,4 +29,6 @@ int proxy_handle(client_ctx_t *ctx);
 
 int ws_handle_frame(ws_ctx_t *ctx);
 
+int handle_chunk(chunk_ctx_t *ctx);
+
 #endif //SESIMOS_WORKERS_H
