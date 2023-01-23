@@ -185,7 +185,7 @@ static void terminate_forcefully(int sig) {
 }
 
 static void terminate_gracefully(int sig) {
-    fprintf(stderr, "\n");
+    if (sig != 0) fprintf(stderr, "\n");
     notice("Terminating gracefully...");
 
     struct sigaction act = {0};
@@ -410,7 +410,13 @@ int main(int argc, char *const argv[]) {
 
     notice("Ready to accept connections");
 
+    int error = 0;
     async_thread();
+    if (errno != 0) {
+        errno = 0;
+        error = 2;
+        terminate_gracefully(0);
+    }
 
     notice("Goodbye!");
 
@@ -424,5 +430,6 @@ int main(int argc, char *const argv[]) {
     async_free();
     logger_stop();
     logger_join();
-    return 0;
+
+    return error;
 }
