@@ -39,12 +39,9 @@ int path_exists(const char *path) {
 }
 
 int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mode) {
-    char buf0[1024];
-    char buf1[1024];
-    char buf2[1024];
-    char buf3[1024];
-    char buf4[1024];
+    char buf0[1024], buf1[1024], buf2[1024], buf3[1024];
     int p_len;
+
     uri->webroot = NULL;
     uri->req_path = NULL;
     uri->path = NULL;
@@ -55,9 +52,10 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     uri->meta = NULL;
     uri->is_static = 1;
     uri->is_dir = 0;
-    if (uri_str[0] != '/') {
+
+    if (uri_str[0] != '/')
         return 1;
-    }
+
     uri->webroot = malloc(strlen(webroot) + 1);
     strcpy(uri->webroot, webroot);
 
@@ -75,12 +73,10 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     long size = (long) strlen(uri_str) + 1;
     uri->req_path = malloc(size);
     url_decode(uri_str, uri->req_path, &size);
-    if (query != NULL) {
-        query[-1] = '?';
-    }
-    if (strcontains(uri->req_path, "/../") || strcontains(uri->req_path, "/./")) {
+    if (query != NULL) query[-1] = '?';
+
+    if (strcontains(uri->req_path, "/../") || strcontains(uri->req_path, "/./"))
         return 2;
-    }
 
     size = (long) strlen(uri->req_path) + 1;
     uri->path = malloc(size);
@@ -96,9 +92,8 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
         last = ch;
     }
 
-    if (dir_mode == URI_DIR_MODE_NO_VALIDATION) {
+    if (dir_mode == URI_DIR_MODE_NO_VALIDATION)
         return 0;
-    }
 
     if (uri->path[strlen(uri->path) - 1] == '/') {
         uri->path[strlen(uri->path) - 1] = 0;
@@ -107,9 +102,8 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
         strcpy(uri->pathinfo, "");
     }
 
-    if (!path_exists(uri->webroot)) {
+    if (!path_exists(uri->webroot))
         return 3;
-    }
 
     while (1) {
         sprintf(buf0, "%s%s", uri->webroot, uri->path);
@@ -118,25 +112,20 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
         p_len = snprintf(buf2, sizeof(buf2), "%s.html", buf0);
         if (p_len < 0 || p_len >= sizeof(buf2)) return -1;
 
-        if (strlen(uri->path) <= 1 ||
-            path_exists(buf0) ||
-            path_is_file(buf1) ||
-            path_is_file(buf2))
-        {
+        if (strlen(uri->path) <= 1 || path_exists(buf0) || path_is_file(buf1) || path_is_file(buf2))
             break;
-        }
 
         char *ptr;
         parent_dir:
         ptr = strrchr(uri->path, '/');
         size = (long) strlen(ptr);
-        sprintf(buf4, "%.*s%s", (int) size, ptr, uri->pathinfo);
-        strcpy(uri->pathinfo, buf4);
+        sprintf(buf3, "%.*s%s", (int) size, ptr, uri->pathinfo);
+        strcpy(uri->pathinfo, buf3);
         ptr[0] = 0;
     }
     if (uri->pathinfo[0] != 0) {
-        sprintf(buf4, "%s", uri->pathinfo + 1);
-        strcpy(uri->pathinfo, buf4);
+        sprintf(buf3, "%s", uri->pathinfo + 1);
+        strcpy(uri->pathinfo, buf3);
     }
 
     if (path_is_file(buf0)) {
@@ -157,14 +146,11 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
         uri->is_static = 0;
         uri->filename = malloc(strlen(buf2) + 1);
         strcpy(uri->filename, buf2);
-    } else if (path_is_file(buf3)) {
-        uri->filename = malloc(strlen(buf3) + 1);
-        strcpy(uri->filename, buf3);
     } else {
         uri->is_dir = 1;
         strcpy(uri->path + strlen(uri->path), "/");
-        sprintf(buf1, "%s%sindex.php", uri->webroot, uri->path);
-        sprintf(buf2, "%s%sindex.html", uri->webroot, uri->path);
+        sprintf(buf1, "%s%s" "index.php", uri->webroot, uri->path);
+        sprintf(buf2, "%s%s" "index.html", uri->webroot, uri->path);
         if (path_is_file(buf1)) {
             uri->filename = malloc(strlen(buf1) + 1);
             strcpy(uri->filename, buf1);
@@ -188,18 +174,15 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
         }
     }
 
-    if (strends(uri->path + strlen(uri->path), "index")) {
+    if (strends(uri->path + strlen(uri->path), "index"))
         uri->path[strlen(uri->path) - 5] = 0;
-    }
-    if (streq(uri->pathinfo, "index.php") ||
-        streq(uri->pathinfo, "index.html"))
-    {
+
+    if (streq(uri->pathinfo, "index.php") || streq(uri->pathinfo, "index.html"))
         uri->pathinfo[0] = 0;
-    }
 
     sprintf(buf0, "%s%s%s%s%s", uri->path,
-            (strlen(uri->pathinfo) == 0 || uri->path[strlen(uri->path) - 1] == '/') ? "" : "/", uri->pathinfo,
-            uri->query != NULL ? "?" : "", uri->query != NULL ? uri->query : "");
+            (strlen(uri->pathinfo) == 0 || uri->path[strlen(uri->path) - 1] == '/') ? "" : "/",
+            uri->pathinfo, uri->query != NULL ? "?" : "", uri->query != NULL ? uri->query : "");
     uri->uri = malloc(strlen(buf0) + 1);
     strcpy(uri->uri, buf0);
 
