@@ -16,6 +16,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <openssl/err.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
 
 static void ssl_error(unsigned long err) {
     if (err == SSL_ERROR_NONE) {
@@ -60,12 +62,19 @@ const char *sock_error_str(unsigned long err) {
     }
 }
 
-int sock_init(sock *s, int fd, int enc) {
+int sock_init(sock *s, int fd, int flags) {
+    if ((flags & SOCK_ENCRYPTED) && (flags & SOCK_PIPE)) {
+        errno = EINVAL;
+        return -1;
+    }
+
     s->socket = fd;
-    s->enc = enc;
+    s->enc = !!(flags & SOCK_ENCRYPTED);
+    s->pipe = !!(flags & SOCK_PIPE);
     s->ts_start = clock_micros();
     s->ts_last = s->ts_start;
     s->timeout_us = -1;
+
     return 0;
 }
 
@@ -108,6 +117,12 @@ long sock_send(sock *s, void *buf, unsigned long len, int flags) {
     if (s->enc) {
         ret = SSL_write(s->ssl, buf, (int) len);
         if (ret <= 0) sock_error(s, (int) ret);
+    } else if (s->pipe) {
+        if (flags & ~MSG_MORE) {
+            errno = EINVAL;
+            return -1;
+        }
+        ret = write(s->socket, buf, len);
     } else {
         ret = send(s->socket, buf, len, flags);
     }
@@ -142,9 +157,15 @@ long sock_recv(sock *s, void *buf, unsigned long len, int flags) {
 
     long ret;
     if (s->enc) {
-        int (*func)(SSL*, void*, int) = (flags & MSG_PEEK) ? SSL_peek : SSL_read;
+        int (*func)(SSL *, void *, int) = (flags & MSG_PEEK) ? SSL_peek : SSL_read;
         ret = func(s->ssl, buf, (int) len);
         if (ret <= 0) sock_error(s, (int) ret);
+    } else  if (s->pipe) {
+        if (flags & ~MSG_WAITALL) {
+            errno = EINVAL;
+            return -1;
+        }
+        ret = read(s->socket, buf, len);
     } else {
         ret = recv(s->socket, buf, len, flags);
     }
@@ -173,21 +194,36 @@ long sock_recv_x(sock *s, void *buf, unsigned long len, int flags) {
 
 long sock_splice(sock *dst, sock *src, void *buf, unsigned long buf_len, unsigned long len) {
     long send_len = 0;
-    for (long ret, next_len; send_len < len; send_len += ret) {
-        next_len = (long) ((buf_len < (len - send_len)) ? buf_len : (len - send_len));
 
-        if ((ret = sock_recv(src, buf, next_len, MSG_WAITALL)) <= 0) {
-            if (errno == EINTR) {
-                errno = 0, ret = 0;
-                continue;
-            } else {
-                return -1;
+    if ((src->pipe || dst->pipe) && !src->enc && !dst->enc) {
+        for (long ret; send_len < len; send_len += ret) {
+            if ((ret = splice(src->socket, 0, dst->socket, 0, len, 0)) == -1) {
+                if (errno == EINTR) {
+                    errno = 0, ret = 0;
+                    continue;
+                } else {
+                    return -1;
+                }
             }
         }
+    } else {
+        for (long ret, next_len; send_len < len; send_len += ret) {
+            next_len = (long) ((buf_len < (len - send_len)) ? buf_len : (len - send_len));
 
-        if (sock_send_x(dst, buf, ret, send_len + ret < len ? MSG_MORE : 0) == -1)
-            return -1;
+            if ((ret = sock_recv(src, buf, next_len, MSG_WAITALL)) <= 0) {
+                if (errno == EINTR) {
+                    errno = 0, ret = 0;
+                    continue;
+                } else {
+                    return -1;
+                }
+            }
+
+            if (sock_send_x(dst, buf, ret, send_len + ret < len ? MSG_MORE : 0) == -1)
+                return -1;
+        }
     }
+
     return send_len;
 }
 
@@ -259,38 +295,35 @@ int sock_close(sock *s) {
     }
     close(s->socket);
     s->socket = 0;
-    s->enc = 0;
+    s->enc = 0, s->pipe = 0;
     errno = e;
     return 0;
 }
 
 int sock_has_pending(sock *s) {
-    char buf[1];
     int e = errno;
-    long ret = sock_recv(s, &buf, 1, MSG_PEEK | MSG_DONTWAIT);
-    errno = e;
-    return ret == 1;
-}
-
-long sock_parse_chunk_header(const char *buf, long len, long *ret_len) {
-    for (int i = 0; i < len; i++) {
-        char ch = buf[i];
-        if (ch == '\r') {
-            continue;
-        } else if (ch == '\n') {
-            if (ret_len != NULL) *ret_len = i + 1;
-            return strtol(buf, NULL, 16);
-        } else if (!((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F'))) {
-            return -2;
-        }
+    long ret;
+    if (s->pipe) {
+        ioctl(s->socket, FIONREAD, &ret);
+    } else {
+        char buf[1];
+        ret = sock_recv(s, &buf, sizeof(buf), MSG_PEEK | MSG_DONTWAIT);
     }
-
-    return -1;
+    errno = e;
+    return ret > 0;
 }
 
 long sock_get_chunk_header(sock *s) {
-    long ret, len = 0;
-    char buf[16];
+    if (s->pipe) {
+        uint64_t len;
+        if (sock_recv_x(s, &len, sizeof(len), 0) == -1)
+            return -1;
+        return (long) len;
+    }
+
+    long ret;
+    size_t len = 0;
+    char buf[20];
 
     do {
         if ((ret = sock_recv(s, buf, sizeof(buf) - 1, MSG_PEEK)) <= 0) {
@@ -305,7 +338,7 @@ long sock_get_chunk_header(sock *s) {
         }
         buf[ret] = 0;
 
-        if ((ret = sock_parse_chunk_header(buf, ret, &len)) == -2)
+        if ((ret = parse_chunk_header(buf, ret, &len)) == -1 && errno == EPROTO)
             return -1;
     } while (ret < 0);
 

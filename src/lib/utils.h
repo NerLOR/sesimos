@@ -65,4 +65,6 @@ int fseekl(FILE *file, long line_num);
 
 long ftelll(FILE *file);
 
+long parse_chunk_header(const char *buf, size_t len, size_t *ret_len);
+
 #endif //SESIMOS_UTILS_H

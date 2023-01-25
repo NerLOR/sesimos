@@ -135,7 +135,7 @@ static void accept_cb(void *arg) {
         return;
     }
 
-    sock_init(client, client_fd, (i == 1));
+    sock_init(client, client_fd, (i == 1) ? SOCK_ENCRYPTED : 0);
     client_ctx->cnx_s = client->ts_start;
     client_ctx->cnx_e = -1, client_ctx->req_s = -1, client_ctx->req_e = -1, client_ctx->res_ts = -1;
 

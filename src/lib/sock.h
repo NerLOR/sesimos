@@ -16,8 +16,11 @@
 #define SOCK_CHUNKED 1
 #define SOCK_SINGLE_CHUNK 2
 
+#define SOCK_ENCRYPTED 1
+#define SOCK_PIPE 2
+
 typedef struct {
-    unsigned int enc:1;
+    unsigned int enc:1, pipe:1;
     int socket;
     union {
         struct sockaddr sock;
@@ -60,8 +63,6 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len,
 int sock_close(sock *s);
 
 int sock_has_pending(sock *s);
-
-long sock_parse_chunk_header(const char *buf, long len, long *ret_len);
 
 long sock_get_chunk_header(sock *s);
 

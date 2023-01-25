@@ -383,3 +383,19 @@ long ftelll(FILE *file) {
         return -1;
     return lines + 1;
 }
+
+long parse_chunk_header(const char *buf, size_t len, size_t *ret_len) {
+    for (int i = 0; i < len; i++) {
+        char ch = buf[i];
+        if (ch == '\r') {
+            continue;
+        } else if (ch == '\n' && i > 1 && buf[i - 1] == '\r') {
+            if (ret_len != NULL) *ret_len = i + 1;
+            return strtol(buf, NULL, 16);
+        } else if (!((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F'))) {
+            errno = EPROTO;
+            return -1;
+        }
+    }
+    return -1;
+}
