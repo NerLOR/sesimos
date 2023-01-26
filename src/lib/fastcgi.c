@@ -80,6 +80,7 @@ int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int req_num, const sock
     conn->req_id = (req_num + 1) & 0xFFFF;
     conn->webroot = uri->webroot;
     conn->err = NULL;
+    conn->fd_err_bytes = 0;
     sock_init(&conn->out, 0, SOCK_PIPE);
 
     conn->socket.enc = 0;
@@ -213,74 +214,44 @@ int fastcgi_close_cnx(fastcgi_cnx_t *cnx) {
     return 0;
 }
 
-int fastcgi_close_stdin(fastcgi_cnx_t *conn) {
-    return (fastcgi_send_data(conn, FCGI_STDIN, 0, NULL) == -1) ? -1 : 0;
+int fastcgi_close_stdin(fastcgi_cnx_t *cnx) {
+    return (fastcgi_send_data(cnx, FCGI_STDIN, 0, NULL) == -1) ? -1 : 0;
 }
 
-// TODO show/log php stderr
-int fastcgi_php_error(const fastcgi_cnx_t *conn, const char *msg, int msg_len, char *err_msg) {
-    char *msg_str = malloc(msg_len + 1);
-    char *ptr0 = msg_str;
-    memcpy(msg_str, msg, msg_len);
-    msg_str[msg_len] = 0;
-    char *ptr1 = NULL;
-    int len, err = 0;
+int fastcgi_php_error(fastcgi_cnx_t *cnx, char *err_msg) {
+    char *line = NULL, *line_ptr = NULL;
+    size_t line_len = 0;
+    int err = 0;
 
-    while (1) {
-        log_lvl_t msg_type = LOG_INFO;
-        int msg_pre_len = 0;
-        ptr1 = strstr(ptr0, "PHP message: ");
-        if (ptr1 == NULL) {
-            len = (int) (msg_len - (ptr0 - msg_str));
-            if (ptr0 == msg_str) msg_type = 2;
-        } else {
-            len = (int) (ptr1 - ptr0);
-        }
-        if (len == 0) {
-            goto next;
-        }
+    log_lvl_t msg_type = LOG_INFO;
 
-        if (len >= 14 && strstarts(ptr0, "PHP Warning:  ")) {
-            msg_type = LOG_WARNING;
-            msg_pre_len = 14;
-        } else if (len >= 18 && strstarts(ptr0, "PHP Fatal error:  ")) {
-            msg_type = LOG_ERROR;
-            msg_pre_len = 18;
-        } else if (len >= 18 && strstarts(ptr0, "PHP Parse error:  ")) {
-            msg_type = LOG_ERROR;
-            msg_pre_len = 18;
-        } else if (len >= 18 && strstarts(ptr0, "PHP Notice:  ")) {
-            msg_type = LOG_NOTICE;
-            msg_pre_len = 13;
-        }
+    for (long ret; cnx->fd_err_bytes > 0 && (ret = getline(&line, &line_len, cnx->err)) != -1; cnx->fd_err_bytes -= ret) {
+        if (ret > 0) line[ret - 1] = 0;
+        line_ptr = line;
 
-        char *ptr2 = ptr0;
-        char *ptr3;
-        int len2;
-        while (ptr2 - ptr0 < len) {
-            ptr3 = strchr(ptr2, '\n');
-            len2 = (int) (len - (ptr2 - ptr0));
-            if (ptr3 != NULL && (ptr3 - ptr2) < len2) {
-                len2 = (int) (ptr3 - ptr2);
+        if (strstarts(line_ptr, "PHP message: ")) {
+            line_ptr += 13;
+            if (strstarts(line_ptr, "PHP Warning:  ")) {
+                msg_type = LOG_WARNING;
+            } else if (strstarts(line_ptr, "PHP Fatal error:  ")) {
+                msg_type = LOG_ERROR;
+            } else if (strstarts(line_ptr, "PHP Parse error:  ")) {
+                msg_type = LOG_ERROR;
+            } else if (strstarts(line_ptr, "PHP Notice:  ")) {
+                msg_type = LOG_NOTICE;
             }
-            logmsgf(msg_type, "%.*s", len2, ptr2);
-            if (msg_type == 2 && ptr2 == ptr0) {
-                strcpy_rem_webroot(err_msg, ptr2, len2, conn->webroot);
-                err = 1;
-            }
-            if (ptr3 == NULL) {
-                break;
-            }
-            ptr2 = ptr3 + 1;
         }
 
-        next:
-        if (ptr1 == NULL) {
-            break;
+        logmsgf(msg_type, "%s", line_ptr);
+
+        if (err_msg && msg_type <= LOG_ERROR && line_ptr != line) {
+            strcpy_rem_webroot(err_msg, line_ptr, cnx->webroot);
+            err = 1;
         }
-        ptr0 = ptr1 + 13;
     }
-    free(msg_str);
+
+    // cleanup
+    free(line);
     return err;
 }
 
@@ -309,7 +280,11 @@ int fastcgi_recv_frame(fastcgi_cnx_t *cnx) {
                 return -1;
         }
 
-        int fd = (header.type == FCGI_STDOUT) ? cnx->fd_out : cnx->fd_err;
+        int fd = cnx->fd_out;
+        if (header.type == FCGI_STDERR) {
+            fd = cnx->fd_err;
+            cnx->fd_err_bytes += content_len + 1;
+        }
         for (long ret, sent = 0; sent < content_len; sent += ret) {
             if ((ret = splice(cnx->socket.socket, 0, fd, 0, content_len - sent, 0)) == -1) {
                 if (errno == EINTR) {
@@ -320,6 +295,7 @@ int fastcgi_recv_frame(fastcgi_cnx_t *cnx) {
                 }
             }
         }
+        if (header.type == FCGI_STDERR) write(fd, "\n", 1);
 
         if (sock_recv_x(&cnx->socket, buf, header.paddingLength, 0) == -1)
             return -1;
@@ -372,15 +348,20 @@ int fastcgi_header(fastcgi_cnx_t *cnx, http_res *res, char *err_msg) {
     char *h_pos = strstr(content, "\r\n\r\n");
     if (h_pos == NULL) {
         error("Unable to parse header: End of header not found");
-        return 1;
+        return -1;
     }
     long header_len = h_pos - content + 4;
 
     for (int i = 0; i < header_len; i++) {
         if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {
             error("Unable to parse header: Header contains illegal characters");
-            return 2;
+            return -1;
         }
+    }
+
+    if (fastcgi_php_error(cnx, err_msg) != 0) {
+        res->status = http_get_status(500);
+        return 1;
     }
 
     char *ptr = buf;
@@ -388,7 +369,7 @@ int fastcgi_header(fastcgi_cnx_t *cnx, http_res *res, char *err_msg) {
         char *pos0 = strstr(ptr, "\r\n");
         if (pos0 == NULL) {
             error("Unable to parse header: Invalid header format");
-            return 1;
+            return -1;
         }
 
         ret = http_parse_header_field(&res->hdr, ptr, pos0, 0);

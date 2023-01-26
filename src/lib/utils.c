@@ -157,9 +157,8 @@ int mime_is_text(const char *restrict type) {
         streq(type_parsed, "application/x-javascript");
 }
 
-int strcpy_rem_webroot(char *dst, const char *src, long len, const char *webroot) {
-    memcpy(dst, src, len);
-    dst[len] = 0;
+int strcpy_rem_webroot(char *dst, const char *src, const char *webroot) {
+    strcpy(dst, src);
     if (webroot == NULL)
         return 0;
 

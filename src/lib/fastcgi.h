@@ -25,6 +25,7 @@ typedef struct {
     int mode;
     sock socket, out;
     int fd_err, fd_out;
+    long fd_err_bytes;
     FILE *err;
     unsigned short req_id;
     int app_status;
@@ -39,9 +40,9 @@ int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int req_num, const sock
 
 int fastcgi_close_cnx(fastcgi_cnx_t *cnx);
 
-int fastcgi_close_stdin(fastcgi_cnx_t *conn);
+int fastcgi_close_stdin(fastcgi_cnx_t *cnx);
 
-int fastcgi_php_error(const fastcgi_cnx_t *conn, const char *msg, int msg_len, char *err_msg);
+int fastcgi_php_error(fastcgi_cnx_t *cnx, char *err_msg);
 
 int fastcgi_recv_frame(fastcgi_cnx_t *cnx);
 

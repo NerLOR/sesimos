@@ -31,6 +31,8 @@ void fastcgi_handler_func(client_ctx_t *ctx) {
                 case 1: return;
                 case 2: break;
             }
+        } else {
+            fastcgi_close(ctx->fcgi_cnx);
         }
     }
 
@@ -98,10 +100,9 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
     }
     fastcgi_close_stdin(*fcgi_cnx);
 
-    ret = fastcgi_header(*fcgi_cnx, res, err_msg);
-    if (ret != 0) {
-        res->status = http_get_status(502);
-        return (ret < 0) ? -1 : 1;
+    if ((ret = fastcgi_header(*fcgi_cnx, res, err_msg)) != 0) {
+        if (ret == -1) res->status = http_get_status(502);
+        return ret;
     }
 
     const char *status_hdr = http_get_header_field(&res->hdr, "Status");

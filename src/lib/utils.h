@@ -31,7 +31,7 @@ int mime_is_compressible(const char *restrict type);
 
 int mime_is_text(const char *restrict type);
 
-int strcpy_rem_webroot(char *dst, const char *str, long len, const char *webroot);
+int strcpy_rem_webroot(char *dst, const char *str, const char *webroot);
 
 int str_trim(char **start, char **end);
 
