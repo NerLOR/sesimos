@@ -58,6 +58,8 @@ void fastcgi_close(fastcgi_ctx_t *ctx) {
 
     logger_set_prefix("[%*s]%s", ADDRSTRLEN, ctx->client->socket.s_addr, ctx->client->log_prefix);
 
+    fastcgi_php_error(&ctx->cnx, NULL);
+
     if (ctx->cnx.app_status != 0)
         error("FastCGI app terminated with exit code %i", ctx->cnx.app_status);
 
