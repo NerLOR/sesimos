@@ -77,4 +77,6 @@ int ws_handle_connection(client_ctx_t *ctx);
 
 void ws_close(ws_ctx_t *ctx);
 
+int handle_chunks(client_ctx_t *ctx, sock *socket, int flags, void (*next_cb)(chunk_ctx_t *), void (*err_cb)(chunk_ctx_t *));
+
 #endif //SESIMOS_FUNC_H

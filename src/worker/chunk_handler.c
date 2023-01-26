@@ -21,7 +21,7 @@ void chunk_handler_func(chunk_ctx_t *ctx) {
         // error
         error("Unable to splice chunk");
         errno = 0;
-        ctx->err_cb(ctx->client);
+        ctx->err_cb(ctx);
     } else if (sent == 0) {
         // last chunk
         ctx->client->chunks_transferred = 1;

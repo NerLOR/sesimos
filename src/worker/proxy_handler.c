@@ -28,14 +28,15 @@ void proxy_handler_func(client_ctx_t *ctx) {
 
     if (ret == 1) {
         proxy_unlock_ctx(ctx->proxy);
-        ctx->proxy->client = NULL;
         ctx->proxy = NULL;
     } else if (ctx->use_proxy == 0) {
         proxy_close(ctx->proxy);
     } else if (ctx->use_proxy == 1) {
-        proxy_handler_2(ctx);
+        if (proxy_handler_2(ctx) == 1) {
+            // chunked
+            return;
+        }
         proxy_unlock_ctx(ctx->proxy);
-        ctx->proxy->client = NULL;
         ctx->proxy = NULL;
     } else if (ctx->use_proxy == 2) {
         // WebSocket
@@ -107,6 +108,19 @@ static int proxy_handler_1(client_ctx_t *ctx) {
     return streq(ctx->req.method, "HEAD") ? 1 : 0;
 }
 
+static void proxy_chunk_next_cb(chunk_ctx_t *ctx) {
+    proxy_unlock_ctx(ctx->client->proxy);
+    ctx->client->proxy = NULL;
+
+    request_complete(ctx->client);
+    handle_request(ctx->client);
+}
+
+static void proxy_chunk_err_cb(chunk_ctx_t *ctx) {
+    ctx->client->c_keep_alive = 0;
+    proxy_chunk_next_cb(ctx);
+}
+
 static int proxy_handler_2(client_ctx_t *ctx) {
     const char *transfer_encoding = http_get_header_field(&ctx->res.hdr, "Transfer-Encoding");
     int chunked = strcontains(transfer_encoding, "chunked");
@@ -114,10 +128,13 @@ static int proxy_handler_2(client_ctx_t *ctx) {
     const char *content_len = http_get_header_field(&ctx->res.hdr, "Content-Length");
     unsigned long len_to_send = (content_len != NULL) ? strtol(content_len, NULL, 10) : 0;
 
-    int flags = (chunked ? PROXY_CHUNKED : 0);
-    int ret = proxy_send(ctx->proxy, &ctx->socket, len_to_send, flags);
+    if (chunked) {
+        handle_chunks(ctx, &ctx->proxy->proxy, SOCK_CHUNKED, proxy_chunk_next_cb, proxy_chunk_err_cb);
+        return 1;
+    }
 
-    if (ret < 0) {
+    int ret;
+    if ((ret = proxy_send(ctx->proxy, &ctx->socket, len_to_send, 0)) == -1) {
         ctx->c_keep_alive = 0;
     }
 

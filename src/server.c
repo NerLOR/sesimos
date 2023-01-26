@@ -198,11 +198,12 @@ static void terminate_gracefully(int sig) {
     workers_stop();
     workers_destroy();
 
-    while (list_size(clients) > 0)
-        tcp_close(clients[0]);
-
     logger_set_prefix("");
     proxy_close_all();
+
+    while (list_size(clients) > 0)
+        tcp_close(clients[0]);
+    logger_set_prefix("");
 
     async_stop();
 }

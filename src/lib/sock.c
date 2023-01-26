@@ -252,31 +252,26 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len,
     unsigned long send_len = 0, next_len;
 
     do {
-        ret = sock_recv_chunk_header(src);
-        if (ret < 0) {
-            errno = EPROTO;
-            return -2;
-        }
+        if ((ret = sock_recv_chunk_header(src)) == -1)
+            return -1;
 
         next_len = ret;
 
-        if (flags & SOCK_CHUNKED) {
+        if (flags & SOCK_CHUNKED)
             if (sock_send_chunk_header(dst, next_len) == -1)
                 return -1;
-        }
 
-        if ((ret = sock_splice(dst, src, buf, buf_len, next_len)) < 0)
+        if ((ret = sock_splice(dst, src, buf, buf_len, next_len)) == -1)
             return ret;
 
         send_len += ret;
 
-        if (flags & SOCK_CHUNKED) {
-            if (sock_send_chunk_trailer(dst) == -1)
-                return -1;
-        }
-
         if (sock_recv_chunk_trailer(src) == -1)
             return -1;
+
+        if (flags & SOCK_CHUNKED)
+            if (sock_send_chunk_trailer(dst) == -1)
+                return -1;
     } while (!(flags & SOCK_SINGLE_CHUNK) && next_len != 0);
 
     return (long) send_len;
@@ -364,7 +359,7 @@ int sock_recv_chunk_trailer(sock *s) {
     if (sock_recv_x(s, buf, sizeof(buf), MSG_PEEK) == -1)
         return -1;
 
-    if (buf[0] != '\r' || buf[1] == '\n') {
+    if (buf[0] != '\r' || buf[1] != '\n') {
         errno = EPROTO;
         return -1;
     }
