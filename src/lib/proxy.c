@@ -105,19 +105,19 @@ proxy_ctx_t *proxy_get_by_conf(host_config_t *conf) {
         n++;
     }
 
-    try_again_1:
-    if (sem_wait(&available[n]) != 0) {
+    while (sem_wait(&available[n]) != 0) {
         if (errno == EINTR) {
-            goto try_again_1;
+            errno = 0;
+            continue;
         } else {
             return NULL;
         }
     }
 
-    try_again_2:
-    if (sem_wait(&lock) != 0) {
+    while (sem_wait(&lock) != 0) {
         if (errno == EINTR) {
-            goto try_again_2;
+            errno = 0;
+            continue;
         } else {
             sem_post(&available[n]);
             return NULL;
@@ -269,24 +269,28 @@ int proxy_response_header(http_req *req, http_res *res, host_config_t *conf) {
     const char *location = http_get_header_field(&res->hdr, "Location");
     if (location != NULL) {
         char *hostnames[] = {conf->name, conf->proxy.hostname};
+        int found = 0;
+
         for (int i = 0; i < sizeof(hostnames) / sizeof(hostnames[0]); i++) {
             char *hostname = hostnames[i];
+            found = 1;
 
             p_len = snprintf(buf1, sizeof(buf1), "http://%s/", hostname);
-            if (strncmp(location, buf1, p_len) == 0) goto match;
+            if (strstarts(location, buf1)) break;
 
             p_len = snprintf(buf1, sizeof(buf1), "https://%s/", hostname);
-            if (strncmp(location, buf1, p_len) == 0) goto match;
+            if (strstarts(location, buf1)) break;
 
             p_len = snprintf(buf1, sizeof(buf1), "http://%s:%i/", hostname, conf->proxy.port);
-            if (strncmp(location, buf1, p_len) == 0) goto match;
+            if (strstarts(location, buf1)) break;
 
             p_len = snprintf(buf1, sizeof(buf1), "https://%s:%i/", hostname, conf->proxy.port);
-            if (strncmp(location, buf1, p_len) == 0) goto match;
+            if (strstarts(location, buf1)) break;
+
+            found = 0;
         }
 
-        if (0) {
-            match:
+        if (found) {
             strcpy(buf1, location + p_len - 1);
             http_remove_header_field(&res->hdr, "Location", HTTP_REMOVE_ALL);
             http_add_header_field(&res->hdr, "Location", buf1);

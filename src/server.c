@@ -82,10 +82,10 @@ static int ssl_servername_cb(SSL *ssl, int *ad, void *arg) {
 
 void server_free_client(client_ctx_t *ctx) {
     // try to lock clients list
-    retry:
-    if (sem_wait(&sem_clients_lock) != 0) {
+    while (sem_wait(&sem_clients_lock) != 0) {
         if (errno == EINTR) {
-            goto retry;
+            errno = 0;
+            continue;
         } else {
             critical("Unable to lock clients list");
             return;
@@ -140,10 +140,10 @@ static void accept_cb(void *arg) {
     client_ctx->cnx_e = -1, client_ctx->req_s = -1, client_ctx->req_e = -1, client_ctx->res_ts = -1;
 
     // try to lock clients list
-    retry:
-    if (sem_wait(&sem_clients_lock) != 0) {
+    while (sem_wait(&sem_clients_lock) != 0) {
         if (errno == EINTR) {
-            goto retry;
+            errno = 0;
+            continue;
         } else {
             critical("Unable to lock clients list");
             return;

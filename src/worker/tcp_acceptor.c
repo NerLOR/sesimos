@@ -28,6 +28,32 @@ void tcp_acceptor_func(client_ctx_t *ctx) {
     }
 }
 
+static int dig(const char *addr, char *host, size_t host_size) {
+    char buf[1024];
+    FILE *out;
+    int ret;
+
+    sprintf(buf, "dig @%s +short +time=1 -x %s", config.dns_server, addr);
+    if ((out = popen(buf, "r")) == NULL) {
+        error("Unable to start dig: %s");
+        return -1;
+    }
+
+    unsigned long read = fread(buf, 1, sizeof(buf), out);
+    if ((ret = pclose(out)) != 0) {
+        error("Dig terminated with exit code %i", ret);
+        return -1;
+    }
+
+    char *ptr = memchr(buf, '\n', read);
+    if (ptr == buf || ptr == NULL) return -1;
+
+    ptr[-1] = 0;
+    strncpy(host, buf, host_size);
+
+    return 0;
+}
+
 static int tcp_acceptor(client_ctx_t *ctx) {
     struct sockaddr_in6 server_addr;
 
@@ -55,35 +81,12 @@ static int tcp_acceptor(client_ctx_t *ctx) {
 
     logger_set_prefix("[%*s]%s", ADDRSTRLEN, ctx->socket.s_addr, ctx->log_prefix);
 
-    int ret;
-    char buf[1024];
     sock *client = &ctx->socket;
-
     ctx->cnx_s = clock_micros();
 
-    if (config.dns_server[0] != 0) {
-        sprintf(buf, "dig @%s +short +time=1 -x %s", config.dns_server, ctx->socket.addr);
-        FILE *dig = popen(buf, "r");
-        if (dig == NULL) {
-            error("Unable to start dig: %s");
-            goto dig_err;
-        }
-        unsigned long read = fread(buf, 1, sizeof(buf), dig);
-        ret = pclose(dig);
-        if (ret != 0) {
-            error("Dig terminated with exit code %i", ret);
-            goto dig_err;
-        }
-        char *ptr = memchr(buf, '\n', read);
-        if (ptr == buf || ptr == NULL) {
-            goto dig_err;
-        }
-        ptr[-1] = 0;
-        strncpy(ctx->host, buf, sizeof(ctx->host));
-    } else {
-        dig_err:
-        ctx->host[0] = 0;
-    }
+    ctx->host[0] = 0;
+    if (config.dns_server[0] != 0)
+       dig(ctx->socket.addr, ctx->host, sizeof(ctx->host));
 
     ctx->cc[0] = 0;
     geoip_lookup_country(&client->_addr.sock, ctx->cc);
@@ -102,8 +105,8 @@ static int tcp_acceptor(client_ctx_t *ctx) {
         SSL_set_fd(client->ssl, client->socket);
         SSL_set_accept_state(client->ssl);
 
-        ret = SSL_accept(client->ssl);
-        if (ret != 1) {
+        int ret;
+        if ((ret = SSL_accept(client->ssl)) != 1) {
             sock_error(client, ret);
             info("Unable to perform handshake");
             return -1;

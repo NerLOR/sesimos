@@ -191,7 +191,8 @@ int http_parse_request(char *buf, http_req *req) {
 
         if (req->version[0] == 0) {
             pos1 = (char *) strchr(ptr, ' ') + 1;
-            if (pos1 == NULL) goto err_hdr_fmt;
+            if (pos1 == NULL)
+                return http_error(HTTP_ERROR_HEADER_MALFORMED);
 
             if (pos1 - ptr - 1 >= sizeof(req->method))
                 return http_error(HTTP_ERROR_HEADER_MALFORMED);
@@ -203,10 +204,8 @@ int http_parse_request(char *buf, http_req *req) {
             snprintf(req->method, sizeof(req->method), "%.*s", (int) (pos1 - ptr - 1), ptr);
 
             pos2 = (char *) strchr(pos1, ' ') + 1;
-            if (pos2 == NULL) {
-                err_hdr_fmt:
+            if (pos2 == NULL)
                 return http_error(HTTP_ERROR_HEADER_MALFORMED);
-            }
 
             if (memcmp(pos2, "HTTP/", 5) != 0 || memcmp(pos2 + 8, "\r\n", 2) != 0)
                 return http_error(HTTP_ERROR_INVALID_VERSION);

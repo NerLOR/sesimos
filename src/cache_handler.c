@@ -53,11 +53,10 @@ static int magic_init(void) {
 }
 
 static void magic_mime_type(const char *restrict filename, char *buf) {
-    retry:
-    if (sem_wait(&sem_magic) != 0) {
+    while (sem_wait(&sem_magic) != 0) {
         if (errno == EINTR) {
             errno = 0;
-            goto retry;
+            continue;
         } else {
             critical("Unable to lock magic semaphore");
             return;
@@ -84,11 +83,10 @@ static void magic_mime_type(const char *restrict filename, char *buf) {
 }
 
 static void magic_charset(const char *restrict filename, char *buf) {
-    retry:
-    if (sem_wait(&sem_magic) != 0) {
+    while (sem_wait(&sem_magic) != 0) {
         if (errno == EINTR) {
             errno = 0;
-            goto retry;
+            continue;
         } else {
             critical("Unable to lock magic semaphore");
             return;
@@ -136,10 +134,10 @@ static cache_entry_t *cache_get_entry(cache_t *cache, const char *filename) {
 
 static cache_entry_t *cache_get_new_entry(cache_t *cache) {
     // globally lock cache
-    retry:
-    if (sem_wait(&sem_cache) != 0) {
+    while (sem_wait(&sem_cache) != 0) {
         if (errno == EINTR) {
-            goto retry;
+            errno = 0;
+            continue;
         } else {
             return NULL;
         }
@@ -376,11 +374,10 @@ static void cache_mark_entry_dirty(cache_entry_t *entry) {
     memset(entry->meta.filename_comp_gz, 0, sizeof(entry->meta.filename_comp_gz));
     memset(entry->meta.filename_comp_br, 0, sizeof(entry->meta.filename_comp_br));
 
-    try_again_free:
-    if (sem_wait(&sem_free) != 0) {
+    while (sem_wait(&sem_free) != 0) {
         if (errno == EINTR) {
             errno = 0;
-            goto try_again_free;
+            continue;
         } else {
             error("Unable to lock semaphore");
             errno = 0;
@@ -389,11 +386,10 @@ static void cache_mark_entry_dirty(cache_entry_t *entry) {
     }
 
     // try to lock buffer
-    try_again_lock:
-    if (sem_wait(&sem_lock) != 0) {
+    while (sem_wait(&sem_lock) != 0) {
         if (errno == EINTR) {
             errno = 0;
-            goto try_again_lock;
+            continue;
         } else {
             error("Unable to lock semaphore");
             errno = 0;

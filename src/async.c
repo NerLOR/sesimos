@@ -81,10 +81,10 @@ static async_evt_t async_e2a(unsigned int events) {
 }
 
 static int async_add_to_queue(evt_listen_t *evt) {
-    try_again:
-    if (sem_wait(&lock) != 0) {
+    while (sem_wait(&lock) != 0) {
         if (errno == EINTR) {
-            goto try_again;
+            errno = 0;
+            continue;
         } else {
             return -1;
         }

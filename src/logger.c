@@ -102,11 +102,10 @@ void logmsgf(log_lvl_t level, const char *restrict format, ...) {
         printf("\n");
     } else {
         // wait for free slot in buffer
-        try_again_free:
-        if (sem_wait(&sem_buf_free) != 0) {
+        while (sem_wait(&sem_buf_free) != 0) {
             if (errno == EINTR) {
                 errno = 0;
-                goto try_again_free;
+                continue;
             } else {
                 err("Unable to lock semaphore");
                 errno = 0;
@@ -117,11 +116,10 @@ void logmsgf(log_lvl_t level, const char *restrict format, ...) {
         }
 
         // try to lock buffer
-        try_again_buf:
-        if (sem_wait(&sem_buf) != 0) {
+        while (sem_wait(&sem_buf) != 0) {
             if (errno == EINTR) {
                 errno = 0;
-                goto try_again_buf;
+                continue;
             } else {
                 err("Unable to lock semaphore");
                 errno = 0;

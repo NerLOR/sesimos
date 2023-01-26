@@ -52,22 +52,20 @@ int mpmc_init(mpmc_t *ctx, int n_workers, int buf_size, void (*consumer)(void *o
 
 int mpmc_queue(mpmc_t *ctx, void *obj) {
     // wait for buffer to be emptied
-    try_again_1:
-    if (sem_wait(&ctx->free) != 0) {
+    while (sem_wait(&ctx->free) != 0) {
         if (errno == EINTR) {
             errno = 0;
-            goto try_again_1;
+            continue;
         } else {
             return -1;
         }
     }
 
     // lock wr field
-    try_again_2:
-    if (sem_wait(&ctx->lck_wr) != 0) {
+    while (sem_wait(&ctx->lck_wr) != 0) {
         if (errno == EINTR) {
             errno = 0;
-            goto try_again_2;
+            continue;
         } else {
             sem_post(&ctx->free);
             return -1;
