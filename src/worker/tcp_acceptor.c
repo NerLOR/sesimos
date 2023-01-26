@@ -17,7 +17,6 @@
 #include <string.h>
 #include <errno.h>
 #include <openssl/ssl.h>
-#include <openssl/err.h>
 
 static int tcp_acceptor(client_ctx_t *ctx);
 
@@ -115,6 +114,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
     ctx->req_num = 0;
     ctx->s_keep_alive = 1;
     ctx->c_keep_alive = 1;
+    ctx->chunks_transferred = 0;
 
     return 0;
 }
