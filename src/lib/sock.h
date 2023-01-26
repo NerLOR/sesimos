@@ -64,6 +64,14 @@ int sock_close(sock *s);
 
 int sock_has_pending(sock *s);
 
-long sock_get_chunk_header(sock *s);
+long sock_recv_chunk_header(sock *s);
+
+int sock_send_chunk_header(sock *s, unsigned long size);
+
+int sock_recv_chunk_trailer(sock *s);
+
+int sock_send_chunk_trailer(sock *s);
+
+int sock_send_last_chunk(sock *s);
 
 #endif //SESIMOS_SOCK_H

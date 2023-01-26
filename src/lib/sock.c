@@ -252,7 +252,7 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len,
     unsigned long send_len = 0, next_len;
 
     do {
-        ret = sock_get_chunk_header(src);
+        ret = sock_recv_chunk_header(src);
         if (ret < 0) {
             errno = EPROTO;
             return -2;
@@ -261,7 +261,7 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len,
         next_len = ret;
 
         if (flags & SOCK_CHUNKED) {
-            if (sock_send_x(dst, buf, sprintf(buf, "%lX\r\n", next_len), 0) == -1)
+            if (sock_send_chunk_header(dst, next_len) == -1)
                 return -1;
         }
 
@@ -271,16 +271,12 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len,
         send_len += ret;
 
         if (flags & SOCK_CHUNKED) {
-            if (sock_send_x(dst, "\r\n", 2, 0) == -1)
+            if (sock_send_chunk_trailer(dst) == -1)
                 return -1;
         }
 
-        if (sock_recv_x(src, buf, 2, 0) == -1) {
+        if (sock_recv_chunk_trailer(src) == -1)
             return -1;
-        } else if (strncmp(buf, "\r\n", 2) != 0) {
-            errno = EPROTO;
-            return -2;
-        }
     } while (!(flags & SOCK_SINGLE_CHUNK) && next_len != 0);
 
     return (long) send_len;
@@ -313,7 +309,7 @@ int sock_has_pending(sock *s) {
     return ret > 0;
 }
 
-long sock_get_chunk_header(sock *s) {
+long sock_recv_chunk_header(sock *s) {
     if (s->pipe) {
         uint64_t len;
         if (sock_recv_x(s, &len, sizeof(len), 0) == -1)
@@ -346,4 +342,49 @@ long sock_get_chunk_header(sock *s) {
         return -1;
 
     return ret;
+}
+
+int sock_send_chunk_header(sock *s, unsigned long size) {
+    if (s->pipe) {
+        uint64_t len = size;
+        if (sock_send_x(s, &len, sizeof(len), 0) == -1)
+            return -1;
+    } else {
+        char buf[20];
+        if (sock_send_x(s, buf, sprintf(buf, "%lX\r\n", size), 0) == -1)
+            return -1;
+    }
+    return 0;
+}
+
+int sock_recv_chunk_trailer(sock *s) {
+    if (s->pipe) return 0;
+
+    char buf[2];
+    if (sock_recv_x(s, buf, sizeof(buf), MSG_PEEK) == -1)
+        return -1;
+
+    if (buf[0] != '\r' || buf[1] == '\n') {
+        errno = EPROTO;
+        return -1;
+    }
+
+    if (sock_recv_x(s, buf, sizeof(buf), 0) == -1)
+        return -1;
+
+    return 0;
+}
+
+int sock_send_chunk_trailer(sock *s) {
+    if (s->pipe) return 0;
+    if (sock_send_x(s, "\r\n", 2, 0) == -1)
+        return -1;
+    return 0;
+}
+
+int sock_send_last_chunk(sock *s) {
+    if (s->pipe) return sock_send_chunk_header(s, 0);
+    if (sock_send_x(s, "0\r\n\r\n", 5, 0) == -1)
+        return -1;
+    return 0;
 }

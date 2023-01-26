@@ -403,9 +403,9 @@ int fastcgi_send(fastcgi_cnx_t *conn, sock *client, int flags) {
             sock_close(&conn->socket);
             free(content);
 
-            if (flags & FASTCGI_CHUNKED) {
-                sock_send_x(client, "0\r\n\r\n", 5, 0);
-            }
+            if (flags & FASTCGI_CHUNKED)
+                if (sock_send_last_chunk(client) == -1)
+                    return -1;
 
             return 0;
         } else if (header.type == FCGI_STDERR) {
@@ -415,10 +415,9 @@ int fastcgi_send(fastcgi_cnx_t *conn, sock *client, int flags) {
         } else if (header.type == FCGI_STDOUT) {
             out:
             if (content_len != 0) {
-                len = sprintf(buf0, "%X\r\n", content_len);
-                if (flags & FASTCGI_CHUNKED) sock_send_x(client, buf0, len, 0);
-                sock_send_x(client, ptr, content_len, 0);
-                if (flags & FASTCGI_CHUNKED) sock_send_x(client, "\r\n", 2, 0);
+                if (flags & FASTCGI_CHUNKED) if (sock_send_chunk_header(client, content_len) == -1) return -1;
+                if (sock_send_x(client, ptr, content_len, 0) == -1) return -1;
+                if (flags & FASTCGI_CHUNKED) if (sock_send_chunk_trailer(client) == -1) return -1;
             }
         } else {
             error("Unknown FastCGI type: %i", header.type);
@@ -502,7 +501,7 @@ int fastcgi_receive(fastcgi_cnx_t *conn, sock *client, unsigned long len) {
 
 int fastcgi_receive_chunked(fastcgi_cnx_t *conn, sock *client) {
     for (long ret;;) {
-        if ((ret = sock_get_chunk_header(client)) < 0) {
+        if ((ret = sock_recv_chunk_header(client)) < 0) {
             return (int) ret;
         } else if (ret == 0) {
             break;

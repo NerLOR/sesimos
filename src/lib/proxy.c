@@ -444,14 +444,14 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
     }
 
     if (ret < 0 || (content_len != 0 && ret != content_len)) {
-        if (ret == -1) {
+        if (ret == -1 && errno != EPROTO) {
             res->status = http_get_status(502);
             ctx->origin = SERVER_REQ;
             error("Unable to send request to server (2)");
             sprintf(err_msg, "Unable to send request to server: %s.", error_str(errno, err_buf, sizeof(err_buf)));
             retry = tries < 4;
             goto proxy_err;
-        } else if (ret == -2) {
+        } else if (ret == -1) {
             res->status = http_get_status(400);
             ctx->origin = CLIENT_REQ;
             error("Unable to receive request from client");
@@ -567,13 +567,13 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
 }
 
 int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int flags) {
-    char buffer[CHUNK_SIZE], buf[256], *ptr;
+    char buffer[CHUNK_SIZE], *ptr;
     long ret = 0, snd_len;
 
     do {
         snd_len = 0;
         if (flags & PROXY_CHUNKED) {
-            ret = sock_get_chunk_header(&proxy->proxy);
+            ret = sock_recv_chunk_header(&proxy->proxy);
             if (ret < 0) {
                 if (ret == -1) {
                     error("Unable to receive from server: Malformed chunk header");
@@ -596,14 +596,14 @@ int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int 
             long buf_len = ret;
             ret = 1;
 
-            if (flags & PROXY_CHUNKED) ret = sock_send_x(client, buf, sprintf(buf, "%lX\r\n", buf_len), 0);
+            if (flags & PROXY_CHUNKED) ret = sock_send_chunk_header(client, buf_len);
             if (ret <= 0) goto err;
 
             ret = sock_send_x(client, ptr, buf_len, 0);
             if (ret <= 0) goto err;
             snd_len += ret;
 
-            if (flags & PROXY_CHUNKED) ret = sock_send_x(client, "\r\n", 2, 0);
+            if (flags & PROXY_CHUNKED) ret = sock_send_chunk_trailer(client);
             if (ret <= 0) {
                 err:
                 error("Unable to send");
@@ -611,13 +611,13 @@ int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int 
             }
         }
         if (ret <= 0) break;
-        if (flags & PROXY_CHUNKED) sock_recv_x(&proxy->proxy, buffer, 2, 0);
+        if (flags & PROXY_CHUNKED) if ((ret = sock_recv_chunk_trailer(&proxy->proxy)) == -1) break;
     } while ((flags & PROXY_CHUNKED) && len_to_send > 0);
 
     if (ret <= 0) return -1;
 
     if (flags & PROXY_CHUNKED) {
-        if (sock_send_x(client, "0\r\n\r\n", 5, 0) == -1) {
+        if (sock_send_last_chunk(client) == -1) {
             error("Unable to send");
             return -1;
         }
