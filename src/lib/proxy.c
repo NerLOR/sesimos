@@ -300,25 +300,8 @@ int proxy_response_header(http_req *req, http_res *res, host_config_t *conf) {
     return 0;
 }
 
-int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_status_ctx *ctx, host_config_t *conf, sock *client, http_status *custom_status, char *err_msg) {
-    char buffer[CHUNK_SIZE], err_buf[256];
-    const char *connection, *upgrade, *ws_version;
-    long ret;
-    int tries = 0, retry = 0;
-
-    *proxy_ptr = proxy_get_by_conf(conf);
-    proxy_ctx_t *proxy = *proxy_ptr;
-    proxy->client = NULL;
-
-    if (proxy->initialized && sock_has_pending(&proxy->proxy) == 0)
-        goto proxy;
-
-    retry:
-    if (proxy->initialized)
-        proxy_close(proxy);
-
-    retry = 0;
-    tries++;
+static int proxy_connect(proxy_ctx_t *proxy, host_config_t *conf, http_res *res, http_status_ctx *ctx, char *err_msg) {
+    char err_buf[256], addr_buf[1024];
 
     int fd;
     if ((fd = socket(AF_INET6, SOCK_STREAM, 0)) == -1) {
@@ -329,8 +312,13 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
     }
     sock_init(&proxy->proxy, fd, 0);
 
-    if (sock_set_socket_timeout(&proxy->proxy, 1) != 0 || sock_set_timeout(&proxy->proxy, SERVER_TIMEOUT_INIT) != 0)
-        goto proxy_timeout_err;
+    if (sock_set_socket_timeout(&proxy->proxy, 1) != 0 || sock_set_timeout(&proxy->proxy, SERVER_TIMEOUT_INIT) != 0) {
+        res->status = http_get_status(500);
+        ctx->origin = INTERNAL;
+        error("Unable to set timeout for reverse proxy socket");
+        sprintf(err_msg, "Unable to set timeout for reverse proxy socket: %s", error_str(errno, err_buf, sizeof(err_buf)));
+        return -1;
+    }
 
     struct hostent *host_ent = gethostbyname2(conf->proxy.hostname, AF_INET6);
     if (host_ent == NULL) {
@@ -340,7 +328,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
             ctx->origin = SERVER_REQ;
             error("Unable to connect to server: Name or service not known");
             sprintf(err_msg, "Unable to connect to server: Name or service not known.");
-            goto proxy_err;
+            return -1;
         }
     }
 
@@ -353,9 +341,9 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         memcpy(&address.sin6_addr, addr, 16);
     }
 
-    inet_ntop(address.sin6_family, (void *) &address.sin6_addr, buffer, sizeof(buffer));
+    inet_ntop(address.sin6_family, (void *) &address.sin6_addr, addr_buf, sizeof(addr_buf));
 
-    info(BLUE_STR "Connecting to " BLD_STR "[%s]:%i" CLR_STR BLUE_STR "...", buffer, conf->proxy.port);
+    info(BLUE_STR "Connecting to " BLD_STR "[%s]:%i" CLR_STR BLUE_STR "...", addr_buf, conf->proxy.port);
     if (connect(proxy->proxy.socket, (struct sockaddr *) &address, sizeof(address)) < 0) {
         if (errno == ETIMEDOUT || errno == EINPROGRESS) {
             res->status = http_get_status(504);
@@ -367,18 +355,17 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
             res->status = http_get_status(500);
             ctx->origin = INTERNAL;
         }
-        error("Unable to connect to [%s]:%i", buffer, conf->proxy.port);
+        error("Unable to connect to [%s]:%i", addr_buf, conf->proxy.port);
         sprintf(err_msg, "Unable to connect to server: %s.", error_str(errno, err_buf, sizeof(err_buf)));
-        goto proxy_err;
+        return -1;
     }
 
     if (sock_set_timeout(&proxy->proxy, SERVER_TIMEOUT) != 0) {
-        proxy_timeout_err:
         res->status = http_get_status(500);
         ctx->origin = INTERNAL;
         error("Unable to set timeout for reverse proxy socket");
         sprintf(err_msg, "Unable to set timeout for reverse proxy socket: %s", error_str(errno, err_buf, sizeof(err_buf)));
-        goto proxy_err;
+        return -1;
     }
 
     if (conf->proxy.enc) {
@@ -386,6 +373,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         SSL_set_fd(proxy->proxy.ssl, proxy->proxy.socket);
         SSL_set_connect_state(proxy->proxy.ssl);
 
+        int ret;
         if ((ret = SSL_do_handshake(proxy->proxy.ssl)) != 1) {
             sock_error(&proxy->proxy, (int) ret);
             SSL_free(proxy->proxy.ssl);
@@ -393,7 +381,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
             ctx->origin = SERVER_REQ;
             error("Unable to perform handshake");
             sprintf(err_msg, "Unable to perform handshake: %s.", error_str(errno, err_buf, sizeof(err_buf)));
-            goto proxy_err;
+            return -1;
         }
         proxy->proxy.enc = 1;
     }
@@ -401,173 +389,196 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
     proxy->initialized = 1;
     proxy->cnx_s = clock_micros();
     proxy->host = conf->name;
-    info(BLUE_STR "Established new connection with " BLD_STR "[%s]:%i", buffer, conf->proxy.port);
+    info(BLUE_STR "Established new connection with " BLD_STR "[%s]:%i", addr_buf, conf->proxy.port);
 
-    proxy:
-    connection = http_get_header_field(&req->hdr, "Connection");
-    if (strcontains(connection, "upgrade") || strcontains(connection, "Upgrade")) {
-        upgrade = http_get_header_field(&req->hdr, "Upgrade");
-        ws_version = http_get_header_field(&req->hdr, "Sec-WebSocket-Version");
-        if (streq(upgrade, "websocket") && streq(ws_version, "13")) {
-            ctx->ws_key = http_get_header_field(&req->hdr, "Sec-WebSocket-Key");
+    return 0;
+}
+
+int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_status_ctx *ctx, host_config_t *conf, sock *client, http_status *custom_status, char *err_msg) {
+    char buffer[CHUNK_SIZE], err_buf[256];
+    long ret;
+    int tries = 0, retry = 1;
+
+    *proxy_ptr = proxy_get_by_conf(conf);
+    proxy_ctx_t *proxy = *proxy_ptr;
+    proxy->client = NULL;
+
+    while (retry) {
+        errno = 0;
+
+        if (!proxy->initialized || sock_has_pending(&proxy->proxy) != 0) {
+            if (proxy->initialized)
+                proxy_close(proxy);
+
+            retry = 0;
+            tries++;
+
+            if (proxy_connect(proxy, conf, res, ctx, err_msg) != 0)
+                continue;
+        }
+
+        const char *connection = http_get_header_field(&req->hdr, "Connection");
+        if (strcontains(connection, "upgrade") || strcontains(connection, "Upgrade")) {
+            const char *upgrade = http_get_header_field(&req->hdr, "Upgrade");
+            const char *ws_version = http_get_header_field(&req->hdr, "Sec-WebSocket-Version");
+            if (streq(upgrade, "websocket") && streq(ws_version, "13")) {
+                ctx->ws_key = http_get_header_field(&req->hdr, "Sec-WebSocket-Key");
+            } else {
+                res->status = http_get_status(501);
+                ctx->origin = INTERNAL;
+                return -1;
+            }
         } else {
-            res->status = http_get_status(501);
+            http_remove_header_field(&req->hdr, "Connection", HTTP_REMOVE_ALL);
+            http_add_header_field(&req->hdr, "Connection", "keep-alive");
+        }
+
+        ret = proxy_request_header(req, client);
+        if (ret != 0) {
+            res->status = http_get_status(500);
             ctx->origin = INTERNAL;
             return -1;
         }
-    } else {
-        http_remove_header_field(&req->hdr, "Connection", HTTP_REMOVE_ALL);
-        http_add_header_field(&req->hdr, "Connection", "keep-alive");
-    }
 
-    ret = proxy_request_header(req, client);
-    if (ret != 0) {
-        res->status = http_get_status(500);
-        ctx->origin = INTERNAL;
-        return -1;
-    }
-
-    ret = http_send_request(&proxy->proxy, req);
-    if (ret < 0) {
-        res->status = http_get_status(502);
-        ctx->origin = SERVER_REQ;
-        error("Unable to send request to server (1)");
-        sprintf(err_msg, "Unable to send request to server: %s.", error_str(errno, err_buf, sizeof(err_buf)));
-        retry = tries < 4;
-        goto proxy_err;
-    }
-
-    const char *content_length = http_get_header_field(&req->hdr, "Content-Length");
-    unsigned long content_len = content_length != NULL ? strtoul(content_length, NULL, 10) : 0;
-    const char *transfer_encoding = http_get_header_field(&req->hdr, "Transfer-Encoding");
-
-    ret = 0;
-    if (content_len > 0) {
-        ret = sock_splice(&proxy->proxy, client, buffer, sizeof(buffer), content_len);
-    } else if (strcontains(transfer_encoding, "chunked")) {
-        ret = sock_splice_chunked(&proxy->proxy, client, buffer, sizeof(buffer), SOCK_CHUNKED);
-    }
-
-    if (ret < 0 || (content_len != 0 && ret != content_len)) {
-        if (ret == -1 && errno != EPROTO) {
+        ret = http_send_request(&proxy->proxy, req);
+        if (ret < 0) {
             res->status = http_get_status(502);
             ctx->origin = SERVER_REQ;
-            error("Unable to send request to server (2)");
+            error("Unable to send request to server (1)");
             sprintf(err_msg, "Unable to send request to server: %s.", error_str(errno, err_buf, sizeof(err_buf)));
             retry = tries < 4;
-            goto proxy_err;
-        } else if (ret == -1) {
-            res->status = http_get_status(400);
-            ctx->origin = CLIENT_REQ;
-            error("Unable to receive request from client");
-            sprintf(err_msg, "Unable to receive request from client: %s.", error_str(errno, err_buf, sizeof(err_buf)));
+            continue;
+        }
+
+        const char *content_length = http_get_header_field(&req->hdr, "Content-Length");
+        unsigned long content_len = content_length != NULL ? strtoul(content_length, NULL, 10) : 0;
+        const char *transfer_encoding = http_get_header_field(&req->hdr, "Transfer-Encoding");
+
+        ret = 0;
+        if (content_len > 0) {
+            ret = sock_splice(&proxy->proxy, client, buffer, sizeof(buffer), content_len);
+        } else if (strcontains(transfer_encoding, "chunked")) {
+            ret = sock_splice_chunked(&proxy->proxy, client, buffer, sizeof(buffer), SOCK_CHUNKED);
+        }
+
+        if (ret < 0 || (content_len != 0 && ret != content_len)) {
+            if (ret == -1 && errno != EPROTO) {
+                res->status = http_get_status(502);
+                ctx->origin = SERVER_REQ;
+                error("Unable to send request to server (2)");
+                sprintf(err_msg, "Unable to send request to server: %s.", error_str(errno, err_buf, sizeof(err_buf)));
+                retry = tries < 4;
+                continue;
+            } else if (ret == -1) {
+                res->status = http_get_status(400);
+                ctx->origin = CLIENT_REQ;
+                error("Unable to receive request from client");
+                sprintf(err_msg, "Unable to receive request from client: %s.", error_str(errno, err_buf, sizeof(err_buf)));
+                return -1;
+            }
+            res->status = http_get_status(500);
+            ctx->origin = INTERNAL;
+            error("Unknown Error");
             return -1;
         }
-        res->status = http_get_status(500);
-        ctx->origin = INTERNAL;
-        error("Unknown Error");
-        return -1;
-    }
 
-    ret = sock_recv(&proxy->proxy, buffer, sizeof(buffer) - 1, MSG_PEEK);
-    if (ret <= 0) {
-        int e_sys = error_get_sys(), e_ssl = error_get_ssl();
-        if (e_sys == EAGAIN || e_sys == EINPROGRESS || e_ssl == SSL_ERROR_WANT_READ || e_ssl == SSL_ERROR_WANT_WRITE) {
-            res->status = http_get_status(504);
-            ctx->origin = SERVER_RES;
-        } else {
+        ret = sock_recv(&proxy->proxy, buffer, sizeof(buffer) - 1, MSG_PEEK);
+        if (ret <= 0) {
+            int e_sys = error_get_sys(), e_ssl = error_get_ssl();
+            if (e_sys == EAGAIN || e_sys == EINPROGRESS || e_ssl == SSL_ERROR_WANT_READ || e_ssl == SSL_ERROR_WANT_WRITE) {
+                res->status = http_get_status(504);
+                ctx->origin = SERVER_RES;
+            } else {
+                res->status = http_get_status(502);
+                ctx->origin = SERVER_RES;
+            }
+            error("Unable to receive response from server");
+            sprintf(err_msg, "Unable to receive response from server: %s.", error_str(errno, err_buf, sizeof(err_buf)));
+            retry = tries < 4;
+            continue;
+        }
+        buffer[ret] = 0;
+
+        char *buf = buffer;
+        unsigned short header_len = (unsigned short) (strstr(buffer, "\r\n\r\n") - buffer + 4);
+
+        if (header_len <= 0) {
             res->status = http_get_status(502);
             ctx->origin = SERVER_RES;
+            error("Unable to parse header: End of header not found");
+            sprintf(err_msg, "Unable to parser header: End of header not found.");
+            continue;
         }
-        error("Unable to receive response from server");
-        sprintf(err_msg, "Unable to receive response from server: %s.", error_str(errno, err_buf, sizeof(err_buf)));
-        retry = tries < 4;
-        goto proxy_err;
-    }
-    buffer[ret] = 0;
 
-    char *buf = buffer;
-    unsigned short header_len = (unsigned short) (strstr(buffer, "\r\n\r\n") - buffer + 4);
-
-    if (header_len <= 0) {
-        res->status = http_get_status(502);
-        ctx->origin = SERVER_RES;
-        error("Unable to parse header: End of header not found");
-        sprintf(err_msg, "Unable to parser header: End of header not found.");
-        goto proxy_err;
-    }
-
-    for (int i = 0; i < header_len; i++) {
-        if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {
-            res->status = http_get_status(502);
-            ctx->origin = SERVER_RES;
-            error("Unable to parse header: Header contains illegal characters");
-            sprintf(err_msg, "Unable to parse header: Header contains illegal characters.");
-            goto proxy_err;
+        for (int i = 0; i < header_len; i++) {
+            if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {
+                res->status = http_get_status(502);
+                ctx->origin = SERVER_RES;
+                error("Unable to parse header: Header contains illegal characters");
+                sprintf(err_msg, "Unable to parse header: Header contains illegal characters.");
+                continue;
+            }
         }
-    }
 
-    char *ptr = buf;
-    while (header_len != (ptr - buf)) {
-        char *pos0 = strstr(ptr, "\r\n");
-        if (pos0 == NULL) {
-            res->status = http_get_status(502);
-            ctx->origin = SERVER_RES;
-            error("Unable to parse header: Invalid header format");
-            sprintf(err_msg, "Unable to parse header: Invalid header format.");
-            goto proxy_err;
-        }
-        if (ptr == buf) {
-            if (!strstarts(ptr, "HTTP/")) {
+        char *ptr = buf;
+        while (header_len != (ptr - buf)) {
+            char *pos0 = strstr(ptr, "\r\n");
+            if (pos0 == NULL) {
                 res->status = http_get_status(502);
                 ctx->origin = SERVER_RES;
                 error("Unable to parse header: Invalid header format");
                 sprintf(err_msg, "Unable to parse header: Invalid header format.");
-                goto proxy_err;
+                continue;
             }
-            int status_code = (int) strtol(ptr + 9, NULL, 10);
-            res->status = http_get_status(status_code);
-            if (res->status == NULL && status_code >= 100 && status_code <= 999) {
-                custom_status->code = status_code;
-                custom_status->type = 0;
-                snprintf(custom_status->msg, sizeof(custom_status->msg), "%.*s",
-                         (int) (strchr(ptr, '\r') - ptr - 13), ptr + 13);
-                res->status = custom_status;
-            } else if (res->status == NULL) {
-                res->status = http_get_status(502);
-                ctx->origin = SERVER_RES;
-                error("Unable to parse header: Invalid or unknown status code");
-                sprintf(err_msg, "Unable to parse header: Invalid or unknown status code.");
-                goto proxy_err;
+            if (ptr == buf) {
+                if (!strstarts(ptr, "HTTP/")) {
+                    res->status = http_get_status(502);
+                    ctx->origin = SERVER_RES;
+                    error("Unable to parse header: Invalid header format");
+                    sprintf(err_msg, "Unable to parse header: Invalid header format.");
+                    continue;
+                }
+                int status_code = (int) strtol(ptr + 9, NULL, 10);
+                res->status = http_get_status(status_code);
+                if (res->status == NULL && status_code >= 100 && status_code <= 999) {
+                    custom_status->code = status_code;
+                    custom_status->type = 0;
+                    snprintf(custom_status->msg, sizeof(custom_status->msg), "%.*s",
+                             (int) (strchr(ptr, '\r') - ptr - 13), ptr + 13);
+                    res->status = custom_status;
+                } else if (res->status == NULL) {
+                    res->status = http_get_status(502);
+                    ctx->origin = SERVER_RES;
+                    error("Unable to parse header: Invalid or unknown status code");
+                    sprintf(err_msg, "Unable to parse header: Invalid or unknown status code.");
+                    continue;
+                }
+            } else {
+                if (http_parse_header_field(&res->hdr, ptr, pos0, 0) != 0) {
+                    res->status = http_get_status(502);
+                    ctx->origin = SERVER_RES;
+                    error("Unable to parse header");
+                    sprintf(err_msg, "Unable to parse header.");
+                    continue;
+                }
             }
-        } else {
-            if (http_parse_header_field(&res->hdr, ptr, pos0, 0) != 0) {
-                res->status = http_get_status(502);
-                ctx->origin = SERVER_RES;
-                error("Unable to parse header");
-                sprintf(err_msg, "Unable to parse header.");
-                goto proxy_err;
+            if (pos0[2] == '\r' && pos0[3] == '\n') {
+                break;
             }
+            ptr = pos0 + 2;
         }
-        if (pos0[2] == '\r' && pos0[3] == '\n') {
-            break;
+        sock_recv_x(&proxy->proxy, buffer, header_len, 0);
+
+        ret = proxy_response_header(req, res, conf);
+        if (ret != 0) {
+            res->status = http_get_status(500);
+            ctx->origin = INTERNAL;
+            return -1;
         }
-        ptr = pos0 + 2;
-    }
-    sock_recv_x(&proxy->proxy, buffer, header_len, 0);
 
-    ret = proxy_response_header(req, res, conf);
-    if (ret != 0) {
-        res->status = http_get_status(500);
-        ctx->origin = INTERNAL;
-        return -1;
+        return 0;
     }
 
-    return 0;
-
-    proxy_err:
-    errno = 0;
-    if (retry) goto retry;
     return -1;
 }
 
