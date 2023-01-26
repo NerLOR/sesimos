@@ -13,7 +13,7 @@
 #include "async.h"
 
 static mpmc_t tcp_acceptor_ctx, request_handler_ctx, local_handler_ctx, fastcgi_handler_ctx, proxy_handler_ctx,
-              ws_frame_handler_ctx, chunk_handler_ctx;
+              ws_frame_handler_ctx, chunk_handler_ctx, fastcgi_frame_handler_ctx;
 
 int workers_init(void) {
     mpmc_init(&tcp_acceptor_ctx,          8, 64, (void (*)(void *)) tcp_acceptor_func,          "tcp");
@@ -23,6 +23,7 @@ int workers_init(void) {
     mpmc_init(&proxy_handler_ctx,         8, 64, (void (*)(void *)) proxy_handler_func,         "proxy");
     mpmc_init(&ws_frame_handler_ctx,      8, 64, (void (*)(void *)) ws_frame_handler_func,      "ws");
     mpmc_init(&chunk_handler_ctx,         8, 64, (void (*)(void *)) chunk_handler_func,         "chunk");
+    mpmc_init(&fastcgi_frame_handler_ctx, 8, 64, (void (*)(void *)) fastcgi_frame_handler_func, "fcgi_f");
     return -1;
 }
 
@@ -34,6 +35,7 @@ void workers_stop(void) {
     mpmc_stop(&request_handler_ctx);
     mpmc_stop(&ws_frame_handler_ctx);
     mpmc_stop(&chunk_handler_ctx);
+    mpmc_stop(&fastcgi_frame_handler_ctx);
 }
 
 void workers_destroy(void) {
@@ -44,6 +46,7 @@ void workers_destroy(void) {
     mpmc_destroy(&request_handler_ctx);
     mpmc_destroy(&ws_frame_handler_ctx);
     mpmc_destroy(&chunk_handler_ctx);
+    mpmc_destroy(&fastcgi_frame_handler_ctx);
 }
 
 int tcp_accept(client_ctx_t *ctx) {
@@ -72,6 +75,17 @@ int local_handle(client_ctx_t *ctx) {
 
 int fastcgi_handle(client_ctx_t *ctx) {
     return mpmc_queue(&fastcgi_handler_ctx, ctx);
+}
+
+static int fastcgi_handle_frame_cb(fastcgi_ctx_t *ctx) {
+    return mpmc_queue(&fastcgi_frame_handler_ctx, ctx);
+}
+
+int fastcgi_handle_frame(fastcgi_ctx_t *ctx) {
+    return async(&ctx->cnx.socket, ASYNC_WAIT_READ, 0, ctx,
+                 (void (*)(void *)) fastcgi_handle_frame_cb,
+                 (void (*)(void *)) fastcgi_close,
+                 (void (*)(void *)) fastcgi_close);
 }
 
 int proxy_handle(client_ctx_t *ctx) {

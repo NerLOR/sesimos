@@ -15,6 +15,7 @@
 #include "../lib/uri.h"
 #include "../lib/config.h"
 #include "../lib/proxy.h"
+#include "../lib/fastcgi.h"
 
 typedef struct {
     sock socket;
@@ -35,6 +36,7 @@ typedef struct {
     long content_length;
     char *msg_buf, *msg_buf_ptr, msg_content[1024];
     proxy_ctx_t *proxy;
+    void *fcgi_cnx;
 } client_ctx_t;
 
 typedef struct {
@@ -42,6 +44,12 @@ typedef struct {
     sock *socket;
     void *other;
 } ws_ctx_t;
+
+typedef struct {
+    int closed:2;
+    client_ctx_t *client;
+    fastcgi_cnx_t cnx;
+} fastcgi_ctx_t;
 
 typedef struct {
     client_ctx_t *client;
@@ -58,6 +66,8 @@ void request_handler_func(client_ctx_t *ctx);
 void local_handler_func(client_ctx_t *ctx);
 
 void fastcgi_handler_func(client_ctx_t *ctx);
+
+void fastcgi_frame_handler_func(fastcgi_ctx_t *ctx);
 
 void proxy_handler_func(client_ctx_t *ctx);
 
@@ -78,5 +88,9 @@ int ws_handle_connection(client_ctx_t *ctx);
 void ws_close(ws_ctx_t *ctx);
 
 int handle_chunks(client_ctx_t *ctx, sock *socket, int flags, void (*next_cb)(chunk_ctx_t *), void (*err_cb)(chunk_ctx_t *));
+
+int fastcgi_handle_connection(client_ctx_t *ctx, fastcgi_cnx_t **cnx);
+
+void fastcgi_close(fastcgi_ctx_t *ctx);
 
 #endif //SESIMOS_FUNC_H
