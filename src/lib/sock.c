@@ -78,21 +78,21 @@ int sock_init(sock *s, int fd, int flags) {
     return 0;
 }
 
-int sock_set_socket_timeout_micros(sock *s, long recv_micros, long send_micros) {
+int sock_set_socket_timeout_micros(int fd, long recv_micros, long send_micros) {
     struct timeval recv_to = {.tv_sec = recv_micros / 1000000, .tv_usec = recv_micros % 1000000},
                    send_to = {.tv_sec = send_micros / 1000000, .tv_usec = send_micros % 1000000};
 
-    if (setsockopt(s->socket, SOL_SOCKET, SO_RCVTIMEO, &recv_to, sizeof(recv_to)) != 0)
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &recv_to, sizeof(recv_to)) != 0)
         return -1;
 
-    if (setsockopt(s->socket, SOL_SOCKET, SO_SNDTIMEO, &send_to, sizeof(send_to)) != 0)
+    if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &send_to, sizeof(send_to)) != 0)
         return -1;
 
     return 0;
 }
 
 int sock_set_socket_timeout(sock *s, double sec) {
-    return sock_set_socket_timeout_micros(s, (long) (sec * 1000000L), (long) (sec * 1000000L));
+    return sock_set_socket_timeout_micros(s->socket, (long) (sec * 1000000L), (long) (sec * 1000000L));
 }
 
 int sock_set_timeout_micros(sock *s, long micros) {
