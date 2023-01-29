@@ -19,7 +19,6 @@
 #include <errno.h>
 #include <openssl/err.h>
 #include <arpa/inet.h>
-#include <netdb.h>
 #include <semaphore.h>
 
 static SSL_CTX *proxy_ctx = NULL;
@@ -303,48 +302,10 @@ int proxy_response_header(http_req *req, http_res *res, host_config_t *conf) {
 static int proxy_connect(proxy_ctx_t *proxy, host_config_t *conf, http_res *res, http_status_ctx *ctx, char *err_msg) {
     char err_buf[256], addr_buf[1024];
 
+    info(BLUE_STR "Connecting to " BLD_STR "[%s]:%i" CLR_STR BLUE_STR "...", conf->proxy.hostname, conf->proxy.port);
+
     int fd;
-    if ((fd = socket(AF_INET6, SOCK_STREAM, 0)) == -1) {
-        error("Unable to create socket");
-        res->status = http_get_status(500);
-        ctx->origin = INTERNAL;
-        return -1;
-    }
-    sock_init(&proxy->proxy, fd, 0);
-
-    if (sock_set_socket_timeout(&proxy->proxy, 1) != 0 || sock_set_timeout(&proxy->proxy, SERVER_TIMEOUT_INIT) != 0) {
-        res->status = http_get_status(500);
-        ctx->origin = INTERNAL;
-        error("Unable to set timeout for reverse proxy socket");
-        sprintf(err_msg, "Unable to set timeout for reverse proxy socket: %s", error_str(errno, err_buf, sizeof(err_buf)));
-        return -1;
-    }
-
-    struct hostent *host_ent = gethostbyname2(conf->proxy.hostname, AF_INET6);
-    if (host_ent == NULL) {
-        host_ent = gethostbyname2(conf->proxy.hostname, AF_INET);
-        if (host_ent == NULL) {
-            res->status = http_get_status(502);
-            ctx->origin = SERVER_REQ;
-            error("Unable to connect to server: Name or service not known");
-            sprintf(err_msg, "Unable to connect to server: Name or service not known.");
-            return -1;
-        }
-    }
-
-    struct sockaddr_in6 address = {.sin6_family = AF_INET6, .sin6_port = htons(conf->proxy.port)};
-    if (host_ent->h_addrtype == AF_INET6) {
-        memcpy(&address.sin6_addr, host_ent->h_addr_list[0], host_ent->h_length);
-    } else if (host_ent->h_addrtype == AF_INET) {
-        unsigned char addr[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 0, 0, 0, 0};
-        memcpy(addr + 12, host_ent->h_addr_list[0], host_ent->h_length);
-        memcpy(&address.sin6_addr, addr, 16);
-    }
-
-    inet_ntop(address.sin6_family, (void *) &address.sin6_addr, addr_buf, sizeof(addr_buf));
-
-    info(BLUE_STR "Connecting to " BLD_STR "[%s]:%i" CLR_STR BLUE_STR "...", addr_buf, conf->proxy.port);
-    if (connect(proxy->proxy.socket, (struct sockaddr *) &address, sizeof(address)) < 0) {
+    if ((fd = sock_connect(conf->proxy.hostname, conf->proxy.port, SERVER_TIMEOUT_INIT, addr_buf, sizeof(addr_buf))) == -1) {
         if (errno == ETIMEDOUT || errno == EINPROGRESS) {
             res->status = http_get_status(504);
             ctx->origin = SERVER_REQ;
@@ -359,6 +320,8 @@ static int proxy_connect(proxy_ctx_t *proxy, host_config_t *conf, http_res *res,
         sprintf(err_msg, "Unable to connect to server: %s.", error_str(errno, err_buf, sizeof(err_buf)));
         return -1;
     }
+
+    sock_init(&proxy->proxy, fd, 0);
 
     if (sock_set_timeout(&proxy->proxy, SERVER_TIMEOUT) != 0) {
         res->status = http_get_status(500);
@@ -389,6 +352,7 @@ static int proxy_connect(proxy_ctx_t *proxy, host_config_t *conf, http_res *res,
     proxy->initialized = 1;
     proxy->cnx_s = clock_micros();
     proxy->host = conf->name;
+
     info(BLUE_STR "Established new connection with " BLD_STR "[%s]:%i", addr_buf, conf->proxy.port);
 
     return 0;

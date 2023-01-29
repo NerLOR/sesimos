@@ -38,6 +38,12 @@ const char *sock_error_str(unsigned long err);
 
 int sock_init(sock *s, int fd, int enc);
 
+int sock_connect(const char *hostname, unsigned short port, double timeout_sec, char *addr_buf, size_t addr_buf_size);
+
+int sock_reverse_lookup(const sock *s, char *host, size_t host_size);
+
+int sock_init_addr_str(const sock *s, char *c_addr, size_t c_addr_size, char *s_addr, size_t s_addr_size);
+
 int sock_set_socket_timeout_micros(int fd, long recv_micros, long send_micros);
 
 int sock_set_socket_timeout(sock *s, double sec);

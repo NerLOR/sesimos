@@ -28,32 +28,6 @@ void tcp_acceptor_func(client_ctx_t *ctx) {
     }
 }
 
-static int dig(const char *addr, char *host, size_t host_size) {
-    char buf[1024];
-    FILE *out;
-    int ret;
-
-    sprintf(buf, "dig +short +time=1 -x %s", addr);
-    if ((out = popen(buf, "r")) == NULL) {
-        error("Unable to start dig: %s");
-        return -1;
-    }
-
-    unsigned long read = fread(buf, 1, sizeof(buf), out);
-    if ((ret = pclose(out)) != 0) {
-        error("Dig terminated with exit code %i", ret);
-        return -1;
-    }
-
-    char *ptr = memchr(buf, '\n', read);
-    if (ptr == buf || ptr == NULL) return -1;
-
-    ptr[-1] = 0;
-    strncpy(host, buf, host_size);
-
-    return 0;
-}
-
 static int tcp_acceptor(client_ctx_t *ctx) {
     struct sockaddr_in6 server_addr;
 
@@ -84,8 +58,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
     sock *client = &ctx->socket;
     ctx->cnx_s = clock_micros();
 
-    ctx->host[0] = 0;
-   dig(ctx->socket.addr, ctx->host, sizeof(ctx->host));
+    sock_reverse_lookup(&ctx->socket, ctx->host, sizeof(ctx->host));
 
     ctx->cc[0] = 0;
     geoip_lookup_country(&client->_addr.sock, ctx->cc);

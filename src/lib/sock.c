@@ -9,6 +9,7 @@
 #include "sock.h"
 #include "utils.h"
 #include "error.h"
+#include "../logger.h"
 
 #include <errno.h>
 #include <openssl/ssl.h>
@@ -18,8 +19,9 @@
 #include <openssl/err.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <netdb.h>
 
-static void ssl_error(unsigned long err) {
+static void sock_ssl_error(unsigned long err) {
     if (err == SSL_ERROR_NONE) {
         errno = 0;
     } else if (err == SSL_ERROR_SYSCALL) {
@@ -32,7 +34,18 @@ static void ssl_error(unsigned long err) {
 }
 
 void sock_error(sock *s, int ret) {
-    ssl_error(SSL_get_error(s->ssl, ret));
+    sock_ssl_error(SSL_get_error(s->ssl, ret));
+}
+
+int sock_gai_error(int ret) {
+    if (ret == 0) {
+        errno = 0;
+    } else if (ret == EAI_SYSTEM) {
+        // errno already set
+    } else {
+        error_gai(ret);
+    }
+    return -1;
 }
 
 const char *sock_error_str(unsigned long err) {
@@ -74,6 +87,85 @@ int sock_init(sock *s, int fd, int flags) {
     s->ts_start = clock_micros();
     s->ts_last = s->ts_start;
     s->timeout_us = -1;
+
+    return 0;
+}
+
+int sock_connect(const char *hostname, unsigned short port, double timeout_sec, char *addr_buf, size_t addr_buf_size) {
+    char buf[INET6_ADDRSTRLEN + 1];
+    int ret, fd, e = 0;
+    long timeout_micros = (long) (timeout_sec * 1000000L);
+    struct addrinfo *result, *rp,
+            hints = {
+                .ai_family = AF_UNSPEC,
+                .ai_socktype = SOCK_STREAM,
+                .ai_protocol = 0,
+                .ai_flags = 0,
+            };
+
+    if (addr_buf && addr_buf_size > 1)
+        addr_buf[0] = 0;
+
+    if ((ret = getaddrinfo(hostname, NULL, &hints, &result)) != 0)
+        return sock_gai_error(ret);
+
+    for (rp = result; rp != NULL; rp = rp->ai_next) {
+        switch (rp->ai_family) {
+            case AF_INET:
+                ((struct sockaddr_in *) rp->ai_addr)->sin_port = htons(port);
+                inet_ntop(rp->ai_family, &((struct sockaddr_in *) rp->ai_addr)->sin_addr, buf, addr_buf_size);
+                break;
+            case AF_INET6:
+                ((struct sockaddr_in6 *) rp->ai_addr)->sin6_port = htons(port);
+                inet_ntop(rp->ai_family, &((struct sockaddr_in6 *) rp->ai_addr)->sin6_addr, buf, addr_buf_size);
+                break;
+        }
+
+        debug("Trying [%s]:%i", buf, port);
+
+        if ((fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol)) == -1) {
+            if (e == 0) {
+                e = errno;
+            } else if (e != errno) {
+                e = -1;
+            }
+            continue;
+        }
+
+        if (sock_set_socket_timeout_micros(fd, timeout_micros, timeout_micros) == -1) {
+            close(fd);
+            return -1;
+        }
+
+        if (connect(fd, rp->ai_addr, rp->ai_addrlen) == -1) {
+            e = errno;
+            close(fd);
+            continue;
+        }
+
+        break;
+    }
+
+    freeaddrinfo(result);
+
+    if (addr_buf && addr_buf_size > 1 && addr_buf[0] == 0)
+        strncpy(addr_buf, buf, addr_buf_size);
+
+    errno = e;
+    return (e == 0) ? fd : -1;
+}
+
+int sock_reverse_lookup(const sock *s, char *host, size_t host_size) {
+    memset(host, 0, host_size);
+
+    int ret;
+    if ((ret = getnameinfo(&s->_addr.sock, sizeof(s->_addr), host, host_size, NULL, 0, 0)) != 0) {
+        if (ret == EAI_NONAME) {
+            return 0;
+        } else {
+            return sock_gai_error(ret);
+        }
+    }
 
     return 0;
 }
