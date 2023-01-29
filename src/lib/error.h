@@ -19,6 +19,8 @@ void error_mmdb(int err);
 
 void error_http(int err);
 
+void error_gai(int err);
+
 int error_get_sys();
 
 int error_get_ssl();

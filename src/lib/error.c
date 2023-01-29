@@ -11,6 +11,7 @@
 
 #include <errno.h>
 #include <string.h>
+#include <netdb.h>
 
 extern const char *sock_error_str(unsigned long err);
 extern const char *http_error_str(int err);
@@ -29,23 +30,14 @@ static unsigned long error_decompress(int err) {
 
 const char *error_str(int err_no, char *buf, int buf_len) {
     buf[0] = 0;
-    unsigned char mode = (unsigned char) (err_no >> 24);
     int e = err_no & 0x00FFFFFF;
-    if (mode == 0x00) {
-        // normal
-        return strerror_r(e, buf, buf_len);
-    } else if (mode == 0x01) {
-        // ssl
-        return sock_error_str(error_decompress(e));
-    } else if (mode == 0x02) {
-        // ssl err
-        return ERR_reason_error_string(error_decompress(e));
-    } else if (mode == 0x03) {
-        // mmdb
-        return MMDB_strerror(e);
-    } else if (mode == 0x04) {
-        // http
-        return http_error_str(e);
+    switch (err_no >> 24) {
+        case 0x00: return strerror_r(e, buf, buf_len);
+        case 0x01: return sock_error_str(error_decompress(e));
+        case 0x02: return ERR_reason_error_string(error_decompress(e));
+        case 0x03: return MMDB_strerror(e);
+        case 0x04: return http_error_str(e);
+        case 0x05: return gai_strerror(e);
     }
     return buf;
 }
@@ -64,6 +56,10 @@ void error_mmdb(int err) {
 
 void error_http(int err) {
     errno = 0x04000000 | err;
+}
+
+void error_gai(int err) {
+    errno = 0x05000000 | err;
 }
 
 static int error_get(unsigned char prefix) {
