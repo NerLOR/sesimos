@@ -53,7 +53,6 @@ typedef struct {
     host_config_t hosts[CONFIG_MAX_HOST_CONFIG];
     cert_config_t certs[CONFIG_MAX_CERT_CONFIG];
     char geoip_dir[256];
-    char dns_server[256];
 } config_t;
 
 extern config_t config;

@@ -61,9 +61,6 @@ static int config_parse_line(char *line, char *section, int *i, int *j) {
         if (len > 10 && strncmp(ptr, "geoip_dir", 9) == 0 && (ptr[9] == ' ' || ptr[9] == '\t')) {
             source = ptr + 9;
             target = config.geoip_dir;
-        } else if (len > 11 && strncmp(ptr, "dns_server", 10) == 0 && (ptr[10] == ' ' || ptr[10] == '\t')) {
-            source = ptr + 10;
-            target = config.dns_server;
         } else {
             return -1;
         }

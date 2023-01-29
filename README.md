@@ -27,7 +27,6 @@ See [doc/example.conf](doc/example.conf) for more details.
 ### Global directives
 
 * `geoip_dir` (optional) - path to a directory containing GeoIP databases
-* `dns_server` (optional) - address of a DNS server
 
 
 ### Configuration

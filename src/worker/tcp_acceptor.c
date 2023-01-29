@@ -33,7 +33,7 @@ static int dig(const char *addr, char *host, size_t host_size) {
     FILE *out;
     int ret;
 
-    sprintf(buf, "dig @%s +short +time=1 -x %s", config.dns_server, addr);
+    sprintf(buf, "dig +short +time=1 -x %s", addr);
     if ((out = popen(buf, "r")) == NULL) {
         error("Unable to start dig: %s");
         return -1;
@@ -85,8 +85,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
     ctx->cnx_s = clock_micros();
 
     ctx->host[0] = 0;
-    if (config.dns_server[0] != 0)
-       dig(ctx->socket.addr, ctx->host, sizeof(ctx->host));
+   dig(ctx->socket.addr, ctx->host, sizeof(ctx->host));
 
     ctx->cc[0] = 0;
     geoip_lookup_country(&client->_addr.sock, ctx->cc);
