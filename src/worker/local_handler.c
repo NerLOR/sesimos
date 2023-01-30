@@ -134,7 +134,7 @@ static int local_handler(client_ctx_t *ctx) {
         http_add_header_field(&res->hdr, "Access-Control-Allow-Origin", "*");
     }
 
-    if (!strstarts(uri->req_path, "/.well-known/") && strcontains(uri->path, "/.")) {
+    if ((!strstarts(uri->req_path, "/.well-known/") && strcontains(uri->path, "/.")) || strends(uri->filename, ".inc") || strends(uri->filename, ".inc.php")) {
         res->status = http_get_status(403);
         sprintf(err_msg, "Parts of this URI are hidden.");
         return 0;
