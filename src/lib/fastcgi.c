@@ -95,7 +95,7 @@ int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int req_num, const sock
     }
 
     if (connect(conn->socket.socket, (struct sockaddr *) &sock_addr, sizeof(sock_addr)) != 0) {
-        error("Unable to connect to unix socket of FastCGI socket");
+        error("Unable to connect to FastCGI (unix) socket");
         return -1;
     }
 

@@ -31,7 +31,7 @@ void fastcgi_handler_func(client_ctx_t *ctx) {
                 case 1: return;
                 case 2: break;
             }
-        } else {
+        } else if (ctx->fcgi_ctx != NULL) {
             fastcgi_close(ctx->fcgi_ctx);
         }
     }
@@ -46,14 +46,6 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
     http_uri *uri = &ctx->uri;
     sock *client = &ctx->socket;
     char *err_msg = ctx->err_msg;
-
-    fastcgi_cnx_t fcgi_cnx_buf;
-    (*fcgi_cnx) = &fcgi_cnx_buf;
-    sock_init(&(*fcgi_cnx)->socket, 0, 0);
-    (*fcgi_cnx)->req_id = 0;
-    (*fcgi_cnx)->r_addr = ctx->socket.addr;
-    (*fcgi_cnx)->r_host = (ctx->host[0] != 0) ? ctx->host : NULL;
-
     char buf[1024];
 
     int mode, ret;
@@ -62,8 +54,14 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
     } else {
         res->status = http_get_status(500);
         error("Invalid FastCGI extension: %s", uri->filename);
-        return 0;
+        return 3;
     }
+
+    fastcgi_cnx_t fcgi_cnx_buf;
+    sock_init(&fcgi_cnx_buf.socket, 0, 0);
+    fcgi_cnx_buf.req_id = 0;
+    fcgi_cnx_buf.r_addr = ctx->socket.addr;
+    fcgi_cnx_buf.r_host = (ctx->host[0] != 0) ? ctx->host : NULL;
 
     struct stat statbuf;
     stat(uri->filename, &statbuf);
@@ -71,12 +69,14 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
     http_add_header_field(&res->hdr, "Last-Modified", last_modified);
 
     res->status = http_get_status(200);
-    if (fastcgi_init(*fcgi_cnx, mode, ctx->req_num, client, req, uri) != 0) {
+    if (fastcgi_init(&fcgi_cnx_buf, mode, ctx->req_num, client, req, uri) != 0) {
+        fastcgi_close_cnx(&fcgi_cnx_buf);
         res->status = http_get_status(503);
         sprintf(err_msg, "Unable to communicate with FastCGI socket.");
-        return 2;
+        return 3;
     }
 
+    (*fcgi_cnx) = &fcgi_cnx_buf;
     fastcgi_handle_connection(ctx, fcgi_cnx);
 
     const char *client_content_length = http_get_header_field(&req->hdr, "Content-Length");
