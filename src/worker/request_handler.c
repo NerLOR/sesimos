@@ -49,7 +49,7 @@ static void init_ctx(client_ctx_t *ctx) {
     ctx->proxy = NULL;
     ctx->use_fastcgi = 0;
     ctx->chunks_transferred = 0;
-    ctx->fcgi_cnx = NULL;
+    ctx->fcgi_ctx = NULL;
     ctx->use_proxy = 0;
     ctx->ws_close = 0;
     ctx->proxy = NULL;

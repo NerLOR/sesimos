@@ -43,7 +43,7 @@ int fastcgi_handle_connection(client_ctx_t *ctx, fastcgi_cnx_t **cnx) {
     a->closed = 0;
     a->client = ctx;
     memcpy(&a->cnx, *cnx, sizeof(fastcgi_cnx_t));
-    ctx->fcgi_cnx = a;
+    ctx->fcgi_ctx = a;
     fastcgi_handle_frame(a);
     *cnx = &a->cnx;
 
@@ -66,7 +66,7 @@ void fastcgi_close(fastcgi_ctx_t *ctx) {
     debug("Closing FastCGI connection");
 
     fastcgi_close_cnx(&ctx->cnx);
-    ctx->client->fcgi_cnx = NULL;
+    ctx->client->fcgi_ctx = NULL;
     free(ctx);
     errno = 0;
 }

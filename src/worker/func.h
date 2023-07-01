@@ -36,7 +36,7 @@ typedef struct {
     long content_length;
     char *msg_buf, *msg_buf_ptr, msg_content[1024];
     proxy_ctx_t *proxy;
-    void *fcgi_cnx;
+    void *fcgi_ctx;
 } client_ctx_t;
 
 typedef struct {

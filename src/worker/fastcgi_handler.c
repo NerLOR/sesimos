@@ -32,7 +32,7 @@ void fastcgi_handler_func(client_ctx_t *ctx) {
                 case 2: break;
             }
         } else {
-            fastcgi_close(ctx->fcgi_cnx);
+            fastcgi_close(ctx->fcgi_ctx);
         }
     }
 
@@ -148,9 +148,9 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
 }
 
 static void fastcgi_next_cb(chunk_ctx_t *ctx) {
-    if(ctx->client->fcgi_cnx) {
-        fastcgi_close(ctx->client->fcgi_cnx);
-        ctx->client->fcgi_cnx = NULL;
+    if(ctx->client->fcgi_ctx) {
+        fastcgi_close(ctx->client->fcgi_ctx);
+        ctx->client->fcgi_ctx = NULL;
     }
 
     fastcgi_handle(ctx->client);
@@ -163,9 +163,9 @@ static void fastcgi_error_cb(chunk_ctx_t *ctx) {
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, ADDRSTRLEN, ctx->client->req_host, CLR_STR, ctx->client->log_prefix);
 
     warning("Closing connection due to FastCGI error");
-    if(ctx->client->fcgi_cnx) {
-        fastcgi_close(ctx->client->fcgi_cnx);
-        ctx->client->fcgi_cnx = NULL;
+    if(ctx->client->fcgi_ctx) {
+        fastcgi_close(ctx->client->fcgi_ctx);
+        ctx->client->fcgi_ctx = NULL;
     }
 
     tcp_close(ctx->client);
@@ -181,8 +181,8 @@ static int fastcgi_handler_2(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
         return 1;
     } else {
         fastcgi_send(fcgi_cnx, &ctx->socket);
-        fastcgi_close(ctx->fcgi_cnx);
-        ctx->fcgi_cnx = NULL;
+        fastcgi_close(ctx->fcgi_ctx);
+        ctx->fcgi_ctx = NULL;
         fastcgi_handle(ctx);
         return 2;
     }
