@@ -352,6 +352,7 @@ static int proxy_connect(proxy_ctx_t *proxy, host_config_t *conf, http_res *res,
     proxy->initialized = 1;
     proxy->cnx_s = clock_micros();
     proxy->host = conf->name;
+    proxy->timeout = 0;
 
     info(BLUE_STR "Established new connection with " BLD_STR "[%s]:%i", addr_buf, conf->proxy.port);
 
@@ -370,7 +371,9 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
     while (retry) {
         errno = 0;
 
-        if (!proxy->initialized || sock_has_pending(&proxy->proxy) != 0) {
+        if (!proxy->initialized || sock_has_pending(&proxy->proxy) != 0 ||
+           (proxy->timeout != 0 && (clock_micros() - proxy->proxy.ts_last) > proxy->timeout))
+        {
             if (proxy->initialized)
                 proxy_close(proxy);
 
@@ -532,6 +535,8 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
             ptr = pos0 + 2;
         }
         sock_recv_x(&proxy->proxy, buffer, header_len, 0);
+
+        // TODO read timeout from Keep-Alive
 
         ret = proxy_response_header(req, res, conf);
         if (ret != 0) {
