@@ -166,7 +166,7 @@ int http_add_header_field(http_hdr *hdr, const char *field_name, const char *fie
 
 int http_add_header_field_len(http_hdr *hdr, const char *name, unsigned long name_len, const char *value, unsigned long value_len);
 
-void http_append_to_header_field(http_field *field, const char *value, unsigned long len);
+int http_add_to_header_field(http_hdr *hdr, const char *field_name, const char *field_value);
 
 void http_remove_header_field(http_hdr *hdr, const char *field_name, int mode);
 

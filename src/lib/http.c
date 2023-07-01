@@ -15,6 +15,8 @@
 #include <string.h>
 #include <errno.h>
 
+void http_append_to_header_field(http_field *field, const char *value, unsigned long len);
+
 static int http_error(int err) {
     if (err == 0) {
         errno = 0;
@@ -304,6 +306,15 @@ int http_add_header_field_len(http_hdr *hdr, const char *name, unsigned long nam
         http_to_camel_case(f->ex_name.name, HTTP_PRESERVE);
     }
 
+    return 0;
+}
+
+int http_add_to_header_field(http_hdr *hdr, const char *field_name, const char *field_value) {
+    int field_num = http_get_header_field_num(hdr, field_name);
+    if (field_num == -1)
+        return http_add_header_field(hdr, field_name, field_value);
+
+    http_append_to_header_field(&hdr->fields[field_num], field_value, strlen(field_value));
     return 0;
 }
 
