@@ -352,7 +352,7 @@ static int proxy_connect(proxy_ctx_t *proxy, host_config_t *conf, http_res *res,
     proxy->initialized = 1;
     proxy->cnx_s = clock_micros();
     proxy->host = conf->name;
-    proxy->timeout = 0;
+    proxy->http_timeout = 0;
 
     info(BLUE_STR "Established new connection with " BLD_STR "[%s]:%i", addr_buf, conf->proxy.port);
 
@@ -372,7 +372,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         errno = 0;
 
         if (!proxy->initialized || sock_has_pending(&proxy->proxy) != 0 ||
-           (proxy->timeout != 0 && (clock_micros() - proxy->proxy.ts_last) > proxy->timeout))
+           (proxy->http_timeout != 0 && (clock_micros() - proxy->proxy.ts_last) > proxy->http_timeout))
         {
             if (proxy->initialized)
                 proxy_close(proxy);
