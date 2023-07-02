@@ -20,7 +20,7 @@
 #include <malloc.h>
 
 #define LOG_MAX_MSG_SIZE 2048
-#define LOG_BUF_SIZE 16
+#define LOG_BUF_SIZE 256
 #define LOG_NAME_LEN 12
 #define LOG_PREFIX_LEN 256
 
