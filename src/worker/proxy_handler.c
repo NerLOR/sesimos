@@ -54,7 +54,7 @@ static int proxy_handler_1(client_ctx_t *ctx) {
 
     char buf[1024];
 
-    info("Reverse proxy for " BLD_STR "%s:%i" CLR_STR, ctx->conf->proxy.hostname, ctx->conf->proxy.port);
+    info("Reverse proxy for " BLD_STR "[%s]:%i" CLR_STR, ctx->conf->proxy.hostname, ctx->conf->proxy.port);
     http_remove_header_field(&res->hdr, "Date", HTTP_REMOVE_ALL);
     http_remove_header_field(&res->hdr, "Server", HTTP_REMOVE_ALL);
 
