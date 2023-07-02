@@ -87,6 +87,9 @@ int sock_init(sock *s, int fd, int flags) {
     s->ts_start = clock_micros();
     s->ts_last = s->ts_start;
     s->timeout_us = -1;
+    s->ssl = NULL;
+    s->addr = NULL;
+    s->s_addr = NULL;
 
     return 0;
 }
@@ -200,7 +203,7 @@ int sock_set_timeout(sock *s, double sec) {
 }
 
 long sock_send(sock *s, void *buf, unsigned long len, int flags) {
-    if (s->socket == 0) {
+    if (s->socket < 0) {
         errno = ENOTCONN;
         return -1;
     }
@@ -242,7 +245,7 @@ long sock_send_x(sock *s, void *buf, unsigned long len, int flags) {
 }
 
 long sock_recv(sock *s, void *buf, unsigned long len, int flags) {
-    if (s->socket == 0) {
+    if (s->socket < 0) {
         errno = ENOTCONN;
         return -1;
     }
@@ -377,7 +380,7 @@ int sock_close(sock *s) {
         s->ssl = NULL;
     }
     close(s->socket);
-    s->socket = 0;
+    s->socket = -1;
     s->enc = 0, s->pipe = 0;
     errno = e;
     return 0;
