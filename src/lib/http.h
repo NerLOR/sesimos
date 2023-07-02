@@ -188,4 +188,6 @@ const http_doc_info *http_get_status_info(status_code_t status_code);
 
 int http_get_compression(const http_req *req, const http_res *res);
 
+long http_get_keep_alive_timeout(http_hdr *hdr);
+
 #endif //SESIMOS_HTTP_H

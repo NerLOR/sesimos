@@ -394,8 +394,8 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
     while (retry) {
         errno = 0;
 
-        if (!proxy->initialized || sock_has_pending(&proxy->proxy) != 0 || srv_error ||
-           (proxy->http_timeout != 0 && (clock_micros() - proxy->proxy.ts_last) > proxy->http_timeout))
+        if (!proxy->initialized || sock_has_pending(&proxy->proxy, SOCK_DONTWAIT) != 0 || srv_error ||
+           (proxy->http_timeout != 0 && (clock_micros() - proxy->proxy.ts_last) >= proxy->http_timeout))
         {
             if (proxy->initialized)
                 proxy_close(proxy);
@@ -536,7 +536,8 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         }
         sock_recv_x(&proxy->proxy, buffer, header_len, 0);
 
-        // TODO read timeout from Keep-Alive
+        long keep_alive_timeout = http_get_keep_alive_timeout(&res->hdr);
+        proxy->http_timeout = (keep_alive_timeout > 0) ? keep_alive_timeout * 1000000 : 0;
 
         ret = proxy_response_header(req, res, conf);
         if (ret != 0) {

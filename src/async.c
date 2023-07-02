@@ -108,7 +108,7 @@ static int async_exec(evt_listen_t *evt, async_evt_t r_events) {
     int ret, e = errno;
     if (r_events & evt->events) {
         // specified event(s) occurred
-        if (evt->socket && !sock_has_pending(evt->socket)) {
+        if (evt->socket && !sock_has_pending(evt->socket, 0)) {
             evt->err_cb(evt->arg);
             ret = 0;
         } else {

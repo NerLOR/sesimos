@@ -19,6 +19,8 @@
 #define SOCK_ENCRYPTED 1
 #define SOCK_PIPE 2
 
+#define SOCK_DONTWAIT 1
+
 typedef struct {
     unsigned int enc:1, pipe:1;
     int socket;
@@ -68,7 +70,7 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len,
 
 int sock_close(sock *s);
 
-int sock_has_pending(sock *s);
+int sock_has_pending(sock *s, int flags);
 
 long sock_recv_chunk_header(sock *s);
 

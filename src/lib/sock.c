@@ -386,14 +386,16 @@ int sock_close(sock *s) {
     return 0;
 }
 
-int sock_has_pending(sock *s) {
+int sock_has_pending(sock *s, int flags) {
     int e = errno;
     long ret;
     if (s->pipe) {
         ioctl(s->socket, FIONREAD, &ret);
+    } else if (s->enc && (flags & SOCK_DONTWAIT)) {
+        ret = SSL_pending(s->ssl);
     } else {
         char buf[1];
-        ret = sock_recv(s, &buf, sizeof(buf), MSG_PEEK | MSG_DONTWAIT);
+        ret = sock_recv(s, &buf, sizeof(buf), MSG_PEEK | ((flags & SOCK_DONTWAIT) ? MSG_DONTWAIT : 0));
     }
     errno = e;
     return ret > 0;

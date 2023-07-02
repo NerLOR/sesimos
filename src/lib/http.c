@@ -460,3 +460,11 @@ int http_get_compression(const http_req *req, const http_res *res) {
     }
     return 0;
 }
+
+long http_get_keep_alive_timeout(http_hdr *hdr) {
+    const char *keep_alive = http_get_header_field(hdr, "Keep-Alive");
+    if (!keep_alive) return -1;
+    const char *timeout = strstr(keep_alive, "timeout=");
+    if (!timeout) return -1;
+    return strtol(timeout + 8, NULL, 10);
+}
