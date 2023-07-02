@@ -362,49 +362,50 @@ static int proxy_connect(proxy_ctx_t *proxy, host_config_t *conf, http_res *res,
 int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_status_ctx *ctx, host_config_t *conf, sock *client, http_status *custom_status, char *err_msg) {
     char buffer[CHUNK_SIZE], err_buf[256];
     long ret;
-    int tries = 0, retry = 1;
+    int tries = 0, retry = 1, srv_error = 0;
 
     *proxy_ptr = proxy_get_by_conf(conf);
     proxy_ctx_t *proxy = *proxy_ptr;
     proxy->client = NULL;
 
+    const char *connection = http_get_header_field(&req->hdr, "Connection");
+    if (strcontains(connection, "upgrade") || strcontains(connection, "Upgrade")) {
+        const char *upgrade = http_get_header_field(&req->hdr, "Upgrade");
+        const char *ws_version = http_get_header_field(&req->hdr, "Sec-WebSocket-Version");
+        if (streq(upgrade, "websocket") && streq(ws_version, "13")) {
+            ctx->ws_key = http_get_header_field(&req->hdr, "Sec-WebSocket-Key");
+        } else {
+            res->status = http_get_status(501);
+            ctx->origin = INTERNAL;
+            return -1;
+        }
+    } else {
+        http_remove_header_field(&req->hdr, "Connection", HTTP_REMOVE_ALL);
+        http_add_header_field(&req->hdr, "Connection", "keep-alive");
+    }
+
+    ret = proxy_request_header(req, client);
+    if (ret != 0) {
+        res->status = http_get_status(500);
+        ctx->origin = INTERNAL;
+        return -1;
+    }
+
     while (retry) {
         errno = 0;
 
-        if (!proxy->initialized || sock_has_pending(&proxy->proxy) != 0 ||
+        if (!proxy->initialized || sock_has_pending(&proxy->proxy) != 0 || srv_error ||
            (proxy->http_timeout != 0 && (clock_micros() - proxy->proxy.ts_last) > proxy->http_timeout))
         {
             if (proxy->initialized)
                 proxy_close(proxy);
 
             retry = 0;
+            srv_error = 0;
             tries++;
 
             if (proxy_connect(proxy, conf, res, ctx, err_msg) != 0)
                 continue;
-        }
-
-        const char *connection = http_get_header_field(&req->hdr, "Connection");
-        if (strcontains(connection, "upgrade") || strcontains(connection, "Upgrade")) {
-            const char *upgrade = http_get_header_field(&req->hdr, "Upgrade");
-            const char *ws_version = http_get_header_field(&req->hdr, "Sec-WebSocket-Version");
-            if (streq(upgrade, "websocket") && streq(ws_version, "13")) {
-                ctx->ws_key = http_get_header_field(&req->hdr, "Sec-WebSocket-Key");
-            } else {
-                res->status = http_get_status(501);
-                ctx->origin = INTERNAL;
-                return -1;
-            }
-        } else {
-            http_remove_header_field(&req->hdr, "Connection", HTTP_REMOVE_ALL);
-            http_add_header_field(&req->hdr, "Connection", "keep-alive");
-        }
-
-        ret = proxy_request_header(req, client);
-        if (ret != 0) {
-            res->status = http_get_status(500);
-            ctx->origin = INTERNAL;
-            return -1;
         }
 
         ret = http_send_request(&proxy->proxy, req);
@@ -414,6 +415,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
             error("Unable to send request to server (1)");
             sprintf(err_msg, "Unable to send request to server: %s.", error_str(errno, err_buf, sizeof(err_buf)));
             retry = tries < 4;
+            srv_error = 1;
             continue;
         }
 
@@ -434,8 +436,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
                 ctx->origin = SERVER_REQ;
                 error("Unable to send request to server (2)");
                 sprintf(err_msg, "Unable to send request to server: %s.", error_str(errno, err_buf, sizeof(err_buf)));
-                retry = tries < 4;
-                continue;
+                return -1;
             } else if (ret == -1) {
                 res->status = http_get_status(400);
                 ctx->origin = CLIENT_REQ;
@@ -461,8 +462,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
             }
             error("Unable to receive response from server");
             sprintf(err_msg, "Unable to receive response from server: %s.", error_str(errno, err_buf, sizeof(err_buf)));
-            retry = tries < 4;
-            continue;
+            return -1;
         }
         buffer[ret] = 0;
 
