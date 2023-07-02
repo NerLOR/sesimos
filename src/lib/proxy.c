@@ -362,7 +362,6 @@ static int proxy_connect(proxy_ctx_t *proxy, host_config_t *conf, http_res *res,
 int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_status_ctx *ctx, host_config_t *conf, sock *client, http_status *custom_status, char *err_msg) {
     char buffer[CHUNK_SIZE], err_buf[256];
     long ret;
-    int tries = 0, retry = 1, srv_error = 0;
 
     *proxy_ptr = proxy_get_by_conf(conf);
     proxy_ctx_t *proxy = *proxy_ptr;
@@ -391,8 +390,10 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         return -1;
     }
 
-    while (retry) {
+    for (int retry = 1, srv_error = 0, tries = 0;; tries++) {
         errno = 0;
+        if (!retry)
+            return -1;
 
         if (!proxy->initialized || sock_has_pending(&proxy->proxy, SOCK_DONTWAIT) != 0 || srv_error ||
            (proxy->http_timeout != 0 && (clock_micros() - proxy->proxy.ts_last) >= proxy->http_timeout))
@@ -419,137 +420,138 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
             continue;
         }
 
-        const char *content_length = http_get_header_field(&req->hdr, "Content-Length");
-        unsigned long content_len = content_length != NULL ? strtoul(content_length, NULL, 10) : 0;
-        const char *transfer_encoding = http_get_header_field(&req->hdr, "Transfer-Encoding");
+        break;
+    }
 
-        ret = 0;
-        if (content_len > 0) {
-            ret = sock_splice(&proxy->proxy, client, buffer, sizeof(buffer), content_len);
-        } else if (strcontains(transfer_encoding, "chunked")) {
-            ret = sock_splice_chunked(&proxy->proxy, client, buffer, sizeof(buffer), SOCK_CHUNKED);
-        }
+    const char *content_length = http_get_header_field(&req->hdr, "Content-Length");
+    unsigned long content_len = content_length != NULL ? strtoul(content_length, NULL, 10) : 0;
+    const char *transfer_encoding = http_get_header_field(&req->hdr, "Transfer-Encoding");
 
-        if (ret < 0 || (content_len != 0 && ret != content_len)) {
-            if (ret == -1 && errno != EPROTO) {
-                res->status = http_get_status(502);
-                ctx->origin = SERVER_REQ;
-                error("Unable to send request to server (2)");
-                sprintf(err_msg, "Unable to send request to server: %s.", error_str(errno, err_buf, sizeof(err_buf)));
-                return -1;
-            } else if (ret == -1) {
-                res->status = http_get_status(400);
-                ctx->origin = CLIENT_REQ;
-                error("Unable to receive request from client");
-                sprintf(err_msg, "Unable to receive request from client: %s.", error_str(errno, err_buf, sizeof(err_buf)));
-                return -1;
-            }
-            res->status = http_get_status(500);
-            ctx->origin = INTERNAL;
-            error("Unknown Error");
+    ret = 0;
+    if (content_len > 0) {
+        ret = sock_splice(&proxy->proxy, client, buffer, sizeof(buffer), content_len);
+    } else if (strcontains(transfer_encoding, "chunked")) {
+        ret = sock_splice_chunked(&proxy->proxy, client, buffer, sizeof(buffer), SOCK_CHUNKED);
+    }
+
+    if (ret < 0 || (content_len != 0 && ret != content_len)) {
+        if (ret == -1 && errno != EPROTO) {
+            res->status = http_get_status(502);
+            ctx->origin = SERVER_REQ;
+            error("Unable to send request to server (2)");
+            sprintf(err_msg, "Unable to send request to server: %s.", error_str(errno, err_buf, sizeof(err_buf)));
+            return -1;
+        } else if (ret == -1) {
+            res->status = http_get_status(400);
+            ctx->origin = CLIENT_REQ;
+            error("Unable to receive request from client");
+            sprintf(err_msg, "Unable to receive request from client: %s.", error_str(errno, err_buf, sizeof(err_buf)));
             return -1;
         }
+        res->status = http_get_status(500);
+        ctx->origin = INTERNAL;
+        error("Unknown Error");
+        return -1;
+    }
 
-        ret = sock_recv(&proxy->proxy, buffer, sizeof(buffer) - 1, MSG_PEEK);
-        if (ret <= 0) {
-            int e_sys = error_get_sys(), e_ssl = error_get_ssl();
-            if (e_sys == EAGAIN || e_sys == EINPROGRESS || e_ssl == SSL_ERROR_WANT_READ || e_ssl == SSL_ERROR_WANT_WRITE) {
-                res->status = http_get_status(504);
-                ctx->origin = SERVER_RES;
-            } else {
-                res->status = http_get_status(502);
-                ctx->origin = SERVER_RES;
-            }
-            error("Unable to receive response from server");
-            sprintf(err_msg, "Unable to receive response from server: %s.", error_str(errno, err_buf, sizeof(err_buf)));
-            return -1;
-        }
-        buffer[ret] = 0;
-
-        char *buf = buffer;
-        unsigned short header_len = (unsigned short) (strstr(buffer, "\r\n\r\n") - buffer + 4);
-
-        if (header_len <= 0) {
+    ret = sock_recv(&proxy->proxy, buffer, sizeof(buffer) - 1, MSG_PEEK);
+    if (ret <= 0) {
+        int e_sys = error_get_sys(), e_ssl = error_get_ssl();
+        if (e_sys == EAGAIN || e_sys == EINPROGRESS || e_ssl == SSL_ERROR_WANT_READ || e_ssl == SSL_ERROR_WANT_WRITE) {
+            res->status = http_get_status(504);
+            ctx->origin = SERVER_RES;
+        } else {
             res->status = http_get_status(502);
             ctx->origin = SERVER_RES;
-            error("Unable to parse header: End of header not found");
-            sprintf(err_msg, "Unable to parser header: End of header not found.");
-            continue;
         }
+        error("Unable to receive response from server");
+        sprintf(err_msg, "Unable to receive response from server: %s.", error_str(errno, err_buf, sizeof(err_buf)));
+        return -1;
+    }
+    buffer[ret] = 0;
 
-        for (int i = 0; i < header_len; i++) {
-            if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {
-                res->status = http_get_status(502);
-                ctx->origin = SERVER_RES;
-                error("Unable to parse header: Header contains illegal characters");
-                sprintf(err_msg, "Unable to parse header: Header contains illegal characters.");
-                continue;
-            }
+    char *buf = buffer;
+    unsigned short header_len = (unsigned short) (strstr(buffer, "\r\n\r\n") - buffer + 4);
+
+    if (header_len <= 0) {
+        res->status = http_get_status(502);
+        ctx->origin = SERVER_RES;
+        error("Unable to parse header: End of header not found");
+        sprintf(err_msg, "Unable to parser header: End of header not found.");
+        return -2;
+    }
+
+    for (int i = 0; i < header_len; i++) {
+        if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {
+            res->status = http_get_status(502);
+            ctx->origin = SERVER_RES;
+            error("Unable to parse header: Header contains illegal characters");
+            sprintf(err_msg, "Unable to parse header: Header contains illegal characters.");
+            return -2;
         }
+    }
 
-        char *ptr = buf;
-        while (header_len != (ptr - buf)) {
-            char *pos0 = strstr(ptr, "\r\n");
-            if (pos0 == NULL) {
+    char *ptr = buf;
+    while (header_len != (ptr - buf)) {
+        char *pos0 = strstr(ptr, "\r\n");
+        if (pos0 == NULL) {
+            res->status = http_get_status(502);
+            ctx->origin = SERVER_RES;
+            error("Unable to parse header: Invalid header format");
+            sprintf(err_msg, "Unable to parse header: Invalid header format.");
+            return -2;
+        }
+        if (ptr == buf) {
+            if (!strstarts(ptr, "HTTP/")) {
                 res->status = http_get_status(502);
                 ctx->origin = SERVER_RES;
                 error("Unable to parse header: Invalid header format");
                 sprintf(err_msg, "Unable to parse header: Invalid header format.");
-                continue;
+                return -2;
             }
-            if (ptr == buf) {
-                if (!strstarts(ptr, "HTTP/")) {
-                    res->status = http_get_status(502);
-                    ctx->origin = SERVER_RES;
-                    error("Unable to parse header: Invalid header format");
-                    sprintf(err_msg, "Unable to parse header: Invalid header format.");
-                    continue;
-                }
-                int status_code = (int) strtol(ptr + 9, NULL, 10);
-                res->status = http_get_status(status_code);
-                if (res->status == NULL && status_code >= 100 && status_code <= 999) {
-                    custom_status->code = status_code;
-                    custom_status->type = 0;
-                    snprintf(custom_status->msg, sizeof(custom_status->msg), "%.*s",
-                             (int) (strchr(ptr, '\r') - ptr - 13), ptr + 13);
-                    res->status = custom_status;
-                } else if (res->status == NULL) {
-                    res->status = http_get_status(502);
-                    ctx->origin = SERVER_RES;
-                    error("Unable to parse header: Invalid or unknown status code");
-                    sprintf(err_msg, "Unable to parse header: Invalid or unknown status code.");
-                    continue;
-                }
-            } else {
-                if (http_parse_header_field(&res->hdr, ptr, pos0, 0) != 0) {
-                    res->status = http_get_status(502);
-                    ctx->origin = SERVER_RES;
-                    error("Unable to parse header");
-                    sprintf(err_msg, "Unable to parse header.");
-                    continue;
-                }
+            int status_code = (int) strtol(ptr + 9, NULL, 10);
+            res->status = http_get_status(status_code);
+            if (res->status == NULL && status_code >= 100 && status_code <= 999) {
+                custom_status->code = status_code;
+                custom_status->type = 0;
+                snprintf(custom_status->msg, sizeof(custom_status->msg), "%.*s",
+                         (int) (strchr(ptr, '\r') - ptr - 13), ptr + 13);
+                res->status = custom_status;
+            } else if (res->status == NULL) {
+                res->status = http_get_status(502);
+                ctx->origin = SERVER_RES;
+                error("Unable to parse header: Invalid or unknown status code");
+                sprintf(err_msg, "Unable to parse header: Invalid or unknown status code.");
+                return -2;
             }
-            if (pos0[2] == '\r' && pos0[3] == '\n') {
-                break;
+        } else {
+            if (http_parse_header_field(&res->hdr, ptr, pos0, 0) != 0) {
+                res->status = http_get_status(502);
+                ctx->origin = SERVER_RES;
+                error("Unable to parse header");
+                sprintf(err_msg, "Unable to parse header.");
+                return -2;
             }
-            ptr = pos0 + 2;
         }
-        sock_recv_x(&proxy->proxy, buffer, header_len, 0);
-
-        long keep_alive_timeout = http_get_keep_alive_timeout(&res->hdr);
-        proxy->http_timeout = (keep_alive_timeout > 0) ? keep_alive_timeout * 1000000 : 0;
-
-        ret = proxy_response_header(req, res, conf);
-        if (ret != 0) {
-            res->status = http_get_status(500);
-            ctx->origin = INTERNAL;
-            return -1;
+        if (pos0[2] == '\r' && pos0[3] == '\n') {
+            break;
         }
+        ptr = pos0 + 2;
+    }
+    if (sock_recv_x(&proxy->proxy, buffer, header_len, 0) == -1)
+        return -1;
 
-        return 0;
+    long keep_alive_timeout = http_get_keep_alive_timeout(&res->hdr);
+    proxy->http_timeout = (keep_alive_timeout > 0) ? keep_alive_timeout * 1000000 : 0;
+
+    ret = proxy_response_header(req, res, conf);
+    if (ret != 0) {
+        res->status = http_get_status(500);
+        ctx->origin = INTERNAL;
+        return -1;
     }
 
-    return -1;
+    return 0;
 }
 
 int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int flags) {
