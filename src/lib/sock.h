@@ -38,7 +38,7 @@ void sock_error(sock *s, int ret);
 
 const char *sock_error_str(unsigned long err);
 
-int sock_init(sock *s, int fd, int enc);
+int sock_init(sock *s, int fd, int flags);
 
 int sock_connect(const char *hostname, unsigned short port, double timeout_sec, char *addr_buf, size_t addr_buf_size);
 
