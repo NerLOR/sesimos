@@ -354,7 +354,8 @@ static int proxy_connect(proxy_ctx_t *proxy, host_config_t *conf, http_res *res,
     proxy->host = conf->name;
     proxy->http_timeout = 0;
 
-    info(BLUE_STR "Established new connection with " BLD_STR "[%s]:%i", addr_buf, conf->proxy.port);
+    info(BLUE_STR "Established new connection with " BLD_STR "[%s]:%i" CLR_STR BLUE_STR " (slot %i/%i)",
+         addr_buf, conf->proxy.port, (proxy - proxies) % MAX_PROXY_CNX_PER_HOST, MAX_PROXY_CNX_PER_HOST);
 
     return 0;
 }
@@ -577,7 +578,9 @@ void proxy_close(proxy_ctx_t *ctx) {
     if (ctx->initialized) {
         ctx->cnx_e = clock_micros();
         char buf[32];
-        info(BLUE_STR "Closing proxy connection (%s)", format_duration(ctx->cnx_e - ctx->cnx_s, buf));
+        info(BLUE_STR "Closing proxy connection %i/%i (%s)",
+             (ctx - proxies) % MAX_PROXY_CNX_PER_HOST, MAX_PROXY_CNX_PER_HOST,
+             format_duration(ctx->cnx_e - ctx->cnx_s, buf));
     }
 
     sock_close(&ctx->proxy);
