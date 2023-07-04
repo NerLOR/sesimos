@@ -390,7 +390,9 @@ int sock_has_pending(sock *s, int flags) {
     int e = errno;
     long ret;
     if (s->pipe) {
-        ioctl(s->socket, FIONREAD, &ret);
+        int arg;
+        ioctl(s->socket, FIONREAD, &arg);
+        ret = arg;
     } else if (s->enc && (flags & SOCK_DONTWAIT)) {
         ret = SSL_pending(s->ssl);
     } else {
