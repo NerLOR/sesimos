@@ -351,6 +351,7 @@ int fastcgi_header(fastcgi_cnx_t *cnx, http_res *res, char *err_msg) {
         return -1;
     }
     long header_len = h_pos - content + 4;
+    // TODO use payload after header in first chunk
 
     for (int i = 0; i < header_len; i++) {
         if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {

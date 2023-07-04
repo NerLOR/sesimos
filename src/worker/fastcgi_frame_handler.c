@@ -1,7 +1,7 @@
 /**
  * sesimos - secure, simple, modern web server
  * @brief FastCGI frame handler
- * @file src/worker/fcti_frame_handler.c
+ * @file src/worker/fastcgi_frame_handler.c
  * @author Lorenz Stechauner
  * @date 2023-01-22
  */
