@@ -374,7 +374,7 @@ long sock_splice_chunked(sock *dst, sock *src, void *buf, unsigned long buf_len,
 
 int sock_close(sock *s) {
     int e = errno;
-    if (s->enc && s->ssl != NULL) {
+    if (s->ssl != NULL) {
         SSL_shutdown(s->ssl);
         SSL_free(s->ssl);
         s->ssl = NULL;
