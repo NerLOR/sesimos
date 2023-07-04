@@ -139,9 +139,10 @@ proxy_ctx_t *proxy_get_by_conf(host_config_t *conf) {
 
 void proxy_unlock_ctx(proxy_ctx_t *ctx) {
     int n = (int) ((ctx - proxies) / MAX_PROXY_CNX_PER_HOST);
+    int was_in_use = ctx->in_use;
     ctx->in_use = 0;
     ctx->client = NULL;
-    sem_post(&available[n]);
+    if (was_in_use) sem_post(&available[n]);
 }
 
 int proxy_request_header(http_req *req, sock *sock) {
@@ -340,6 +341,7 @@ static int proxy_connect(proxy_ctx_t *proxy, host_config_t *conf, http_res *res,
         if ((ret = SSL_do_handshake(proxy->proxy.ssl)) != 1) {
             sock_error(&proxy->proxy, (int) ret);
             SSL_free(proxy->proxy.ssl);
+            proxy->proxy.ssl = NULL;
             res->status = http_get_status(502);
             ctx->origin = SERVER_REQ;
             error("Unable to perform handshake");

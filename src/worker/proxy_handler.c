@@ -28,22 +28,22 @@ void proxy_handler_func(client_ctx_t *ctx) {
 
     if (ret == 1) {
         proxy_unlock_ctx(ctx->proxy);
-        ctx->proxy = NULL;
     } else if (ctx->use_proxy == 0) {
         proxy_close(ctx->proxy);
+        proxy_unlock_ctx(ctx->proxy);
     } else if (ctx->use_proxy == 1) {
         if (proxy_handler_2(ctx) == 1) {
             // chunked
             return;
         }
         proxy_unlock_ctx(ctx->proxy);
-        ctx->proxy = NULL;
     } else if (ctx->use_proxy == 2) {
         // WebSocket
         ws_handle_connection(ctx);
         return;
     }
 
+    ctx->proxy = NULL;
     request_complete(ctx);
     handle_request(ctx);
 }
@@ -60,6 +60,9 @@ static int proxy_handler_1(client_ctx_t *ctx) {
 
     ctx->use_proxy = proxy_init(&ctx->proxy, &ctx->req, res, status, ctx->conf, &ctx->socket, &ctx->custom_status, ctx->err_msg) == 0;
     ctx->proxy->client = ctx;
+
+    if (ctx->use_proxy == 0)
+        return 0;
 
     if (res->status->code == 101) {
         const char *connection = http_get_header_field(&res->hdr, "Connection");
@@ -110,15 +113,20 @@ static int proxy_handler_1(client_ctx_t *ctx) {
 
 static void proxy_chunk_next_cb(chunk_ctx_t *ctx) {
     proxy_unlock_ctx(ctx->client->proxy);
-    ctx->client->proxy = NULL;
 
+    ctx->client->proxy = NULL;
     request_complete(ctx->client);
     handle_request(ctx->client);
 }
 
 static void proxy_chunk_err_cb(chunk_ctx_t *ctx) {
     ctx->client->c_keep_alive = 0;
-    proxy_chunk_next_cb(ctx);
+    proxy_close(ctx->client->proxy);
+    proxy_unlock_ctx(ctx->client->proxy);
+
+    ctx->client->proxy = NULL;
+    request_complete(ctx->client);
+    handle_request(ctx->client);
 }
 
 static int proxy_handler_2(client_ctx_t *ctx) {
