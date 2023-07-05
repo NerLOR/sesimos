@@ -148,7 +148,7 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
 }
 
 static void fastcgi_next_cb(chunk_ctx_t *ctx) {
-    if(ctx->client->fcgi_ctx) {
+    if (ctx->client->fcgi_ctx) {
         fastcgi_close(ctx->client->fcgi_ctx);
         ctx->client->fcgi_ctx = NULL;
     }
