@@ -82,7 +82,9 @@ int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int req_num, const sock
     conn->webroot = uri->webroot;
     conn->err = NULL;
     conn->fd_err_bytes = 0;
-    sock_init(&conn->out, 0, SOCK_PIPE);
+    conn->fd_out = -1;
+    conn->fd_err = -1;
+    sock_init(&conn->out, -1, SOCK_PIPE);
 
     conn->socket.enc = 0;
     if ((conn->socket.socket = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
@@ -205,11 +207,11 @@ int fastcgi_close_cnx(fastcgi_cnx_t *cnx) {
 
     if (cnx->err) fclose(cnx->err);
     cnx->err = NULL;
-    if (cnx->socket.socket) sock_close(&cnx->socket);
+    sock_close(&cnx->socket);
 
     sock_close(&cnx->out);
-    close(cnx->fd_err);
-    close(cnx->fd_out);
+    if (cnx->fd_err != -1) close(cnx->fd_err);
+    if (cnx->fd_out != -1) close(cnx->fd_out);
 
     errno = e;
     return 0;

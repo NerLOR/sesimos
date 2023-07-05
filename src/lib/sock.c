@@ -379,7 +379,7 @@ int sock_close(sock *s) {
         SSL_free(s->ssl);
         s->ssl = NULL;
     }
-    close(s->socket);
+    if (s->socket != -1) close(s->socket);
     s->socket = -1;
     s->enc = 0, s->pipe = 0;
     errno = e;

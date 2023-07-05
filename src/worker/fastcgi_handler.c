@@ -58,7 +58,7 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
     }
 
     fastcgi_cnx_t fcgi_cnx_buf;
-    sock_init(&fcgi_cnx_buf.socket, 0, 0);
+    sock_init(&fcgi_cnx_buf.socket, -1, 0);
     fcgi_cnx_buf.req_id = 0;
     fcgi_cnx_buf.r_addr = ctx->socket.addr;
     fcgi_cnx_buf.r_host = (ctx->host[0] != 0) ? ctx->host : NULL;
