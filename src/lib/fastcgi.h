@@ -23,6 +23,7 @@
 
 typedef struct {
     int mode;
+    unsigned char header_sent:1;
     sock socket, out;
     int fd_err, fd_out;
     long fd_err_bytes;

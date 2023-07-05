@@ -77,6 +77,7 @@ int fastcgi_send_data(fastcgi_cnx_t *cnx, unsigned char type, unsigned short len
 
 int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int req_num, const sock *client, const http_req *req, const http_uri *uri) {
     conn->mode = mode;
+    conn->header_sent = 0;
     conn->req_id = (req_num + 1) & 0xFFFF;
     conn->webroot = uri->webroot;
     conn->err = NULL;
@@ -274,7 +275,36 @@ int fastcgi_recv_frame(fastcgi_cnx_t *cnx) {
 
     if (header.type == FCGI_STDOUT || header.type == FCGI_STDERR) {
         char buf[256];
-        if (header.type == FCGI_STDOUT) {
+
+        if (header.type == FCGI_STDOUT && !cnx->header_sent) {
+            char content[256 * 256];
+
+            if (sock_recv_x(&cnx->socket, content, content_len + header.paddingLength, 0) == -1)
+                return -1;
+
+            char *h_pos = strstr(content, "\r\n\r\n");
+            long header_len = h_pos - content + 4;
+            if (h_pos != NULL) {
+                uint64_t len;
+
+                len = header_len;
+                if (write(cnx->fd_out, &len, sizeof(len)) == -1)
+                    return -1;
+                if (write(cnx->fd_out, content, len) == -1)
+                    return -1;
+                cnx->header_sent = 1;
+
+                len = content_len - header_len;
+                if (len > 0) {
+                    if (write(cnx->fd_out, &len, sizeof(len)) == -1)
+                        return -1;
+                    if (write(cnx->fd_out, content + header_len, len) == -1)
+                        return -1;
+                }
+
+                return header.type;
+            }
+        } else if (header.type == FCGI_STDOUT) {
             uint64_t len = content_len;
             if (write(cnx->fd_out, &len, sizeof(len)) == -1)
                 return -1;
@@ -351,7 +381,6 @@ int fastcgi_header(fastcgi_cnx_t *cnx, http_res *res, char *err_msg) {
         return -1;
     }
     long header_len = h_pos - content + 4;
-    // TODO use payload after header in first chunk
 
     for (int i = 0; i < header_len; i++) {
         if ((buf[i] >= 0x00 && buf[i] <= 0x1F && buf[i] != '\r' && buf[i] != '\n') || buf[i] == 0x7F) {
