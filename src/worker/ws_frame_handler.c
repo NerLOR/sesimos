@@ -11,8 +11,10 @@
 #include "../logger.h"
 #include "../lib/websocket.h"
 #include "../workers.h"
+#include "../lib/utils.h"
 
 #include <errno.h>
+#include <string.h>
 
 static int ws_frame_handler(ws_ctx_t *ctx);
 
@@ -32,15 +34,25 @@ void ws_frame_handler_func(ws_ctx_t *ctx) {
 
 int ws_handle_connection(client_ctx_t *ctx) {
     info("Upgrading to WebSocket connection");
+
+    // copy proxy connection details
+    proxy_ctx_t *proxy = malloc(sizeof(proxy_ctx_t));
+    memcpy(proxy, ctx->proxy, sizeof(proxy_ctx_t));
+    ctx->proxy = proxy;
+
+    // free proxy connection slot
+    ctx->proxy->initialized = 0;
+    proxy_unlock_ctx(ctx->proxy);
+
     sock_set_timeout(&ctx->socket, WS_TIMEOUT);
-    sock_set_timeout(&ctx->proxy->proxy, WS_TIMEOUT);
+    sock_set_timeout(&proxy->proxy, WS_TIMEOUT);
 
     ws_ctx_t *a = malloc(sizeof(ws_ctx_t));
     ws_ctx_t *b = malloc(sizeof(ws_ctx_t));
 
     a->other = b,             b->other = a;
     a->client = ctx,          b->client = ctx;
-    a->socket = &ctx->socket, b->socket = &ctx->proxy->proxy;
+    a->socket = &ctx->socket, b->socket = &proxy->proxy;
 
     ws_handle_frame(a);
     ws_handle_frame(b);
@@ -84,11 +96,16 @@ static int ws_frame_handler(ws_ctx_t *ctx) {
 void ws_close(ws_ctx_t *ctx) {
     ws_ctx_t *other = ctx->other;
     if (other) {
+        proxy_ctx_t *proxy = ctx->client->proxy;
         other->other = NULL;
         logger_set_prefix("[%*s]%s", ADDRSTRLEN, ctx->client->socket.s_addr, ctx->client->log_prefix);
-        info("Closing WebSocket connection");
-        proxy_close(ctx->client->proxy);
-        proxy_unlock_ctx(ctx->client->proxy);
+
+        proxy->cnx_e = clock_micros();
+        char buf[32];
+        info("Closing WebSocket connection (%s)", format_duration(proxy->cnx_e - proxy->cnx_s, buf));
+
+        sock_close(&proxy->proxy);
+        free(ctx->client->proxy);
         tcp_close(ctx->client);
     }
     free(ctx);
