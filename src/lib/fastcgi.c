@@ -195,6 +195,7 @@ int fastcgi_init(fastcgi_cnx_t *conn, int mode, unsigned int req_num, const sock
 
     conn->fd_out = pipes[1][1];
     conn->out.socket = pipes[1][0];
+    sock_set_timeout(&conn->out, FASTCGI_TIMEOUT);
 
     conn->fd_err = pipes[0][1];
     conn->err = fdopen(pipes[0][0], "r");

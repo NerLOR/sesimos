@@ -162,6 +162,7 @@ static void fastcgi_error_cb(chunk_ctx_t *ctx) {
 
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, ADDRSTRLEN, ctx->client->req_host, CLR_STR, ctx->client->log_prefix);
 
+    // FIXME segfault on error_cb
     warning("Closing connection due to FastCGI error");
     if(ctx->client->fcgi_ctx) {
         fastcgi_close(ctx->client->fcgi_ctx);

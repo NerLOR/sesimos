@@ -256,7 +256,7 @@ void async_thread(void) {
         min_ts = -1000, cur_ts = clock_micros();
         for (int i = 0; i < list_size(local); i++) {
             evt_listen_t *evt = local[i];
-            if (!evt->socket) continue;
+            if (!evt->socket || evt->socket->timeout_us < 0) continue;
 
             ts = evt->socket->ts_last + evt->socket->timeout_us - cur_ts;
             if (min_ts == -1000 || ts < min_ts) min_ts = ts;
@@ -307,7 +307,7 @@ void async_thread(void) {
             evt_listen_t *evt = local[i];
             if (!evt->socket) continue;
 
-            if ((cur_ts - evt->socket->ts_last) >= evt->socket->timeout_us) {
+            if (evt->socket->timeout_us >= 0 && (cur_ts - evt->socket->ts_last) >= evt->socket->timeout_us) {
                 evt->to_cb(evt->arg);
 
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, evt->fd, NULL) == -1) {
