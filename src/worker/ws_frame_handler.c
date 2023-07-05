@@ -88,6 +88,7 @@ void ws_close(ws_ctx_t *ctx) {
         logger_set_prefix("[%*s]%s", ADDRSTRLEN, ctx->client->socket.s_addr, ctx->client->log_prefix);
         info("Closing WebSocket connection");
         proxy_close(ctx->client->proxy);
+        proxy_unlock_ctx(ctx->client->proxy);
         tcp_close(ctx->client);
     }
     free(ctx);

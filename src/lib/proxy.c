@@ -139,10 +139,9 @@ proxy_ctx_t *proxy_get_by_conf(host_config_t *conf) {
 
 void proxy_unlock_ctx(proxy_ctx_t *ctx) {
     int n = (int) ((ctx - proxies) / MAX_PROXY_CNX_PER_HOST);
-    int was_in_use = ctx->in_use;
     ctx->in_use = 0;
     ctx->client = NULL;
-    if (was_in_use) sem_post(&available[n]);
+    sem_post(&available[n]);
 }
 
 int proxy_request_header(http_req *req, sock *sock) {
