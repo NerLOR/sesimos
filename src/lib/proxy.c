@@ -139,6 +139,7 @@ proxy_ctx_t *proxy_get_by_conf(host_config_t *conf) {
 
 void proxy_unlock_ctx(proxy_ctx_t *ctx) {
     int n = (int) ((ctx - proxies) / MAX_PROXY_CNX_PER_HOST);
+    debug("Released proxy connection slot %i/%i", (ctx - proxies) % MAX_PROXY_CNX_PER_HOST, MAX_PROXY_CNX_PER_HOST);
     ctx->in_use = 0;
     ctx->client = NULL;
     sem_post(&available[n]);
@@ -368,6 +369,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
     *proxy_ptr = proxy_get_by_conf(conf);
     proxy_ctx_t *proxy = *proxy_ptr;
     proxy->client = NULL;
+    debug("Selected proxy connection slot %i/%i",  (proxy - proxies) % MAX_PROXY_CNX_PER_HOST, MAX_PROXY_CNX_PER_HOST);
 
     const char *connection = http_get_header_field(&req->hdr, "Connection");
     if (strcontains(connection, "upgrade") || strcontains(connection, "Upgrade")) {
@@ -585,7 +587,10 @@ void proxy_close(proxy_ctx_t *ctx) {
     }
 
     sock_close(&ctx->proxy);
-
-    memset(ctx, 0, sizeof(*ctx));
+    ctx->initialized = 0;
+    ctx->http_timeout = 0;
+    ctx->cnx_e = 0, ctx->cnx_s = 0;
+    ctx->client = NULL;
+    ctx->host = NULL;
     errno = 0;
 }
