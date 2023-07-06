@@ -19,7 +19,7 @@
 #include "config.h"
 
 typedef struct {
-    unsigned char initialized:1, in_use:1;
+    volatile unsigned char initialized:1, in_use:1;
     sock proxy;
     long cnx_s, cnx_e;
     long http_timeout;
