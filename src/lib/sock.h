@@ -31,7 +31,7 @@ typedef struct {
     char *addr, *s_addr;
     SSL_CTX *ctx;
     SSL *ssl;
-    long ts_start, ts_last, timeout_us;
+    long ts_start, ts_last, ts_last_send, timeout_us;
 } sock;
 
 void sock_error(sock *s, int ret);

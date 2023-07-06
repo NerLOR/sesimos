@@ -86,6 +86,7 @@ int sock_init(sock *s, int fd, int flags) {
     s->pipe = !!(flags & SOCK_PIPE);
     s->ts_start = clock_micros();
     s->ts_last = s->ts_start;
+    s->ts_last_send = s->ts_last;
     s->timeout_us = -1;
     s->ssl = NULL;
     s->addr = NULL;
@@ -224,6 +225,7 @@ long sock_send(sock *s, void *buf, unsigned long len, int flags) {
 
     if (ret >= 0) {
         s->ts_last = clock_micros();
+        s->ts_last_send = s->ts_last;
         return ret;
     } else {
         return -1;

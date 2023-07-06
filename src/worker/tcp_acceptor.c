@@ -84,6 +84,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
             return -1;
         }
         client->ts_last = clock_micros();
+        client->ts_last_send = client->ts_last;
     }
 
     ctx->req_num = 0;
