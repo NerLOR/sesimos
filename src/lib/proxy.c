@@ -315,10 +315,10 @@ static int proxy_connect(proxy_ctx_t *proxy, host_config_t *conf, http_res *res,
 
     int fd;
     if ((fd = sock_connect(conf->proxy.hostname, conf->proxy.port, SERVER_TIMEOUT_INIT, addr_buf, sizeof(addr_buf))) == -1) {
-        if (errno == ETIMEDOUT || errno == EINPROGRESS) {
+        if (errno == ETIMEDOUT || errno == EINPROGRESS || errno == EHOSTDOWN || errno == EHOSTUNREACH || errno == ECONNREFUSED) {
             res->status = http_get_status(504);
             ctx->origin = SERVER_REQ;
-        } else if (errno == ECONNREFUSED) {
+        } else if (errno == ECONNABORTED || errno == ECONNRESET) {
             res->status = http_get_status(502);
             ctx->origin = SERVER_REQ;
         } else {
