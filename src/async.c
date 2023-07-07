@@ -243,7 +243,12 @@ void async_thread(void) {
             ev.events = async_a2e(evt->events);
             ev.data.ptr = evt;
 
-            if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, evt->fd, &ev) == -1) {
+            while (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, evt->fd, &ev) == -1) {
+                if (errno == EEXIST) {
+                    errno = 0;
+                    if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, evt->fd, NULL) != -1)
+                        continue;
+                }
                 critical("Unable to add file descriptor to epoll instance");
                 return;
             }
