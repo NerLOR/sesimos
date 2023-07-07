@@ -559,7 +559,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
     proxy->http_timeout = (keep_alive_timeout > 0) ? keep_alive_timeout * 1000000 : 0;
 
     connection = http_get_header_field(&res->hdr, "Connection");
-    proxy->close = !strcontains(connection, "keep-alive") && !strcontains(connection, "Keep-Alive");
+    proxy->close = !streq(res->version, "1.1") || strcontains(connection, "close") || strcontains(connection, "Close");
 
     ret = proxy_response_header(req, res, conf);
     if (ret != 0) {
