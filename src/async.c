@@ -286,8 +286,8 @@ void async_thread(void) {
             if (async_exec(evt, async_e2a(events[i].events)) == 0) {
                 logger_set_prefix("");
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, evt->fd, NULL) == -1) {
-                    if (errno == EBADF) {
-                        // already closed fd, do not die
+                    if (errno == EBADF || errno == ENOENT) {
+                        // already closed fd or not found, do not die
                         errno = 0;
                     } else {
                         critical("Unable to remove file descriptor from epoll instance");
@@ -316,8 +316,8 @@ void async_thread(void) {
                 evt->to_cb(evt->arg);
 
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, evt->fd, NULL) == -1) {
-                    if (errno == EBADF) {
-                        // already closed fd, do not die
+                    if (errno == EBADF || errno == ENOENT) {
+                        // already closed fd or not found, do not die
                         errno = 0;
                     } else {
                         critical("Unable to remove file descriptor from epoll instance");
