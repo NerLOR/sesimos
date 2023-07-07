@@ -369,7 +369,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
     *proxy_ptr = proxy_get_by_conf(conf);
     proxy_ctx_t *proxy = *proxy_ptr;
     proxy->client = NULL;
-    debug("Selected proxy connection slot %i/%i",  (proxy - proxies) % MAX_PROXY_CNX_PER_HOST, MAX_PROXY_CNX_PER_HOST);
+    debug("Selected proxy connection slot %i/%i", (proxy - proxies) % MAX_PROXY_CNX_PER_HOST, MAX_PROXY_CNX_PER_HOST);
 
     const char *connection = http_get_header_field(&req->hdr, "Connection");
     if (strcontains(connection, "upgrade") || strcontains(connection, "Upgrade")) {

@@ -1,7 +1,7 @@
 /**
  * sesimos - secure, simple, modern web server
  * @brief Proxy handler
- * @file src/worker/proxy_handler_1.c
+ * @file src/worker/proxy_handler.c
  * @author Lorenz Stechauner
  * @date 2022-12-29
  */
