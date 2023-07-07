@@ -139,6 +139,10 @@ proxy_ctx_t *proxy_get_by_conf(host_config_t *conf) {
 
 void proxy_unlock_ctx(proxy_ctx_t *ctx) {
     int n = (int) ((ctx - proxies) / MAX_PROXY_CNX_PER_HOST);
+    if (ctx->close) {
+        proxy_close(ctx);
+        ctx->close = 0;
+    }
     debug("Released proxy connection slot %i/%i", (ctx - proxies) % MAX_PROXY_CNX_PER_HOST, MAX_PROXY_CNX_PER_HOST);
     ctx->in_use = 0;
     ctx->client = NULL;
@@ -400,8 +404,9 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
             return -1;
 
         // honor server timeout with one second buffer
-        if (!proxy->initialized || sock_has_pending(&proxy->proxy, SOCK_DONTWAIT) != 0 || srv_error ||
-           (proxy->http_timeout != 0 && (clock_micros() - proxy->proxy.ts_last_send) >= proxy->http_timeout - 1000000))
+        if (!proxy->initialized || srv_error ||
+            (proxy->http_timeout > 0 && (clock_micros() - proxy->proxy.ts_last_send) >= proxy->http_timeout) ||
+            sock_has_pending(&proxy->proxy, SOCK_DONTWAIT))
         {
             if (proxy->initialized)
                 proxy_close(proxy);
@@ -548,6 +553,9 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
 
     long keep_alive_timeout = http_get_keep_alive_timeout(&res->hdr);
     proxy->http_timeout = (keep_alive_timeout > 0) ? keep_alive_timeout * 1000000 : 0;
+
+    connection = http_get_header_field(&res->hdr, "Connection");
+    proxy->close = !strcontains(connection, "keep-alive") && !strcontains(connection, "Keep-Alive");
 
     ret = proxy_response_header(req, res, conf);
     if (ret != 0) {
