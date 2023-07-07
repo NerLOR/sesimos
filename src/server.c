@@ -190,21 +190,27 @@ static void terminate_gracefully(int sig) {
     sigaction(SIGINT, &act, NULL);
     sigaction(SIGTERM, &act, NULL);
 
+    debug("Closing listening sockets...");
     for (int i = 0; i < NUM_SOCKETS; i++) {
         close(sockets[i]);
     }
 
+    debug("Stopping workers...");
     cache_stop();
     workers_stop();
+    debug("Destroying workers...");
     workers_destroy();
 
     logger_set_prefix("");
+    debug("Closing proxy connections...");
     proxy_close_all();
 
+    debug("Closing client connections...");
     while (list_size(clients) > 0)
         tcp_close(clients[0]);
     logger_set_prefix("");
 
+    debug("Stopping async loop...");
     async_stop();
 }
 
