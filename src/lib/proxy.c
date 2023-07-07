@@ -137,16 +137,20 @@ proxy_ctx_t *proxy_get_by_conf(host_config_t *conf) {
     return NULL;
 }
 
-void proxy_unlock_ctx(proxy_ctx_t *ctx) {
+int proxy_unlock_ctx(proxy_ctx_t *ctx) {
     int n = (int) ((ctx - proxies) / MAX_PROXY_CNX_PER_HOST);
-    if (ctx->close) {
-        proxy_close(ctx);
-        ctx->close = 0;
-    }
+    if (ctx->close) proxy_close(ctx);
+
     debug("Released proxy connection slot %i/%i", (ctx - proxies) % MAX_PROXY_CNX_PER_HOST, MAX_PROXY_CNX_PER_HOST);
     ctx->in_use = 0;
     ctx->client = NULL;
     sem_post(&available[n]);
+    if (!ctx->close) {
+        return 1;
+    } else {
+        ctx->close = 0;
+        return 0;
+    }
 }
 
 int proxy_request_header(http_req *req, sock *sock) {

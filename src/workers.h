@@ -29,6 +29,8 @@ int fastcgi_handle_frame(fastcgi_ctx_t *ctx);
 
 int proxy_handle(client_ctx_t *ctx);
 
+int proxy_peer_handle(proxy_ctx_t *ctx);
+
 int ws_handle_frame(ws_ctx_t *ctx);
 
 int handle_chunk(chunk_ctx_t *ctx);

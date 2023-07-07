@@ -12,6 +12,7 @@
 #include "lib/sock.h"
 
 #define ASYNC_KEEP 1
+#define ASYNC_IGNORE_PENDING 2
 
 #define ASYNC_IN   0x01
 #define ASYNC_PRI  0x02

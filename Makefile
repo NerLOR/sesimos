@@ -59,6 +59,7 @@ bin/res/%.txt: res/%.*
 bin/sesimos: bin/server.o bin/logger.o bin/cache_handler.o bin/async.o bin/workers.o \
              bin/worker/request_handler.o bin/worker/tcp_acceptor.o \
              bin/worker/fastcgi_handler.o bin/worker/local_handler.o bin/worker/proxy_handler.o \
+             bin/worker/proxy_peer_handler.o \
              bin/worker/ws_frame_handler.o bin/worker/chunk_handler.o bin/worker/fastcgi_frame_handler.o \
              bin/lib/http_static.o bin/res/default.o bin/res/proxy.o bin/res/style.o \
              bin/res/icon_error.o bin/res/icon_info.o bin/res/icon_success.o bin/res/icon_warning.o \
@@ -89,6 +90,8 @@ bin/worker/fastcgi_handler.o: src/worker/func.h
 bin/worker/local_handler.o: src/worker/func.h
 
 bin/worker/proxy_handler.o: src/worker/func.h
+
+bin/worker/proxy_peer_handler.o: src/worker/func.h
 
 bin/worker/ws_frame_handler.o: src/worker/func.h
 

@@ -71,6 +71,8 @@ void fastcgi_frame_handler_func(fastcgi_ctx_t *ctx);
 
 void proxy_handler_func(client_ctx_t *ctx);
 
+void proxy_peer_handler_func(proxy_ctx_t *ctx);
+
 void ws_frame_handler_func(ws_ctx_t *ctx);
 
 void chunk_handler_func(chunk_ctx_t *ctx);
