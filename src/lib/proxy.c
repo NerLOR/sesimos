@@ -320,7 +320,7 @@ static int proxy_connect(proxy_ctx_t *proxy, host_config_t *conf, http_res *res,
             ctx->origin = SERVER_REQ;
         } else if (errno == ECONNABORTED || errno == ECONNRESET) {
             res->status = http_get_status(502);
-            ctx->origin = SERVER_REQ;
+            ctx->origin = SERVER_RES;
         } else {
             res->status = http_get_status(500);
             ctx->origin = INTERNAL;
