@@ -245,9 +245,19 @@ void async_thread(void) {
 
             while (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, evt->fd, &ev) == -1) {
                 if (errno == EEXIST) {
+                    // fd already exists, delete old one
                     errno = 0;
                     if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, evt->fd, NULL) != -1)
                         continue;
+                } else if (errno == EBADF) {
+                    // fd probably already closed
+                    errno = 0;
+                    local = list_delete(local, &evt);
+                    if (local == NULL) {
+                        critical("Unable to resize async local list");
+                        return;
+                    }
+                    break;
                 }
                 critical("Unable to add file descriptor to epoll instance");
                 return;
