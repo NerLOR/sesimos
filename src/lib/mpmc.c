@@ -149,6 +149,7 @@ void mpmc_destroy(mpmc_t *ctx) {
     mpmc_stop(ctx);
     for (int i = 0; i < ctx->n_workers; i++) {
         if (ctx->workers[i] == -1) break;
+        debug("Waiting for worker %s/%i to finish...", ctx->name, i);
         pthread_kill(ctx->workers[i], SIGUSR1);
         pthread_join(ctx->workers[i], NULL);
     }
