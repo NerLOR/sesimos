@@ -392,5 +392,6 @@ void timeout_request(client_ctx_t *ctx) {
     ctx->res.status = http_get_status(408);
 
     respond(ctx);
+    request_complete(ctx);
     tcp_close(ctx);
 }
