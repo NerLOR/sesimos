@@ -49,6 +49,13 @@ static short async_a2p(async_evt_t events) {
     if (events & ASYNC_IN)  ret |= POLLIN;
     if (events & ASYNC_PRI) ret |= POLLPRI;
     if (events & ASYNC_OUT) ret |= POLLOUT;
+    if (events & ASYNC_ERR) ret |= POLLERR;
+    if (events & ASYNC_HUP) ret |= POLLHUP;
+    if (events & ASYNC_RDNORM) ret |= POLLRDNORM;
+    if (events & ASYNC_RDBAND) ret |= POLLRDBAND;
+    if (events & ASYNC_WRNORM) ret |= POLLWRNORM;
+    if (events & ASYNC_WRBAND) ret |= POLLWRBAND;
+    if (events & ASYNC_MSG) ret |= POLLMSG;
     return ret;
 }
 
@@ -57,6 +64,13 @@ static unsigned int async_a2e(async_evt_t events) {
     if (events & ASYNC_IN)  ret |= EPOLLIN;
     if (events & ASYNC_PRI) ret |= EPOLLPRI;
     if (events & ASYNC_OUT) ret |= EPOLLOUT;
+    if (events & ASYNC_ERR) ret |= EPOLLERR;
+    if (events & ASYNC_HUP) ret |= EPOLLHUP;
+    if (events & ASYNC_RDNORM) ret |= EPOLLRDNORM;
+    if (events & ASYNC_RDBAND) ret |= EPOLLRDBAND;
+    if (events & ASYNC_WRNORM) ret |= EPOLLWRNORM;
+    if (events & ASYNC_WRBAND) ret |= EPOLLWRBAND;
+    if (events & ASYNC_MSG) ret |= EPOLLMSG;
     return ret;
 }
 
@@ -67,6 +81,11 @@ static async_evt_t async_p2a(short events) {
     if (events & POLLOUT)  ret |= ASYNC_OUT;
     if (events & POLLERR)  ret |= ASYNC_ERR;
     if (events & POLLHUP)  ret |= ASYNC_HUP;
+    if (events & POLLRDNORM) ret |= ASYNC_RDNORM;
+    if (events & POLLRDBAND) ret |= ASYNC_RDBAND;
+    if (events & POLLWRNORM) ret |= ASYNC_WRNORM;
+    if (events & POLLWRBAND) ret |= ASYNC_WRBAND;
+    if (events & POLLMSG) ret |= ASYNC_MSG;
     return ret;
 }
 
@@ -77,7 +96,20 @@ static async_evt_t async_e2a(unsigned int events) {
     if (events & EPOLLOUT)  ret |= ASYNC_OUT;
     if (events & EPOLLERR)  ret |= ASYNC_ERR;
     if (events & EPOLLHUP)  ret |= ASYNC_HUP;
+    if (events & EPOLLRDNORM) ret |= ASYNC_RDNORM;
+    if (events & EPOLLRDBAND) ret |= ASYNC_RDBAND;
+    if (events & EPOLLWRNORM) ret |= ASYNC_WRNORM;
+    if (events & EPOLLWRBAND) ret |= ASYNC_WRBAND;
+    if (events & EPOLLMSG) ret |= ASYNC_MSG;
     return ret;
+}
+
+static short async_e2p(unsigned int events) {
+    return async_a2p(async_e2a(events));
+}
+
+static unsigned int async_p2e(short events) {
+    return async_a2e(async_p2a(events));
 }
 
 static int async_add_to_queue(evt_listen_t *evt) {
@@ -246,11 +278,13 @@ void async_thread(void) {
             while (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, evt->fd, &ev) == -1) {
                 if (errno == EEXIST) {
                     // fd already exists, delete old one
+                    warning("Unable to add file descriptor to epoll instance");
                     errno = 0;
                     if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, evt->fd, NULL) != -1)
                         continue;
                 } else if (errno == EBADF) {
                     // fd probably already closed
+                    warning("Unable to add file descriptor to epoll instance");
                     errno = 0;
                     local = list_delete(local, &evt);
                     if (local == NULL) {
@@ -277,6 +311,7 @@ void async_thread(void) {
             if (min_ts == -1000 || ts < min_ts) min_ts = ts;
         }
 
+        // epoll is used in level-triggered mode, so buffers are taken into account
         if ((num_fds = epoll_wait(epoll_fd, events, ASYNC_MAX_EVENTS, (int) (min_ts / 1000))) == -1) {
             if (errno == EINTR) {
                 // interrupt
@@ -298,6 +333,7 @@ void async_thread(void) {
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, evt->fd, NULL) == -1) {
                     if (errno == EBADF || errno == ENOENT) {
                         // already closed fd or not found, do not die
+                        warning("Unable to remove file descriptor from epoll instance");
                         errno = 0;
                     } else {
                         critical("Unable to remove file descriptor from epoll instance");
@@ -328,6 +364,7 @@ void async_thread(void) {
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, evt->fd, NULL) == -1) {
                     if (errno == EBADF || errno == ENOENT) {
                         // already closed fd or not found, do not die
+                        critical("Unable to remove file descriptor from epoll instance");
                         errno = 0;
                     } else {
                         critical("Unable to remove file descriptor from epoll instance");

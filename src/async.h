@@ -14,11 +14,16 @@
 #define ASYNC_KEEP 1
 #define ASYNC_IGNORE_PENDING 2
 
-#define ASYNC_IN   0x01
-#define ASYNC_PRI  0x02
-#define ASYNC_OUT  0x04
-#define ASYNC_ERR  0x08
-#define ASYNC_HUP  0x10
+#define ASYNC_IN     0x001
+#define ASYNC_PRI    0x002
+#define ASYNC_OUT    0x004
+#define ASYNC_ERR    0x008
+#define ASYNC_HUP    0x010
+#define ASYNC_RDNORM 0x040
+#define ASYNC_RDBAND 0x080
+#define ASYNC_WRNORM 0x100
+#define ASYNC_WRBAND 0x200
+#define ASYNC_MSG    0x400
 
 #define ASYNC_WAIT_READ  ASYNC_IN
 #define ASYNC_WAIT_WRITE ASYNC_OUT
