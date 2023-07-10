@@ -364,7 +364,7 @@ void async_thread(void) {
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, evt->fd, NULL) == -1) {
                     if (errno == EBADF || errno == ENOENT) {
                         // already closed fd or not found, do not die
-                        critical("Unable to remove file descriptor from epoll instance");
+                        warning("Unable to remove file descriptor from epoll instance");
                         errno = 0;
                     } else {
                         critical("Unable to remove file descriptor from epoll instance");
