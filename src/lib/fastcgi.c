@@ -319,6 +319,7 @@ int fastcgi_recv_frame(fastcgi_cnx_t *cnx) {
             cnx->fd_err_bytes += content_len + 1;
         }
         for (long ret, sent = 0; sent < content_len; sent += ret) {
+            // FIXME if pipe is full thread gets stuck
             if ((ret = splice(cnx->socket.socket, 0, fd, 0, content_len - sent, 0)) == -1) {
                 if (errno == EINTR) {
                     errno = 0, ret = 0;
