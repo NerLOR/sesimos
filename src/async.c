@@ -38,7 +38,7 @@ typedef struct {
     evt_listen_t *q[ASYNC_MAX_EVENTS];
 } listen_queue_t;
 
-static listen_queue_t listen1, listen2, *listen_q = &listen1;
+static volatile listen_queue_t listen1, listen2, *listen_q = &listen1;
 static volatile sig_atomic_t alive = 1;
 static pthread_t thread = -1;
 static sem_t lock;
@@ -247,7 +247,7 @@ void async_thread(void) {
     struct epoll_event ev, events[ASYNC_MAX_EVENTS];
     int num_fds;
     long ts, min_ts, cur_ts;
-    listen_queue_t *l;
+    volatile listen_queue_t *l;
     evt_listen_t **local;
 
     if ((local = list_create(sizeof(evt_listen_t *), 16)) == NULL) {
@@ -260,8 +260,18 @@ void async_thread(void) {
     // main event loop
     while (alive) {
         // swap listen queue
+        while (sem_wait(&lock) != 0) {
+            if (errno == EINTR) {
+                errno = 0;
+                continue;
+            } else {
+                critical("Unable to lock async queue");
+                return;
+            }
+        }
         l = listen_q;
         listen_q = (listen_q == &listen1) ? &listen2 : &listen1;
+        sem_post(&lock);
 
         // fill local list and epoll instance with previously added queue entries
         for (int i = 0; i < l->n; i++) {
