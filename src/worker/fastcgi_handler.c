@@ -165,7 +165,7 @@ static void fastcgi_error_cb(chunk_ctx_t *ctx) {
     // FIXME segfault on error_cb
     warning("Closing connection due to FastCGI error");
     if(ctx->client->fcgi_ctx) {
-        fastcgi_close(ctx->client->fcgi_ctx);
+        fastcgi_close_error(ctx->client->fcgi_ctx);
         ctx->client->fcgi_ctx = NULL;
     }
 

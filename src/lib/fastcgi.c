@@ -213,6 +213,8 @@ int fastcgi_close_cnx(fastcgi_cnx_t *cnx) {
     sock_close(&cnx->out);
     if (cnx->fd_err != -1) close(cnx->fd_err);
     if (cnx->fd_out != -1) close(cnx->fd_out);
+    cnx->fd_err = -1;
+    cnx->fd_out = -1;
 
     errno = e;
     return 0;

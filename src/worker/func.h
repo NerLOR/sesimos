@@ -46,7 +46,7 @@ typedef struct {
 } ws_ctx_t;
 
 typedef struct {
-    int closed:2;
+    unsigned char closed:4;
     client_ctx_t *client;
     fastcgi_cnx_t cnx;
 } fastcgi_ctx_t;
@@ -94,5 +94,7 @@ int handle_chunks(client_ctx_t *ctx, sock *socket, int flags, void (*next_cb)(ch
 int fastcgi_handle_connection(client_ctx_t *ctx, fastcgi_cnx_t **cnx);
 
 void fastcgi_close(fastcgi_ctx_t *ctx);
+
+void fastcgi_close_error(fastcgi_ctx_t *ctx);
 
 #endif //SESIMOS_FUNC_H

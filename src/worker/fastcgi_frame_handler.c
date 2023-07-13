@@ -51,10 +51,9 @@ int fastcgi_handle_connection(client_ctx_t *ctx, fastcgi_cnx_t **cnx) {
 }
 
 void fastcgi_close(fastcgi_ctx_t *ctx) {
-    if (ctx->closed == 0) {
-        ctx->closed++;
+    ctx->closed++;
+    if (ctx->closed != 2)
         return;
-    }
 
     logger_set_prefix("[%*s]%s", ADDRSTRLEN, ctx->client->socket.s_addr, ctx->client->log_prefix);
 
@@ -69,4 +68,9 @@ void fastcgi_close(fastcgi_ctx_t *ctx) {
     ctx->client->fcgi_ctx = NULL;
     free(ctx);
     errno = 0;
+}
+
+void fastcgi_close_error(fastcgi_ctx_t *ctx) {
+    logger_set_prefix("[%*s]%s", ADDRSTRLEN, ctx->client->socket.s_addr, ctx->client->log_prefix);
+    fastcgi_close_cnx(&ctx->cnx);
 }
