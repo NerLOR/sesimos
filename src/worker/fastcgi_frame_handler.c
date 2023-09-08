@@ -37,7 +37,7 @@ void fastcgi_frame_handler_func(fastcgi_ctx_t *ctx) {
 
 int fastcgi_handle_connection(client_ctx_t *ctx, fastcgi_cnx_t **cnx) {
     sock_set_timeout(&(*cnx)->socket, FASTCGI_TIMEOUT);
-    sock_set_socket_timeout(&(*cnx)->socket, 1);
+    sock_set_socket_timeout(&(*cnx)->socket, FASTCGI_SOCKET_TIMEOUT);
 
     fastcgi_ctx_t *a = malloc(sizeof(fastcgi_ctx_t));
     a->closed = 0;

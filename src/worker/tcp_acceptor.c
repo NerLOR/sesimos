@@ -67,7 +67,7 @@ static int tcp_acceptor(client_ctx_t *ctx) {
          ctx->host[0] != 0 ? ctx->host : "", ctx->host[0] != 0 ? ") " : "",
          ctx->cc[0] != 0 ? ctx->cc : "N/A");
 
-    if (sock_set_socket_timeout(client, 1) != 0 || sock_set_timeout(client, CLIENT_TIMEOUT) != 0) {
+    if (sock_set_socket_timeout(client, SOCKET_TIMEOUT) != 0 || sock_set_timeout(client, CLIENT_TIMEOUT) != 0) {
         error("Unable to set timeout for socket");
         return -1;
     }

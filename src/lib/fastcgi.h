@@ -13,6 +13,7 @@
 #include "http.h"
 #include "uri.h"
 
+#define FASTCGI_SOCKET_TIMEOUT 1
 #define FASTCGI_TIMEOUT 3600
 
 #define FASTCGI_BACKEND_PHP 1

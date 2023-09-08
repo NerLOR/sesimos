@@ -314,7 +314,7 @@ static int proxy_connect(proxy_ctx_t *proxy, host_config_t *conf, http_res *res,
     info(BLUE_STR "Connecting to " BLD_STR "[%s]:%i" CLR_STR BLUE_STR "...", conf->proxy.hostname, conf->proxy.port);
 
     int fd;
-    if ((fd = sock_connect(conf->proxy.hostname, conf->proxy.port, SERVER_TIMEOUT_INIT, addr_buf, sizeof(addr_buf))) == -1) {
+    if ((fd = sock_connect(conf->proxy.hostname, conf->proxy.port, SERVER_SOCKET_TIMEOUT_INIT, addr_buf, sizeof(addr_buf))) == -1) {
         if (errno == ETIMEDOUT || errno == EINPROGRESS || errno == EHOSTDOWN || errno == EHOSTUNREACH) {
             res->status = http_get_status(504);
             ctx->origin = SERVER_REQ;
@@ -471,6 +471,13 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         return -1;
     }
 
+    if (sock_set_socket_timeout(&proxy->proxy, SERVER_SOCKET_TIMEOUT_RES) != 0) {
+        res->status = http_get_status(500);
+        ctx->origin = INTERNAL;
+        error("Unable to set timeout for reverse proxy socket");
+        return -1;
+    }
+
     ret = sock_recv(&proxy->proxy, buffer, sizeof(buffer) - 1, MSG_PEEK);
     if (ret <= 0) {
         int e_sys = error_get_sys(), e_ssl = error_get_ssl();
@@ -486,6 +493,13 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         return -1;
     }
     buffer[ret] = 0;
+
+    if (sock_set_socket_timeout(&proxy->proxy, SOCKET_TIMEOUT) != 0) {
+        res->status = http_get_status(500);
+        ctx->origin = INTERNAL;
+        error("Unable to set timeout for reverse proxy socket");
+        return -1;
+    }
 
     char *buf = buffer;
     unsigned short header_len = (unsigned short) (strstr(buffer, "\r\n\r\n") - buffer + 4);
