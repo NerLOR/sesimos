@@ -356,11 +356,6 @@ int fastcgi_recv_frame(fastcgi_cnx_t *cnx) {
     return header.type;
 }
 
-long fastcgi_send(fastcgi_cnx_t *cnx, sock *client) {
-    char buf[CHUNK_SIZE];
-    return sock_splice_all(client, &cnx->out, buf, sizeof(buf));
-}
-
 int fastcgi_header(fastcgi_cnx_t *cnx, http_res *res, char *err_msg) {
     long ret, len;
     char content[CLIENT_MAX_HEADER_SIZE];

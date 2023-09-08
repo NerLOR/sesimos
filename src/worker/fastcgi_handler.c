@@ -27,10 +27,8 @@ void fastcgi_handler_func(client_ctx_t *ctx) {
         int ret = fastcgi_handler_1(ctx, &fcgi_cnx);
         respond(ctx);
         if (ret == 0) {
-            switch (fastcgi_handler_2(ctx, fcgi_cnx)) {
-                case 1: return;
-                case 2: break;
-            }
+            fastcgi_handler_2(ctx, fcgi_cnx);
+            return;
         } else if (ctx->fcgi_ctx != NULL) {
             fastcgi_close(ctx->fcgi_ctx);
         }
@@ -176,15 +174,6 @@ static void fastcgi_error_cb(chunk_ctx_t *ctx) {
 
 static int fastcgi_handler_2(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
     int chunked = strcontains(http_get_header_field(&ctx->res.hdr, "Transfer-Encoding"), "chunked");
-
-    if (chunked) {
-        handle_chunks(ctx, &fcgi_cnx->out, SOCK_CHUNKED, fastcgi_next_cb, fastcgi_error_cb);
-        return 1;
-    } else {
-        fastcgi_send(fcgi_cnx, &ctx->socket);
-        fastcgi_close(ctx->fcgi_ctx);
-        ctx->fcgi_ctx = NULL;
-        fastcgi_handle(ctx);
-        return 2;
-    }
+    handle_chunks(ctx, &fcgi_cnx->out, chunked ? SOCK_CHUNKED : 0, fastcgi_next_cb, fastcgi_error_cb);
+    return 1;
 }
