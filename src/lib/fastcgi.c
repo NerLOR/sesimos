@@ -231,6 +231,7 @@ int fastcgi_php_error(fastcgi_cnx_t *cnx, char *err_msg) {
 
     log_lvl_t msg_type = LOG_INFO;
 
+    // FIXME php fastcgi sends multiple calls with '; ' as delimiter
     for (long ret; cnx->fd_err_bytes > 0 && (ret = getline(&line, &line_len, cnx->err)) != -1; cnx->fd_err_bytes -= ret) {
         if (ret > 0) line[ret - 1] = 0;
         line_ptr = line;
