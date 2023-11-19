@@ -235,7 +235,7 @@ long sock_send(sock *s, void *buf, unsigned long len, int flags) {
 long sock_send_x(sock *s, void *buf, unsigned long len, int flags) {
     for (long ret, sent = 0; sent < len; sent += ret) {
         if ((ret = sock_send(s, (unsigned char *) buf + sent, len - sent, flags)) <= 0) {
-            if (errno == EINTR) {
+            if (errno == EINTR || errno == EAGAIN) {
                 errno = 0, ret = 0;
                 continue;
             } else {
@@ -278,7 +278,7 @@ long sock_recv(sock *s, void *buf, unsigned long len, int flags) {
 long sock_recv_x(sock *s, void *buf, unsigned long len, int flags) {
     for (long ret, rcv = 0; rcv < len; rcv += ret) {
         if ((ret = sock_recv(s, (unsigned char *) buf + rcv, len - rcv, flags | MSG_WAITALL)) <= 0) {
-            if (errno == EINTR) {
+            if (errno == EINTR || errno == EAGAIN) {
                 errno = 0, ret = 0;
                 continue;
             } else {
@@ -295,7 +295,7 @@ long sock_splice(sock *dst, sock *src, void *buf, unsigned long buf_len, unsigne
     if ((src->pipe || dst->pipe) && !src->enc && !dst->enc) {
         for (long ret; send_len < len; send_len += ret) {
             if ((ret = splice(src->socket, 0, dst->socket, 0, len, 0)) == -1) {
-                if (errno == EINTR) {
+                if (errno == EINTR || errno == EAGAIN) {
                     errno = 0, ret = 0;
                     continue;
                 } else {
@@ -308,7 +308,7 @@ long sock_splice(sock *dst, sock *src, void *buf, unsigned long buf_len, unsigne
             next_len = (long) ((buf_len < (len - send_len)) ? buf_len : (len - send_len));
 
             if ((ret = sock_recv(src, buf, next_len, MSG_WAITALL)) <= 0) {
-                if (errno == EINTR) {
+                if (errno == EINTR || errno == EAGAIN) {
                     errno = 0, ret = 0;
                     continue;
                 } else {
@@ -328,7 +328,7 @@ long sock_splice_all(sock *dst, sock *src, void *buf, unsigned long buf_len) {
     long send_len = 0;
     for (long ret;; send_len += ret) {
         if ((ret = sock_recv(src, buf, buf_len, 0)) <= 0) {
-            if (errno == EINTR) {
+            if (errno == EINTR || errno == EAGAIN) {
                 errno = 0, ret = 0;
                 continue;
             } else if (ret == 0) {
@@ -419,7 +419,7 @@ long sock_recv_chunk_header(sock *s) {
 
     do {
         if ((ret = sock_recv(s, buf, sizeof(buf) - 1, MSG_PEEK)) <= 0) {
-            if (errno == EINTR) {
+            if (errno == EINTR || errno == EAGAIN) {
                 errno = 0;
                 continue;
             } else {
