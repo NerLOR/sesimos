@@ -38,11 +38,11 @@ int ws_handle_connection(client_ctx_t *ctx) {
     // copy proxy connection details
     proxy_ctx_t *proxy = malloc(sizeof(proxy_ctx_t));
     memcpy(proxy, ctx->proxy, sizeof(proxy_ctx_t));
-    ctx->proxy = proxy;
 
     // free proxy connection slot
     ctx->proxy->initialized = 0;
     proxy_unlock_ctx(ctx->proxy);
+    ctx->proxy = proxy;
 
     sock_set_timeout(&ctx->socket, WS_TIMEOUT);
     sock_set_timeout(&proxy->proxy, WS_TIMEOUT);
