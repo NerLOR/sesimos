@@ -150,6 +150,7 @@ int mime_is_text(const char *restrict type) {
         streq(type_parsed, "application/javascript") ||
         streq(type_parsed, "application/json") ||
         streq(type_parsed, "application/xml") ||
+        streq(type_parsed, "application/sql") ||
         streq(type_parsed, "application/x-www-form-urlencoded") ||
         streq(type_parsed, "application/x-tex") ||
         streq(type_parsed, "application/x-httpd-php") ||
