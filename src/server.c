@@ -326,7 +326,7 @@ int main(int argc, char *const argv[]) {
         SSL_CTX_set_options(ctx, SSL_OP_SINGLE_DH_USE);
         SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
         SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
-        SSL_CTX_set_mode(ctx, SSL_MODE_ENABLE_PARTIAL_WRITE);
+        SSL_CTX_set_mode(ctx, SSL_MODE_ENABLE_PARTIAL_WRITE | SSL_MODE_AUTO_RETRY);
         SSL_CTX_set_cipher_list(ctx, "HIGH:!aNULL:!kRSA:!PSK:!SRP:!MD5:!RC4");
         SSL_CTX_set_ecdh_auto(ctx, 1);
         SSL_CTX_set_tlsext_servername_callback(ctx, ssl_servername_cb);
