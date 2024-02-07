@@ -155,97 +155,97 @@ static int local_handler(client_ctx_t *ctx) {
         return 0;
     }
 
-    if (uri->is_static) {
-        res->status = http_get_status(200);
-        cache_init_uri(ctx->conf->cache, uri);
-
-        http_add_header_field(&res->hdr, "Accept-Ranges", mime_is_text(uri->meta->type) ? "bytes, lines" : "bytes");
-
-        if (!streq(req->method, "GET") && !streq(req->method, "HEAD")) {
-            res->status = http_get_status(405);
-            return 0;
-        }
-
-        if (http_get_header_field(&req->hdr, "Content-Length") != NULL || http_get_header_field(&req->hdr, "Transfer-Encoding") != NULL) {
-            res->status = http_get_status(400);
-            sprintf(err_msg, "A GET request must not contain a payload");
-            return 0;
-        }
-
-        const char *last_modified = http_format_date(uri->meta->mtime, buf1, sizeof(buf1));
-        http_add_header_field(&res->hdr, "Last-Modified", last_modified);
-        sprintf(buf2, "%s; charset=%s", uri->meta->type, uri->meta->charset);
-        http_add_header_field(&res->hdr, "Content-Type", buf2);
-
-        const char *accept_encoding = http_get_header_field(&req->hdr, "Accept-Encoding");
-        int enc = 0;
-        if (accept_encoding != NULL) {
-            if (uri->meta->filename_comp_br[0] != 0 && strcontains(accept_encoding, "br")) {
-                ctx->file = fopen(uri->meta->filename_comp_br, "rb");
-                if (ctx->file == NULL) {
-                    cache_mark_dirty(ctx->conf->cache, uri->filename);
-                    errno = 0;
-                } else {
-                    http_add_header_field(&res->hdr, "Content-Encoding", "br");
-                    enc = COMPRESS_BR;
-                }
-            } else if (uri->meta->filename_comp_gz[0] != 0 && strcontains(accept_encoding, "gzip")) {
-                ctx->file = fopen(uri->meta->filename_comp_gz, "rb");
-                if (ctx->file == NULL) {
-                    cache_mark_dirty(ctx->conf->cache, uri->filename);
-                    errno = 0;
-                } else {
-                    http_add_header_field(&res->hdr, "Content-Encoding", "gzip");
-                    enc = COMPRESS_GZ;
-                }
-            }
-            if (enc != 0) {
-                http_add_header_field(&res->hdr, "Vary", "Accept-Encoding");
-            }
-        }
-
-        if (uri->meta->etag[0] != 0) {
-            strcpy(buf1, uri->meta->etag);
-            if (enc) {
-                strcat(buf1, "-");
-                strcat(buf1, (enc & COMPRESS_BR) ? "br" : (enc & COMPRESS_GZ) ? "gzip" : "");
-            }
-            http_add_header_field(&res->hdr, "ETag", buf1);
-        }
-
-        http_add_header_field(&res->hdr, "Cache-Control", mime_is_text(uri->meta->type) ? "public, max-age=3600" : "public, max-age=86400");
-
-        const char *if_modified_since = http_get_header_field(&req->hdr, "If-Modified-Since");
-        const char *if_none_match = http_get_header_field(&req->hdr, "If-None-Match");
-        if ((if_none_match != NULL && !strcontains(if_none_match, uri->meta->etag)) ||
-            (accept_if_modified_since && streq(if_modified_since, last_modified)))
-        {
-            res->status = http_get_status(304);
-            return 0;
-        }
-
-        if (http_get_header_field(&req->hdr, "Range") != NULL) {
-            if (range_handler(ctx) == 0) {
-                res->status = http_get_status(206);
-            } else {
-                if (ctx->file) {
-                    fclose(ctx->file);
-                    ctx->file = NULL;
-                }
-                http_remove_header_field(&res->hdr, "Content-Type", HTTP_REMOVE_ALL);
-                http_remove_header_field(&res->hdr, "Last-Modified", HTTP_REMOVE_ALL);
-                http_remove_header_field(&res->hdr, "ETag", HTTP_REMOVE_ALL);
-                http_remove_header_field(&res->hdr, "Cache-Control", HTTP_REMOVE_ALL);
-                res->status = http_get_status(416);
-            }
-            return 0;
-        }
-
-        if (ctx->file == NULL) ctx->file = fopen(uri->filename, "rb");
-        ctx->content_length = fsize(ctx->file);
-    } else {
+    if (!uri->is_static) {
         return 1;
     }
+
+    res->status = http_get_status(200);
+    cache_init_uri(ctx->conf->cache, uri);
+
+    http_add_header_field(&res->hdr, "Accept-Ranges", mime_is_text(uri->meta->type) ? "bytes, lines" : "bytes");
+
+    if (!streq(req->method, "GET") && !streq(req->method, "HEAD")) {
+        res->status = http_get_status(405);
+        return 0;
+    }
+
+    if (http_get_header_field(&req->hdr, "Content-Length") != NULL || http_get_header_field(&req->hdr, "Transfer-Encoding") != NULL) {
+        res->status = http_get_status(400);
+        sprintf(err_msg, "A GET request must not contain a payload");
+        return 0;
+    }
+
+    const char *last_modified = http_format_date(uri->meta->mtime, buf1, sizeof(buf1));
+    http_add_header_field(&res->hdr, "Last-Modified", last_modified);
+    sprintf(buf2, "%s; charset=%s", uri->meta->type, uri->meta->charset);
+    http_add_header_field(&res->hdr, "Content-Type", buf2);
+
+    const char *accept_encoding = http_get_header_field(&req->hdr, "Accept-Encoding");
+    int enc = 0;
+    if (accept_encoding != NULL) {
+        if (uri->meta->filename_comp_br[0] != 0 && strcontains(accept_encoding, "br")) {
+            ctx->file = fopen(uri->meta->filename_comp_br, "rb");
+            if (ctx->file == NULL) {
+                cache_mark_dirty(ctx->conf->cache, uri->filename);
+                errno = 0;
+            } else {
+                http_add_header_field(&res->hdr, "Content-Encoding", "br");
+                enc = COMPRESS_BR;
+            }
+        } else if (uri->meta->filename_comp_gz[0] != 0 && strcontains(accept_encoding, "gzip")) {
+            ctx->file = fopen(uri->meta->filename_comp_gz, "rb");
+            if (ctx->file == NULL) {
+                cache_mark_dirty(ctx->conf->cache, uri->filename);
+                errno = 0;
+            } else {
+                http_add_header_field(&res->hdr, "Content-Encoding", "gzip");
+                enc = COMPRESS_GZ;
+            }
+        }
+        if (enc != 0) {
+            http_add_header_field(&res->hdr, "Vary", "Accept-Encoding");
+        }
+    }
+
+    if (uri->meta->etag[0] != 0) {
+        strcpy(buf1, uri->meta->etag);
+        if (enc) {
+            strcat(buf1, "-");
+            strcat(buf1, (enc & COMPRESS_BR) ? "br" : (enc & COMPRESS_GZ) ? "gzip" : "");
+        }
+        http_add_header_field(&res->hdr, "ETag", buf1);
+    }
+
+    http_add_header_field(&res->hdr, "Cache-Control", mime_is_text(uri->meta->type) ? "public, max-age=3600" : "public, max-age=86400");
+
+    const char *if_modified_since = http_get_header_field(&req->hdr, "If-Modified-Since");
+    const char *if_none_match = http_get_header_field(&req->hdr, "If-None-Match");
+    if ((if_none_match != NULL && !strcontains(if_none_match, uri->meta->etag)) ||
+        (accept_if_modified_since && streq(if_modified_since, last_modified)))
+    {
+        res->status = http_get_status(304);
+        return 0;
+    }
+
+    if (http_get_header_field(&req->hdr, "Range") != NULL) {
+        if (range_handler(ctx) == 0) {
+            res->status = http_get_status(206);
+        } else {
+            if (ctx->file) {
+                fclose(ctx->file);
+                ctx->file = NULL;
+            }
+            http_remove_header_field(&res->hdr, "Content-Type", HTTP_REMOVE_ALL);
+            http_remove_header_field(&res->hdr, "Last-Modified", HTTP_REMOVE_ALL);
+            http_remove_header_field(&res->hdr, "ETag", HTTP_REMOVE_ALL);
+            http_remove_header_field(&res->hdr, "Cache-Control", HTTP_REMOVE_ALL);
+            res->status = http_get_status(416);
+        }
+        return 0;
+    }
+
+    if (ctx->file == NULL) ctx->file = fopen(uri->filename, "rb");
+    ctx->content_length = fsize(ctx->file);
 
     return 0;
 }
