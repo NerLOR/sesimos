@@ -160,7 +160,7 @@ static int local_handler(client_ctx_t *ctx) {
     }
 
     const char *client_expect = http_get_header_field(&req->hdr, "Expect");
-    if (client_expect != NULL) {
+    if (client_expect != NULL && strcasecmp(client_expect, "100-continue") != 0) {
         res->status = http_get_status(417);
         return 0;
     }
