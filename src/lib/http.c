@@ -387,6 +387,14 @@ int http_send_request(sock *server, http_req *req) {
     return 0;
 }
 
+int http_send_100_continue(sock *client) {
+    char buf[256];
+    char date_buf[64];
+    int size = sprintf(buf, "HTTP/1.1 100 Continue\r\nDate: %s\r\nServer: " SERVER_STR "\r\n\r\n",
+                       http_get_date(date_buf, sizeof(date_buf)));
+    return sock_send_x(client, buf, size, 0) == -1 ? -1 : 0;
+}
+
 const http_status *http_get_status(status_code_t status_code) {
     for (int i = 0; i < http_statuses_size; i++) {
         if (http_statuses[i].code == status_code) {

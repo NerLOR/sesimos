@@ -159,6 +159,12 @@ static int local_handler(client_ctx_t *ctx) {
         return 1;
     }
 
+    const char *client_expect = http_get_header_field(&req->hdr, "Expect");
+    if (client_expect != NULL) {
+        res->status = http_get_status(417);
+        return 0;
+    }
+
     res->status = http_get_status(200);
     cache_init_uri(ctx->conf->cache, uri);
 

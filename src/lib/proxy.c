@@ -440,35 +440,74 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         break;
     }
 
-    const char *content_length = http_get_header_field(&req->hdr, "Content-Length");
-    unsigned long content_len = content_length != NULL ? strtoul(content_length, NULL, 10) : 0;
-    const char *transfer_encoding = http_get_header_field(&req->hdr, "Transfer-Encoding");
-
-    ret = 0;
-    if (content_len > 0) {
-        ret = sock_splice(&proxy->proxy, client, buffer, sizeof(buffer), content_len);
-    } else if (strcontains(transfer_encoding, "chunked")) {
-        ret = sock_splice_chunked(&proxy->proxy, client, buffer, sizeof(buffer), SOCK_CHUNKED);
-    }
-
-    if (ret < 0 || (content_len != 0 && ret != content_len)) {
-        if (ret == -1 && errno != EPROTO) {
-            res->status = http_get_status(502);
-            ctx->origin = SERVER_REQ;
-            error("Unable to send request to server (2)");
-            sprintf(err_msg, "Unable to send request to server: %s.", error_str(errno, err_buf, sizeof(err_buf)));
-            return -1;
-        } else if (ret == -1) {
-            res->status = http_get_status(400);
-            ctx->origin = CLIENT_REQ;
-            error("Unable to receive request from client");
-            sprintf(err_msg, "Unable to receive request from client: %s.", error_str(errno, err_buf, sizeof(err_buf)));
+    const char *client_expect = http_get_header_field(&req->hdr, "Expect");
+    int expect_100_continue = (client_expect != NULL && strcasecmp(client_expect, "100-continue") == 0);
+    int ignore_content = 0;
+    if (expect_100_continue) {
+        http_res tmp_res = {
+            .version = "1.1",
+            .status = http_get_status(501),
+        };
+        if (http_init_hdr(&tmp_res.hdr) != 0) {
+            res->status = http_get_status(500);
+            ctx->origin = INTERNAL;
+            error("Unable to initialize http header");
             return -1;
         }
-        res->status = http_get_status(500);
-        ctx->origin = INTERNAL;
-        error("Unknown Error");
-        return -1;
+
+        ret = proxy_peek_response(proxy, &tmp_res, ctx, custom_status, err_msg);
+        if (ret < 0)
+            return (int) ret;
+
+        if (tmp_res.status->code == 100) {
+            if (sock_recv_x(&proxy->proxy, buffer, ret, 0) == -1) {
+                res->status = http_get_status(502);
+                ctx->origin = SERVER_RES;
+                error("Unable to receive from server");
+                return -1;
+            }
+            if (http_send_response(client, &tmp_res) != 0) {
+                res->status = http_get_status(400);
+                ctx->origin = CLIENT_RES;
+                error("Unable to send to client");
+                return -1;
+            }
+        } else {
+            ignore_content = 1;
+        }
+    }
+
+    if (!ignore_content) {
+        const char *content_length = http_get_header_field(&req->hdr, "Content-Length");
+        unsigned long content_len = content_length != NULL ? strtoul(content_length, NULL, 10) : 0;
+        const char *transfer_encoding = http_get_header_field(&req->hdr, "Transfer-Encoding");
+
+        ret = 0;
+        if (content_len > 0) {
+            ret = sock_splice(&proxy->proxy, client, buffer, sizeof(buffer), content_len);
+        } else if (strcontains(transfer_encoding, "chunked")) {
+            ret = sock_splice_chunked(&proxy->proxy, client, buffer, sizeof(buffer), SOCK_CHUNKED);
+        }
+
+        if (ret < 0 || (content_len != 0 && ret != content_len)) {
+            if (ret == -1 && errno != EPROTO) {
+                res->status = http_get_status(502);
+                ctx->origin = SERVER_REQ;
+                error("Unable to send request to server (2)");
+                sprintf(err_msg, "Unable to send request to server: %s.", error_str(errno, err_buf, sizeof(err_buf)));
+                return -1;
+            } else if (ret == -1) {
+                res->status = http_get_status(400);
+                ctx->origin = CLIENT_REQ;
+                error("Unable to receive request from client");
+                sprintf(err_msg, "Unable to receive request from client: %s.", error_str(errno, err_buf, sizeof(err_buf)));
+                return -1;
+            }
+            res->status = http_get_status(500);
+            ctx->origin = INTERNAL;
+            error("Unknown Error");
+            return -1;
+        }
     }
 
     if (sock_set_socket_timeout(&proxy->proxy, SERVER_SOCKET_TIMEOUT_RES) != 0) {
@@ -477,6 +516,48 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         error("Unable to set timeout for reverse proxy socket");
         return -1;
     }
+
+    while (1) {
+        ret = proxy_peek_response(proxy, res, ctx, custom_status, err_msg);
+        if (ret < 0) {
+            return (int) ret;
+        } else if (sock_recv_x(&proxy->proxy, buffer, ret, 0) == -1) {
+            res->status = http_get_status(502);
+            ctx->origin = SERVER_RES;
+            error("Unable to receive from server");
+            return -1;
+        }
+        if (res->status->code == 100) {
+            if (http_send_response(client, res) != 0) {
+                res->status = http_get_status(400);
+                ctx->origin = CLIENT_RES;
+                error("Unable to send to client");
+                return -1;
+            }
+        } else {
+            break;
+        }
+    }
+
+    long keep_alive_timeout = http_get_keep_alive_timeout(&res->hdr);
+    proxy->http_timeout = (keep_alive_timeout > 0) ? keep_alive_timeout * 1000000 : 0;
+
+    connection = http_get_header_field(&res->hdr, "Connection");
+    proxy->close = !streq(res->version, "1.1") || strcontains(connection, "close") || strcontains(connection, "Close");
+
+    ret = proxy_response_header(req, res, conf);
+    if (ret != 0) {
+        res->status = http_get_status(500);
+        ctx->origin = INTERNAL;
+        return -1;
+    }
+
+    return 0;
+}
+
+int proxy_peek_response(proxy_ctx_t *proxy, http_res *res, http_status_ctx *ctx, http_status *custom_status, char *err_msg) {
+    char buffer[CHUNK_SIZE], err_buf[256];
+    long ret;
 
     ret = sock_recv(&proxy->proxy, buffer, sizeof(buffer) - 1, MSG_PEEK);
     if (ret <= 0) {
@@ -569,23 +650,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         }
         ptr = pos0 + 2;
     }
-    if (sock_recv_x(&proxy->proxy, buffer, header_len, 0) == -1)
-        return -1;
-
-    long keep_alive_timeout = http_get_keep_alive_timeout(&res->hdr);
-    proxy->http_timeout = (keep_alive_timeout > 0) ? keep_alive_timeout * 1000000 : 0;
-
-    connection = http_get_header_field(&res->hdr, "Connection");
-    proxy->close = !streq(res->version, "1.1") || strcontains(connection, "close") || strcontains(connection, "Close");
-
-    ret = proxy_response_header(req, res, conf);
-    if (ret != 0) {
-        res->status = http_get_status(500);
-        ctx->origin = INTERNAL;
-        return -1;
-    }
-
-    return 0;
+    return header_len;
 }
 
 int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int flags) {

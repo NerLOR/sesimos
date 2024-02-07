@@ -174,6 +174,8 @@ int http_send_response(sock *client, http_res *res);
 
 int http_send_request(sock *server, http_req *req);
 
+int http_send_100_continue(sock *client);
+
 const http_status *http_get_status(status_code_t status_code);
 
 const http_status_msg *http_get_error_msg(status_code_t status_code);

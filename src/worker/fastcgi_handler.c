@@ -77,13 +77,32 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
     (*fcgi_cnx) = &fcgi_cnx_buf;
     fastcgi_handle_connection(ctx, fcgi_cnx);
 
+    int expect_100_continue = 0;
+    const char *client_expect = http_get_header_field(&req->hdr, "Expect");
+    if (client_expect != NULL && strcasecmp(client_expect, "100-continue") == 0) {
+        expect_100_continue = 1;
+    } else if (client_expect != NULL) {
+        fastcgi_close_cnx((&fcgi_cnx_buf));
+        res->status = http_get_status(417);
+        return 3;
+    }
     const char *client_content_length = http_get_header_field(&req->hdr, "Content-Length");
     const char *client_transfer_encoding = http_get_header_field(&req->hdr, "Transfer-Encoding");
     if (client_content_length != NULL) {
+        if (expect_100_continue) {
+            http_send_100_continue(client);
+        }
         unsigned long client_content_len = strtoul(client_content_length, NULL, 10);
         ret = fastcgi_receive(*fcgi_cnx, client, client_content_len);
     } else if (strcontains(client_transfer_encoding, "chunked")) {
+        if (expect_100_continue) {
+            http_send_100_continue(client);
+        }
         ret = fastcgi_receive_chunked(*fcgi_cnx, client);
+    } else if (expect_100_continue) {
+        fastcgi_close_cnx((&fcgi_cnx_buf));
+        res->status = http_get_status(417);
+        return 3;
     } else {
         ret = 0;
     }

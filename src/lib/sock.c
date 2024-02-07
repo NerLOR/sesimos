@@ -211,15 +211,8 @@ long sock_send(sock *s, void *buf, unsigned long len, int flags) {
 
     long ret;
     if (s->enc) {
-        while (1) {
-            ret = SSL_write(s->ssl, buf, (int) len);
-            if (ret <= 0) {
-                sock_error(s, (int) ret);
-                if (error_get_ssl() == SSL_ERROR_WANT_WRITE)
-                    continue;
-            }
-            break;
-        }
+        ret = SSL_write(s->ssl, buf, (int) len);
+        if (ret <= 0) sock_error(s, (int) ret);
     } else if (s->pipe) {
         if (flags & ~MSG_MORE) {
             errno = EINVAL;
@@ -262,15 +255,8 @@ long sock_recv(sock *s, void *buf, unsigned long len, int flags) {
     long ret;
     if (s->enc) {
         int (*func)(SSL *, void *, int) = (flags & MSG_PEEK) ? SSL_peek : SSL_read;
-        while (1) {
-            ret = func(s->ssl, buf, (int) len);
-            if (ret <= 0)  {
-                sock_error(s, (int) ret);
-                if (error_get_ssl() == SSL_ERROR_WANT_READ)
-                    continue;
-            }
-            break;
-        }
+        ret = func(s->ssl, buf, (int) len);
+        if (ret <= 0) sock_error(s, (int) ret);
     } else  if (s->pipe) {
         if (flags & ~MSG_WAITALL) {
             errno = EINVAL;
