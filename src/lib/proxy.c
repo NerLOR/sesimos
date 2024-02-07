@@ -456,6 +456,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         }
 
         ret = proxy_peek_response(proxy, &tmp_res, ctx, custom_status, err_msg);
+        http_free_hdr(&tmp_res.hdr);
         if (ret < 0)
             return (int) ret;
 
@@ -466,6 +467,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
                 error("Unable to receive from server");
                 return -1;
             }
+            info("%s -> %03i %s%s", http_get_status_color(tmp_res.status->code), tmp_res.status->code, tmp_res.status->msg, CLR_STR);
             if (http_send_response(client, &tmp_res) != 0) {
                 res->status = http_get_status(400);
                 ctx->origin = CLIENT_RES;
@@ -528,6 +530,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
             return -1;
         }
         if (res->status->code == 100) {
+            info("%s -> %03i %s%s", http_get_status_color(res->status->code), res->status->code, res->status->msg, CLR_STR);
             if (http_send_response(client, res) != 0) {
                 res->status = http_get_status(400);
                 ctx->origin = CLIENT_RES;

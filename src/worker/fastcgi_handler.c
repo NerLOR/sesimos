@@ -90,12 +90,14 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
     const char *client_transfer_encoding = http_get_header_field(&req->hdr, "Transfer-Encoding");
     if (client_content_length != NULL) {
         if (expect_100_continue) {
+            info(HTTP_COLOR_SUCCESS "100 Continue" CLR_STR);
             http_send_100_continue(client);
         }
         unsigned long client_content_len = strtoul(client_content_length, NULL, 10);
         ret = fastcgi_receive(*fcgi_cnx, client, client_content_len);
     } else if (strcontains(client_transfer_encoding, "chunked")) {
         if (expect_100_continue) {
+            info(HTTP_COLOR_SUCCESS "100 Continue" CLR_STR);
             http_send_100_continue(client);
         }
         ret = fastcgi_receive_chunked(*fcgi_cnx, client);
