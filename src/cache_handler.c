@@ -75,6 +75,10 @@ static void magic_mime_type(const char *restrict filename, char *buf) {
             strcpy(buf, "application/javascript");
             sem_post(&sem_magic);
             return;
+        } else if (strends(filename, ".xhtml")) {
+            strcpy(buf, "application/xhtml+xml");
+            sem_post(&sem_magic);
+            return;
         }
     }
 

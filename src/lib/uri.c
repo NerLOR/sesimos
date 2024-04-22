@@ -111,8 +111,10 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
         if (p_len < 0 || p_len >= sizeof(buf1)) return -1;
         p_len = snprintf(buf2, sizeof(buf2), "%s.html", buf0);
         if (p_len < 0 || p_len >= sizeof(buf2)) return -1;
+        p_len = snprintf(buf3, sizeof(buf3), "%s.xhtml", buf0);
+        if (p_len < 0 || p_len >= sizeof(buf3)) return -1;
 
-        if (strlen(uri->path) <= 1 || path_exists(buf0) || path_is_file(buf1) || path_is_file(buf2))
+        if (strlen(uri->path) <= 1 || path_exists(buf0) || path_is_file(buf1) || path_is_file(buf2) || path_is_file(buf3))
             break;
 
         char *ptr;
@@ -137,20 +139,25 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
             uri->is_static = 0;
         } else if (strends(uri->path, ".html")) {
             uri->path[len - 5] = 0;
+        } else if (strends(uri->path, ".xhtml")) {
+            uri->path[len - 6] = 0;
         }
     } else if (path_is_file(buf1)) {
         uri->is_static = 0;
         uri->filename = malloc(strlen(buf1) + 1);
         strcpy(uri->filename, buf1);
     } else if (path_is_file(buf2)) {
-        uri->is_static = 0;
         uri->filename = malloc(strlen(buf2) + 1);
         strcpy(uri->filename, buf2);
+    } else if (path_is_file(buf3)) {
+        uri->filename = malloc(strlen(buf3) + 1);
+        strcpy(uri->filename, buf3);
     } else {
         uri->is_dir = 1;
         strcpy(uri->path + strlen(uri->path), "/");
         sprintf(buf1, "%s%s" "index.php", uri->webroot, uri->path);
         sprintf(buf2, "%s%s" "index.html", uri->webroot, uri->path);
+        sprintf(buf3, "%s%s" "index.xhtml", uri->webroot, uri->path);
         if (path_is_file(buf1)) {
             uri->filename = malloc(strlen(buf1) + 1);
             strcpy(uri->filename, buf1);
@@ -158,6 +165,9 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
         } else if (path_is_file(buf2)) {
             uri->filename = malloc(strlen(buf2) + 1);
             strcpy(uri->filename, buf2);
+        } else if (path_is_file(buf3)) {
+            uri->filename = malloc(strlen(buf3) + 1);
+            strcpy(uri->filename, buf3);
         } else {
             if (dir_mode == URI_DIR_MODE_FORBIDDEN) {
                 uri->is_static = 1;
@@ -177,7 +187,7 @@ int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mo
     if (strends(uri->path + strlen(uri->path), "index"))
         uri->path[strlen(uri->path) - 5] = 0;
 
-    if (streq(uri->pathinfo, "index.php") || streq(uri->pathinfo, "index.html"))
+    if (streq(uri->pathinfo, "index.php") || streq(uri->pathinfo, "index.html") || streq(uri->pathinfo, "index.xhtml"))
         uri->pathinfo[0] = 0;
 
     sprintf(buf0, "%s%s%s%s%s", uri->path,
