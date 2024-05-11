@@ -92,7 +92,8 @@ static int proxy_handler_1(client_ctx_t *ctx) {
         const char *content_type = http_get_header_field(&res->hdr, "Content-Type");
         const char *content_length_f = http_get_header_field(&res->hdr, "Content-Length");
         const char *content_encoding = http_get_header_field(&res->hdr, "Content-Encoding");
-        if (content_encoding == NULL && (
+        const char *transfer_encoding = http_get_header_field(&res->hdr, "Transfer-Encoding");
+        if (transfer_encoding == NULL && content_encoding == NULL && (
                 content_length_f == NULL ||
                 streq(content_length_f, "0") ||
                 (content_length_f != NULL && strstarts(content_type, "text/html"))))
