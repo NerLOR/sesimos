@@ -19,6 +19,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <unistd.h>
+#include <openssl/ssl.h>
 
 #define ASYNC_MAX_EVENTS 16
 
@@ -167,6 +168,11 @@ static int async_check(evt_listen_t *evt) {
     }};
 
     // check, if fd is already ready
+    if (evt->events & ASYNC_IN && evt->socket && evt->socket->enc && SSL_pending(evt->socket->ssl) > 0) {
+        // ssl layer already ready
+        if (async_exec(evt, ASYNC_IN) == 0)
+            return 1;
+    }
     switch (poll(fds, 1, 0)) {
         case 1:
             // fd already ready
