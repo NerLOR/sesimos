@@ -40,6 +40,8 @@ static SSL_CTX *contexts[CONFIG_MAX_CERT_CONFIG];
 static client_ctx_t **clients;
 static sem_t sem_clients_lock;
 
+static void terminate_gracefully(int sig);
+
 static void clean(void) {
     notice("Cleaning sesimos cache and metadata files...");
 
@@ -121,7 +123,7 @@ static void accept_cb(void *arg) {
     client_ctx_t *client_ctx = malloc(sizeof(client_ctx_t));
     if (client_ctx == NULL) {
         critical("Unable to allocate memory for client context");
-        errno = 0;
+        terminate_gracefully(0);
         return;
     }
     sock *client = &client_ctx->socket;
@@ -132,6 +134,7 @@ static void accept_cb(void *arg) {
     if (client_fd < 0) {
         critical("Unable to accept connection");
         free(client_ctx);
+        terminate_gracefully(0);
         return;
     }
 
@@ -146,6 +149,7 @@ static void accept_cb(void *arg) {
             continue;
         } else {
             critical("Unable to lock clients list");
+            terminate_gracefully(0);
             return;
         }
     }
@@ -154,8 +158,9 @@ static void accept_cb(void *arg) {
     clients = list_append(clients, &client_ctx);
     if (clients == NULL) {
         critical("Unable to add client context to list");
+        sem_post(&sem_clients_lock);
         free(client_ctx);
-        errno = 0;
+        terminate_gracefully(0);
         return;
     }
 
