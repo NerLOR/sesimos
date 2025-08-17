@@ -208,9 +208,9 @@ static int local_handler(client_ctx_t *ctx) {
                 enc = COMPRESS_GZ;
             }
         }
-        if (enc != 0) {
-            http_add_header_field(&res->hdr, "Vary", "Accept-Encoding");
-        }
+    }
+    if (uri->meta->filename_comp_br[0] != 0 || uri->meta->filename_comp_gz[0] != 0) {
+        http_add_header_field(&res->hdr, "Vary", "Accept-Encoding");
     }
 
     buf1[0] = 0;
