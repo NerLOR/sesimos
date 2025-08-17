@@ -249,7 +249,7 @@ int respond(client_ctx_t *ctx) {
         if (http_get_header_field(&res->hdr, "Accept-Ranges") == NULL) {
             http_add_header_field(&res->hdr, "Accept-Ranges", "none");
         }
-        if (!ctx->use_fastcgi && ctx->file == NULL && ctx->msg_buf == NULL) {
+        if (!ctx->use_fastcgi && ctx->file == NULL && ctx->msg_buf == NULL && res->status->code != 304) {
             http_remove_header_field(&res->hdr, "Date", HTTP_REMOVE_ALL);
             http_remove_header_field(&res->hdr, "Server", HTTP_REMOVE_ALL);
             http_remove_header_field(&res->hdr, "Cache-Control", HTTP_REMOVE_ALL);

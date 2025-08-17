@@ -213,23 +213,27 @@ static int local_handler(client_ctx_t *ctx) {
         }
     }
 
+    buf1[0] = 0;
     if (uri->meta->etag[0] != 0) {
-        strcpy(buf1, uri->meta->etag);
+        buf1[0] = '"';
+        strcpy(buf1 + 1, uri->meta->etag);
         if (enc) {
             strcat(buf1, "-");
             strcat(buf1, (enc & COMPRESS_BR) ? "br" : (enc & COMPRESS_GZ) ? "gzip" : "");
         }
+        strcat(buf1, "\"");
         http_add_header_field(&res->hdr, "ETag", buf1);
     }
 
-    http_add_header_field(&res->hdr, "Cache-Control", mime_is_text(uri->meta->type) ? "public, max-age=3600" : "public, max-age=86400");
+    http_add_header_field(&res->hdr, "Cache-Control", mime_is_text(uri->meta->type) ? "public, must-revalidate, max-age=3600" : "public, must-revalidate, max-age=86400");
 
     const char *if_modified_since = http_get_header_field(&req->hdr, "If-Modified-Since");
     const char *if_none_match = http_get_header_field(&req->hdr, "If-None-Match");
-    if ((if_none_match != NULL && !strcontains(if_none_match, uri->meta->etag)) ||
+    if ((if_none_match != NULL && strcontains(if_none_match, buf1)) ||
         (accept_if_modified_since && streq(if_modified_since, last_modified)))
     {
         res->status = http_get_status(304);
+        ctx->content_length = 0;
         return 0;
     }
 

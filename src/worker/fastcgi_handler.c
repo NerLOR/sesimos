@@ -61,11 +61,6 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
     fcgi_cnx_buf.r_addr = ctx->socket.addr;
     fcgi_cnx_buf.r_host = (ctx->host[0] != 0) ? ctx->host : NULL;
 
-    struct stat statbuf;
-    stat(uri->filename, &statbuf);
-    char *last_modified = http_format_date(statbuf.st_mtime, buf, sizeof(buf));
-    http_add_header_field(&res->hdr, "Last-Modified", last_modified);
-
     res->status = http_get_status(200);
     if (fastcgi_init(&fcgi_cnx_buf, mode, ctx->req_num, client, req, uri) != 0) {
         fastcgi_close_cnx(&fcgi_cnx_buf);
