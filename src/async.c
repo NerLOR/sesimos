@@ -6,7 +6,6 @@
  * @date 2022-12-28
  */
 
-#include "async.h"
 #include "logger.h"
 #include "lib/list.h"
 #include "lib/utils.h"
@@ -20,6 +19,8 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <openssl/ssl.h>
+
+#include "async.h"
 
 #define ASYNC_MAX_EVENTS 16
 
@@ -298,8 +299,9 @@ void async_thread(void) {
                     errno = 0;
                     if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, evt->fd, NULL) != -1)
                         continue;
-                } else if (errno == EBADF) {
-                    // fd probably already closed
+                } else if (errno == EBADF || errno == EPERM) {
+                    // fd probably already closed or does not support epoll somehow
+                    // FIXME should not happen
                     warning("Unable to add file descriptor to epoll instance");
                     errno = 0;
                     local = list_delete(local, &evt);
@@ -347,9 +349,8 @@ void async_thread(void) {
             if (async_exec(evt, async_e2a(events[i].events)) == 0) {
                 logger_set_prefix("");
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, evt->fd, NULL) == -1) {
-                    if (errno == EBADF || errno == ENOENT) {
-                        // already closed fd or not found, do not die
-                        warning("Unable to remove file descriptor from epoll instance");
+                    if (errno == EBADF || errno == ENOENT || errno == EPERM) {
+                        // already closed, fd not found, or fd does not support epoll, anyway do not die
                         errno = 0;
                     } else {
                         critical("Unable to remove file descriptor from epoll instance");
@@ -378,9 +379,8 @@ void async_thread(void) {
                 evt->to_cb(evt->arg);
 
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, evt->fd, NULL) == -1) {
-                    if (errno == EBADF || errno == ENOENT) {
-                        // already closed fd or not found, do not die
-                        warning("Unable to remove file descriptor from epoll instance");
+                    if (errno == EBADF || errno == ENOENT || errno == EPERM) {
+                        // already closed, fd not found, or fd does not support epoll, anyway do not die
                         errno = 0;
                     } else {
                         critical("Unable to remove file descriptor from epoll instance");
