@@ -373,9 +373,42 @@ int respond(client_ctx_t *ctx) {
 }
 
 void request_complete(client_ctx_t *ctx) {
-    char buf[32];
+    char buf[64];
     ctx->req_e = clock_micros();
     info("Transfer complete: %s", format_duration(ctx->req_e - ctx->req_s, buf));
+
+    if (ctx->conf) {
+        char path[256];
+        sprintf(path, "/var/log/sesimos/%s.access.log", ctx->req_host);
+        FILE *log = fopen(path, "a");
+        if (log) {
+            struct timespec time1, time2;
+            clock_gettime(CLOCK_MONOTONIC, &time1);
+            clock_gettime(CLOCK_REALTIME, &time2);
+            const long diff = (time2.tv_sec - time1.tv_sec) * 1000000 + (time2.tv_nsec - time1.tv_nsec) / 1000;
+            struct tm time_info;
+            const long ts = (ctx->req_s + diff) / 1000000;
+            strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S%z", localtime_r(&ts, &time_info));
+
+            const char *auth = http_get_header_field(&ctx->req.hdr, "Authorization");
+            char user[256] = {0};
+            if (auth != NULL && strstarts(auth, "Basic ")) {
+                base64_decode(auth + 6, strlen(auth) - 6, user, NULL);
+                char *col = strchr(user, ':');
+                if (col != NULL) col[0] = 0;
+            }
+            const char *ref = http_get_header_field(&ctx->req.hdr, "Referer");
+            const char *ua = http_get_header_field(&ctx->req.hdr, "User-Agent");
+
+            fprintf(log, "%s %s %s [%s] \"%s %s HTTP/%s\" %i %li %s%s%s %s%s%s\n",
+                ctx->socket.addr, ctx->cc[0] == 0 ? "-" : ctx->cc, user[0] != 0 ? user : "-", buf,
+                ctx->req.method, ctx->req.uri, ctx->req.version, ctx->res.status->code, ctx->content_length,
+                ref != NULL ? "\"" : "", ref != NULL ? ref : "-", ref != NULL ? "\"" : "",
+                ua != NULL ? "\"" : "", ua != NULL ? ua : "-", ua != NULL ? "\"" : "");
+            fclose(log);
+        }
+        errno = 0;
+    }
 
     if (ctx->file) fclose(ctx->file);
     free(ctx->msg_buf_ptr);

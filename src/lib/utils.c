@@ -20,6 +20,24 @@
 
 static const char base64_encode_table[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 static const int base64_mod_table[3] = {0, 2, 1};
+static const char base64_decode_table[256] = {
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63,
+    52, 53, 54, 55, 56, 57, 58, 59, 60, 61, -1, -1, -1,  0, -1, -1,
+    -1,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14,
+    15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, -1,
+    -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+    41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+};
 
 
 char *format_duration(unsigned long micros, char *buf) {
@@ -207,25 +225,25 @@ int strcontains(const char *restrict haystack, const char *restrict needle) {
 
 int strstarts(const char *restrict str, const char *restrict prefix) {
     if (str == NULL || prefix == NULL) return 0;
-    unsigned long l1 = strlen(str), l2 = strlen(prefix);
+    const unsigned long l1 = strlen(str), l2 = strlen(prefix);
     return l2 <= l1 && strncmp(str, prefix, l2) == 0;
 }
 
 int strends(const char *restrict str, const char *restrict suffix) {
     if (str == NULL || suffix == NULL) return 0;
-    unsigned long l1 = strlen(str), l2 = strlen(suffix);
+    const unsigned long l1 = strlen(str), l2 = strlen(suffix);
     return l2 <= l1 && strcmp(str + l1 - l2, suffix) == 0;
 }
 
 int base64_encode(void *data, unsigned long data_len, char *output, unsigned long *output_len) {
-    unsigned long out_len = 4 * ((data_len + 2) / 3);
+    const unsigned long out_len = 4 * ((data_len + 2) / 3);
     if (output_len != NULL) *output_len = out_len;
 
     for (int i = 0, j = 0; i < data_len;) {
-        unsigned int octet_a = (i < data_len) ? ((unsigned char *) data)[i++] : 0;
-        unsigned int octet_b = (i < data_len) ? ((unsigned char *) data)[i++] : 0;
-        unsigned int octet_c = (i < data_len) ? ((unsigned char *) data)[i++] : 0;
-        unsigned int triple = (octet_a << 0x10) + (octet_b << 0x08) + octet_c;
+        const unsigned int octet_a = (i < data_len) ? ((unsigned char *) data)[i++] : 0;
+        const unsigned int octet_b = (i < data_len) ? ((unsigned char *) data)[i++] : 0;
+        const unsigned int octet_c = (i < data_len) ? ((unsigned char *) data)[i++] : 0;
+        const unsigned int triple = (octet_a << 16) | (octet_b << 8) | octet_c;
         output[j++] = base64_encode_table[(triple >> 3 * 6) & 0x3F];
         output[j++] = base64_encode_table[(triple >> 2 * 6) & 0x3F];
         output[j++] = base64_encode_table[(triple >> 1 * 6) & 0x3F];
@@ -235,6 +253,28 @@ int base64_encode(void *data, unsigned long data_len, char *output, unsigned lon
     for (int i = 0; i < base64_mod_table[data_len % 3]; i++)
         output[out_len - 1 - i] = '=';
     output[out_len] = 0;
+
+    return 0;
+}
+
+int base64_decode(const char *data, unsigned long data_len, void *output, unsigned long *output_len) {
+    const unsigned long out_len = 3 * ((data_len + 2) / 4);
+    if (output_len != NULL) *output_len = out_len;
+
+    char *out = output;
+    for (int i = 0, j = 0; i < data_len;) {
+        const int octet_a = (i < data_len) ? base64_decode_table[((unsigned char *) data)[i++]] : 0;
+        const int octet_b = (i < data_len) ? base64_decode_table[((unsigned char *) data)[i++]] : 0;
+        const int octet_c = (i < data_len) ? base64_decode_table[((unsigned char *) data)[i++]] : 0;
+        const int octet_d = (i < data_len) ? base64_decode_table[((unsigned char *) data)[i++]] : 0;
+        if (octet_a < 0 || octet_b < 0 || octet_c < 0 || octet_d < 0) return -1;
+        const unsigned int triple = (octet_a << 3 * 6) | (octet_b << 2 * 6) | (octet_c << 6) | octet_d;
+        out[j++] = (char) (triple >> 16);
+        out[j++] = (char) ((triple >> 8) & 0xFF);
+        out[j++] = (char) (triple & 0xFF);
+    }
+
+    out[out_len] = 0;
 
     return 0;
 }

@@ -47,6 +47,8 @@ int strends(const char *restrict str, const char *restrict suffix);
 
 int base64_encode(void *data, unsigned long data_len, char *output, unsigned long *output_len);
 
+int base64_decode(const char *data, unsigned long data_len, void *output, unsigned long *output_len);
+
 long clock_micros(void);
 
 long clock_cpu(void);
