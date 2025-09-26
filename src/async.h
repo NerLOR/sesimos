@@ -17,7 +17,7 @@
 #define ASYNC_IN     0x001
 #define ASYNC_PRI    0x002
 #define ASYNC_OUT    0x004
-#define ASYNC_ERR    0x008
+#define ASYNC_ERR_   0x008
 #define ASYNC_HUP    0x010
 #define ASYNC_RDNORM 0x040
 #define ASYNC_RDBAND 0x080

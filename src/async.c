@@ -6,6 +6,7 @@
  * @date 2022-12-28
  */
 
+#include "async.h"
 #include "logger.h"
 #include "lib/list.h"
 #include "lib/utils.h"
@@ -19,8 +20,6 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <openssl/ssl.h>
-
-#include "async.h"
 
 #define ASYNC_MAX_EVENTS 16
 
@@ -51,7 +50,7 @@ static short async_a2p(async_evt_t events) {
     if (events & ASYNC_IN)  ret |= POLLIN;
     if (events & ASYNC_PRI) ret |= POLLPRI;
     if (events & ASYNC_OUT) ret |= POLLOUT;
-    if (events & ASYNC_ERR) ret |= POLLERR;
+    if (events & ASYNC_ERR_) ret |= POLLERR;
     if (events & ASYNC_HUP) ret |= POLLHUP;
     if (events & ASYNC_RDNORM) ret |= POLLRDNORM;
     if (events & ASYNC_RDBAND) ret |= POLLRDBAND;
@@ -66,7 +65,7 @@ static unsigned int async_a2e(async_evt_t events) {
     if (events & ASYNC_IN)  ret |= EPOLLIN;
     if (events & ASYNC_PRI) ret |= EPOLLPRI;
     if (events & ASYNC_OUT) ret |= EPOLLOUT;
-    if (events & ASYNC_ERR) ret |= EPOLLERR;
+    if (events & ASYNC_ERR_) ret |= EPOLLERR;
     if (events & ASYNC_HUP) ret |= EPOLLHUP;
     if (events & ASYNC_RDNORM) ret |= EPOLLRDNORM;
     if (events & ASYNC_RDBAND) ret |= EPOLLRDBAND;
@@ -81,7 +80,7 @@ static async_evt_t async_p2a(short events) {
     if (events & POLLIN)   ret |= ASYNC_IN;
     if (events & POLLPRI)  ret |= ASYNC_PRI;
     if (events & POLLOUT)  ret |= ASYNC_OUT;
-    if (events & POLLERR)  ret |= ASYNC_ERR;
+    if (events & POLLERR)  ret |= ASYNC_ERR_;
     if (events & POLLHUP)  ret |= ASYNC_HUP;
     if (events & POLLRDNORM) ret |= ASYNC_RDNORM;
     if (events & POLLRDBAND) ret |= ASYNC_RDBAND;
@@ -96,7 +95,7 @@ static async_evt_t async_e2a(unsigned int events) {
     if (events & EPOLLIN)   ret |= ASYNC_IN;
     if (events & EPOLLPRI)  ret |= ASYNC_PRI;
     if (events & EPOLLOUT)  ret |= ASYNC_OUT;
-    if (events & EPOLLERR)  ret |= ASYNC_ERR;
+    if (events & EPOLLERR)  ret |= ASYNC_ERR_;
     if (events & EPOLLHUP)  ret |= ASYNC_HUP;
     if (events & EPOLLRDNORM) ret |= ASYNC_RDNORM;
     if (events & EPOLLRDBAND) ret |= ASYNC_RDBAND;
