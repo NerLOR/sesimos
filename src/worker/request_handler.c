@@ -406,7 +406,7 @@ void request_complete(client_ctx_t *ctx) {
             const long len = ctx->content_length <= 0 ? ctx->transferred_length : ctx->content_length;
 
             fprintf(log, "%s %s %s [%s] \"%s %s HTTP/%s\" %i %li %s%s%s %s%s%s %s%s%s %s%s%s\n",
-                ctx->socket.addr, ctx->host[0] == 0 ? "-" : ctx->host, user[0] != 0 ? user : "-", buf,
+                ctx->socket.addr, "-", user[0] != 0 ? user : "-", buf,
                 ctx->req.method, ctx->req.uri, ctx->req.version, ctx->res.status->code, len,
                 loc != NULL ? "\"" : "", loc != NULL ? loc : "-", loc != NULL ? "\"" : "",
                 type != NULL ? "\"" : "", type != NULL ? type : "-", type != NULL ? "\"" : "",
