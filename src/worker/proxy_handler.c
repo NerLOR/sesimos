@@ -138,19 +138,21 @@ static void proxy_chunk_err_cb(chunk_ctx_t *ctx) {
 
 static int proxy_handler_2(client_ctx_t *ctx) {
     const char *transfer_encoding = http_get_header_field(&ctx->res.hdr, "Transfer-Encoding");
-    int chunked = strcontains(transfer_encoding, "chunked");
+    const int chunked = strcontains(transfer_encoding, "chunked");
 
     const char *content_len = http_get_header_field(&ctx->res.hdr, "Content-Length");
-    unsigned long len_to_send = (content_len != NULL) ? strtol(content_len, NULL, 10) : 0;
+    const unsigned long len_to_send = (content_len != NULL) ? strtol(content_len, NULL, 10) : 0;
 
     if (chunked) {
         handle_chunks(ctx, &ctx->proxy->proxy, SOCK_CHUNKED, proxy_chunk_next_cb, proxy_chunk_err_cb);
         return 1;
     }
 
-    int ret;
+    long ret;
     if ((ret = proxy_send(ctx->proxy, &ctx->socket, len_to_send, 0)) == -1) {
         ctx->c_keep_alive = 0;
+    } else if (ret > 0) {
+        ctx->transferred_length += ret;
     }
 
     return ret;

@@ -656,11 +656,12 @@ int proxy_peek_response(proxy_ctx_t *proxy, http_res *res, http_status_ctx *ctx,
     return header_len;
 }
 
-int proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int flags) {
+long proxy_send(proxy_ctx_t *proxy, sock *client, unsigned long len_to_send, int flags) {
+    long ret;
     char buffer[CHUNK_SIZE];
-    if (sock_splice(client, &proxy->proxy, buffer, sizeof(buffer), len_to_send) == -1)
+    if ((ret = sock_splice(client, &proxy->proxy, buffer, sizeof(buffer), len_to_send)) == -1)
         return -1;
-    return 0;
+    return ret;
 }
 
 int proxy_dump(proxy_ctx_t *proxy, char *buf, long len) {

@@ -33,7 +33,7 @@ typedef struct {
     http_status custom_status;
     host_config_t *conf;
     FILE *file;
-    long content_length;
+    long content_length, transferred_length;
     char *msg_buf, *msg_buf_ptr, msg_content[1024];
     proxy_ctx_t *proxy;
     void *fcgi_ctx;

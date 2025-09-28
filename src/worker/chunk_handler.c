@@ -16,7 +16,7 @@ void chunk_handler_func(chunk_ctx_t *ctx) {
     logger_set_prefix("[%*s]%s", ADDRSTRLEN, ctx->client->socket.s_addr, ctx->client->log_prefix);
 
     char buf[CHUNK_SIZE];
-    long sent = sock_splice_chunked(&ctx->client->socket, ctx->socket, buf, sizeof(buf), ctx->flags | SOCK_SINGLE_CHUNK);
+    const long sent = sock_splice_chunked(&ctx->client->socket, ctx->socket, buf, sizeof(buf), ctx->flags | SOCK_SINGLE_CHUNK);
     if (sent < 0) {
         // error
         error("Unable to splice chunk");
@@ -28,6 +28,7 @@ void chunk_handler_func(chunk_ctx_t *ctx) {
         ctx->next_cb(ctx);
     } else {
         // next chunk
+        ctx->client->transferred_length += sent;
         handle_chunk(ctx);
         return;
     }

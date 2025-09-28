@@ -399,10 +399,15 @@ void request_complete(client_ctx_t *ctx) {
             }
             const char *ref = http_get_header_field(&ctx->req.hdr, "Referer");
             const char *ua = http_get_header_field(&ctx->req.hdr, "User-Agent");
+            const char *loc = http_get_header_field(&ctx->res.hdr, "Location");
+            const char *type = http_get_header_field(&ctx->res.hdr, "Content-Type");
+            const long len = ctx->content_length <= 0 ? ctx->transferred_length : ctx->content_length;
 
-            fprintf(log, "%s %s %s [%s] \"%s %s HTTP/%s\" %i %li %s%s%s %s%s%s\n",
-                ctx->socket.addr, ctx->cc[0] == 0 ? "-" : ctx->cc, user[0] != 0 ? user : "-", buf,
-                ctx->req.method, ctx->req.uri, ctx->req.version, ctx->res.status->code, ctx->content_length,
+            fprintf(log, "%s %s %s [%s] \"%s %s HTTP/%s\" %i %li %s%s%s %s%s%s %s%s%s %s%s%s\n",
+                ctx->socket.addr, ctx->host[0] == 0 ? "-" : ctx->host, user[0] != 0 ? user : "-", buf,
+                ctx->req.method, ctx->req.uri, ctx->req.version, ctx->res.status->code, len,
+                loc != NULL ? "\"" : "", loc != NULL ? loc : "-", loc != NULL ? "\"" : "",
+                type != NULL ? "\"" : "", type != NULL ? type : "-", type != NULL ? "\"" : "",
                 ref != NULL ? "\"" : "", ref != NULL ? ref : "-", ref != NULL ? "\"" : "",
                 ua != NULL ? "\"" : "", ua != NULL ? ua : "-", ua != NULL ? "\"" : "");
             fclose(log);
