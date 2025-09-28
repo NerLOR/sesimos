@@ -59,6 +59,8 @@ static void init_ctx(client_ctx_t *ctx) {
     ctx->req_host[0] = 0;
     ctx->err_msg[0] = 0;
     ctx->req_s = ctx->socket.ts_last;
+    ctx->transferred_length = 0;
+    ctx->content_length = 0;
 
     memset(&ctx->uri, 0, sizeof(ctx->uri));
     memset(&ctx->req, 0, sizeof(ctx->req));
