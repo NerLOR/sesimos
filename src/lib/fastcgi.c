@@ -416,8 +416,17 @@ int fastcgi_header(fastcgi_cnx_t *cnx, http_res *res, char *err_msg) {
     return 0;
 }
 
-int fastcgi_dump(fastcgi_cnx_t *cnx, char *buf, long len) {
-    return sock_recv_x(&cnx->socket, buf, len, 0) == -1 ? -1 : 0;
+int fastcgi_dump(fastcgi_cnx_t *cnx, char *buf, const long len) {
+    for (long ret, rcv = 0; rcv < len; rcv += ret) {
+        if ((ret = sock_recv_chunk_header(&cnx->out)) == -1) {
+            return -1;
+        }
+        const long min = ret > len - rcv ? len - rcv : ret;
+        if ((ret = sock_recv_x(&cnx->out, buf + rcv, min, 0)) <= 0) {
+            return -1;
+        }
+    }
+    return 0;
 }
 
 int fastcgi_receive(fastcgi_cnx_t *cnx, sock *client, unsigned long len) {

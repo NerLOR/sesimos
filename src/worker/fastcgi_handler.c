@@ -145,16 +145,17 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
         content_type != NULL &&
         strstarts(content_type, "text/html") &&
         ctx->content_length != -1 &&
-        ctx->content_length <= sizeof(ctx->msg_content) - 1)
+        ctx->content_length < sizeof(ctx->msg_content))
     {
-        fastcgi_dump(*fcgi_cnx, ctx->msg_content, sizeof(ctx->msg_content));
+        fastcgi_dump(*fcgi_cnx, ctx->msg_content, ctx->content_length);
+        ctx->msg_content[ctx->content_length] = 0;
         return 1;
     }
 
     ctx->use_fastcgi = 1;
     ctx->content_length = -1;
 
-    if (http_get_header_field(&res->hdr, "Content-Length") == NULL) {
+    if (content_length_f == NULL) {
         http_add_header_field(&res->hdr, "Transfer-Encoding", "chunked");
     }
 
