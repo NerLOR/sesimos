@@ -254,12 +254,12 @@ int respond(client_ctx_t *ctx) {
         if (!ctx->use_fastcgi && ctx->file == NULL && ctx->msg_buf == NULL && res->status->code != 304) {
             http_remove_header_field(&res->hdr, "Date", HTTP_REMOVE_ALL);
             http_remove_header_field(&res->hdr, "Server", HTTP_REMOVE_ALL);
-            http_remove_header_field(&res->hdr, "Cache-Control", HTTP_REMOVE_ALL);
             http_remove_header_field(&res->hdr, "Content-Type", HTTP_REMOVE_ALL);
             http_remove_header_field(&res->hdr, "Content-Encoding", HTTP_REMOVE_ALL);
             http_add_header_field(&res->hdr, "Date", http_get_date(buf0, sizeof(buf0)));
             http_add_header_field(&res->hdr, "Server", SERVER_STR);
-            http_add_header_field(&res->hdr, "Cache-Control", "no-cache");
+            if (http_get_header_field(&res->hdr, "Cache-Control") == NULL)
+                http_add_header_field(&res->hdr, "Cache-Control", "no-cache");
             http_add_header_field(&res->hdr, "Content-Type", "text/html; charset=UTF-8");
 
             // TODO list Locations on 3xx Redirects
