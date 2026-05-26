@@ -11,7 +11,7 @@
 
 #include "lib/uri.h"
 
-#define CACHE_ENTRIES 1024
+#define CACHE_ENTRIES 8192
 
 #define CACHE_DIRTY 1
 

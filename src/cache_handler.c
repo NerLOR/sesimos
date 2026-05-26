@@ -439,7 +439,8 @@ void cache_init_uri(cache_t *cache, http_uri *uri) {
             cache_update_entry(entry, uri->filename, uri->webroot);
             uri->meta = &entry->meta;
         } else {
-            warning("No empty cache entry slot found");
+            error("No empty cache entry slot found");
+            // FIXME populate uri->meta with temporary data
         }
     } else {
         uri->meta = &entry->meta;

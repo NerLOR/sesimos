@@ -165,9 +165,14 @@ static int local_handler(client_ctx_t *ctx) {
         return 0;
     }
 
-    res->status = http_get_status(200);
     cache_init_uri(ctx->conf->cache, uri);
+    if (uri->meta == NULL) {
+        res->status = http_get_status(500);
+        sprintf(err_msg, "Could not load metadata of file because all cache entry slots are occupied.");
+        return 0;
+    }
 
+    res->status = http_get_status(200);
     http_add_header_field(&res->hdr, "Accept-Ranges", mime_is_text(uri->meta->type) ? "bytes, lines" : "bytes");
 
     if (!streq(req->method, "GET") && !streq(req->method, "HEAD")) {
