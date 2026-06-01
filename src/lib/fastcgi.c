@@ -225,19 +225,24 @@ int fastcgi_close_stdin(fastcgi_cnx_t *cnx) {
 }
 
 int fastcgi_php_error(fastcgi_cnx_t *cnx, char *err_msg) {
-    char *line = NULL, *line_ptr = NULL;
+    char *line = NULL, *line_ptr = NULL, *next_ptr = NULL;
     size_t line_len = 0;
     int err = 0;
 
     log_lvl_t msg_type = LOG_INFO;
 
-    // FIXME php fastcgi sends multiple calls with '; ' as delimiter
     for (long ret; cnx->fd_err_bytes > 0 && (ret = getline(&line, &line_len, cnx->err)) != -1; cnx->fd_err_bytes -= ret) {
         if (ret > 0) line[ret - 1] = 0;
         line_ptr = line;
 
         if (strstarts(line_ptr, "PHP message: ")) {
             line_ptr += 13;
+        } else if (!strstr(line_ptr, "; PHP message: ")) {
+            logmsgf(msg_type, "%s", line_ptr);
+            continue;
+        }
+
+        while (line_ptr) {
             if (strstarts(line_ptr, "PHP Warning:  ")) {
                 msg_type = LOG_WARNING;
             } else if (strstarts(line_ptr, "PHP Fatal error:  ")) {
@@ -246,14 +251,22 @@ int fastcgi_php_error(fastcgi_cnx_t *cnx, char *err_msg) {
                 msg_type = LOG_ERROR;
             } else if (strstarts(line_ptr, "PHP Notice:  ")) {
                 msg_type = LOG_NOTICE;
+            } else {
+                msg_type = LOG_INFO;
             }
-        }
 
-        logmsgf(msg_type, "%s", line_ptr);
+            if ((next_ptr = strstr(line_ptr, "; PHP message: "))) {
+                next_ptr[0] = 0;
+            }
 
-        if (err_msg && msg_type <= LOG_ERROR && line_ptr != line) {
-            strcpy_rem_webroot(err_msg, line_ptr, cnx->webroot);
-            err = 1;
+            logmsgf(msg_type, "%s", line_ptr);
+
+            if (err_msg && msg_type <= LOG_ERROR && line_ptr != line) {
+                strcpy_rem_webroot(err_msg, line_ptr, cnx->webroot);
+                err = 1;
+            }
+
+            line_ptr = next_ptr ? next_ptr + 15 : NULL;
         }
     }
 
