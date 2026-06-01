@@ -410,7 +410,7 @@ int proxy_init(proxy_ctx_t **proxy_ptr, http_req *req, http_res *res, http_statu
         if (!retry)
             return -1;
 
-        // honor server timeout with one second buffer
+        // honor server timeout with one-second buffer
         if (!proxy->initialized || srv_error ||
             (proxy->http_timeout > 0 && (clock_micros() - proxy->proxy.ts_last_send) >= proxy->http_timeout) ||
             sock_has_pending(&proxy->proxy, SOCK_DONTWAIT))

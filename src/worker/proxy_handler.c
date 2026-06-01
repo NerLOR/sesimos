@@ -155,5 +155,5 @@ static int proxy_handler_2(client_ctx_t *ctx) {
         ctx->transferred_length += ret;
     }
 
-    return ret;
+    return ret >= 0 ? 0 : ret;
 }
