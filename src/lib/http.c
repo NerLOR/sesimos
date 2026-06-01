@@ -101,6 +101,7 @@ void http_free_field(http_field *f) {
 }
 
 void http_free_hdr(http_hdr *hdr) {
+    if (hdr->fields == NULL) return;
     for (int i = 0; i < list_size(hdr->fields); i++) {
         http_free_field(&hdr->fields[i]);
     }
