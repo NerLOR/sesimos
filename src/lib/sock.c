@@ -426,8 +426,8 @@ long sock_recv_chunk_header(sock *s) {
             } else {
                 return -1;
             }
-        } else if (ret < 2) {
-            continue;
+        } else if (ret < 2 || ret >= sizeof(buf)) {
+            return -1;
         }
         buf[ret] = 0;
 
