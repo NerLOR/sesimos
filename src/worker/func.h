@@ -47,7 +47,7 @@ typedef struct {
 
 typedef struct {
     unsigned char closed:4;
-    client_ctx_t *client;
+    char log_prefix[128];
     fastcgi_cnx_t cnx;
 } fastcgi_ctx_t;
 

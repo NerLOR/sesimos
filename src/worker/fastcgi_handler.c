@@ -31,6 +31,7 @@ void fastcgi_handler_func(client_ctx_t *ctx) {
             return;
         } else if (ctx->fcgi_ctx != NULL) {
             fastcgi_close(ctx->fcgi_ctx);
+            ctx->fcgi_ctx = NULL;
         }
     }
 
@@ -44,7 +45,6 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
     http_uri *uri = &ctx->uri;
     sock *client = &ctx->socket;
     char *err_msg = ctx->err_msg;
-    char buf[1024];
 
     int mode, ret;
     if (strends(uri->filename, ".php")) {
@@ -131,7 +131,7 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
             res->status = &ctx->custom_status;
         } else if (res->status == NULL) {
             res->status = http_get_status(500);
-            sprintf(err_msg, "The status_hdr code was set to an invalid or unknown value.");
+            sprintf(err_msg, "The status code was set to an invalid or unknown value.");
             return 2;
         }
     }
@@ -177,7 +177,6 @@ static void fastcgi_error_cb(chunk_ctx_t *ctx) {
 
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, ADDRSTRLEN, ctx->client->req_host, CLR_STR, ctx->client->log_prefix);
 
-    // FIXME segfault on error_cb
     warning("Closing connection due to FastCGI error");
     if(ctx->client->fcgi_ctx) {
         fastcgi_close_error(ctx->client->fcgi_ctx);

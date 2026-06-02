@@ -16,7 +16,8 @@
 #include <unistd.h>
 
 void fastcgi_frame_handler_func(fastcgi_ctx_t *ctx) {
-    logger_set_prefix("[%*s]%s", ADDRSTRLEN, ctx->client->socket.s_addr, ctx->client->log_prefix);
+    logger_set_prefix("%s", ctx->log_prefix);
+    int64_t val = 0;
 
     switch (fastcgi_recv_frame(&ctx->cnx)) {
         case FCGI_STDOUT:
@@ -25,12 +26,11 @@ void fastcgi_frame_handler_func(fastcgi_ctx_t *ctx) {
             break;
         case -1:
             error("Unable to receive FastCGI frame");
-            ctx->client->s_keep_alive = 0;
-            fastcgi_close(ctx);
-            break;
+            val = -1;
         default:
             // end of request received
-            write(ctx->cnx.fd_out, "\0\0\0\0\0\0\0\0\r\n", 10);
+            write(ctx->cnx.fd_out, &val, sizeof(val));
+            write(ctx->cnx.fd_out, "\r\n", 2);
             fastcgi_close(ctx);
     }
 }
@@ -41,7 +41,7 @@ int fastcgi_handle_connection(client_ctx_t *ctx, fastcgi_cnx_t **cnx) {
 
     fastcgi_ctx_t *a = malloc(sizeof(fastcgi_ctx_t));
     a->closed = 0;
-    a->client = ctx;
+    snprintf(a->log_prefix, sizeof(a->log_prefix), "[%*s]%s", ADDRSTRLEN, ctx->socket.s_addr, ctx->log_prefix);
     memcpy(&a->cnx, *cnx, sizeof(fastcgi_cnx_t));
     ctx->fcgi_ctx = a;
     fastcgi_handle_frame(a);
@@ -55,7 +55,7 @@ void fastcgi_close(fastcgi_ctx_t *ctx) {
     if (ctx->closed != 2)
         return;
 
-    logger_set_prefix("[%*s]%s", ADDRSTRLEN, ctx->client->socket.s_addr, ctx->client->log_prefix);
+    logger_set_prefix("%s", ctx->log_prefix);
 
     fastcgi_php_error(&ctx->cnx, NULL);
 
@@ -65,12 +65,11 @@ void fastcgi_close(fastcgi_ctx_t *ctx) {
     debug("Closing FastCGI connection");
 
     fastcgi_close_cnx(&ctx->cnx);
-    ctx->client->fcgi_ctx = NULL;
     free(ctx);
     errno = 0;
 }
 
 void fastcgi_close_error(fastcgi_ctx_t *ctx) {
-    logger_set_prefix("[%*s]%s", ADDRSTRLEN, ctx->client->socket.s_addr, ctx->client->log_prefix);
+    logger_set_prefix("%s", ctx->log_prefix);
     fastcgi_close_cnx(&ctx->cnx);
 }

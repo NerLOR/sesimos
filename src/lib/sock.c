@@ -407,10 +407,11 @@ int sock_has_pending(sock *s, int flags) {
 
 long sock_recv_chunk_header(sock *s) {
     if (s->pipe) {
-        uint64_t len;
+        int64_t len;
         if (sock_recv_x(s, &len, sizeof(len), 0) == -1)
             return -1;
-        return (long) len;
+        if (len < 0) errno = ECONNABORTED;
+        return len;
     }
 
     long ret;
