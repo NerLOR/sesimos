@@ -30,7 +30,6 @@ void fastcgi_frame_handler_func(fastcgi_ctx_t *ctx) {
         default:
             // end of request received
             write(ctx->cnx.fd_out, &val, sizeof(val));
-            write(ctx->cnx.fd_out, "\r\n", 2);
             fastcgi_close(ctx);
     }
 }

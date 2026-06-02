@@ -414,31 +414,37 @@ long sock_recv_chunk_header(sock *s) {
         return len;
     }
 
-    long ret;
+    long ret1, ret2;
     size_t len = 0;
-    char buf[20];
+    char buf[20], *buf_ptr = buf;
 
-    do {
-        if ((ret = sock_recv(s, buf, sizeof(buf) - 1, MSG_PEEK)) <= 0) {
+    while (1) {
+        if ((ret1 = sock_recv(s, buf_ptr, sizeof(buf) - 1 - (buf_ptr - buf), MSG_PEEK)) <= 0) {
             if (errno == EINTR || errno == EAGAIN) {
                 errno = 0;
                 continue;
             } else {
                 return -1;
             }
-        } else if (ret < 2 || ret >= sizeof(buf)) {
-            return -1;
         }
-        buf[ret] = 0;
+        buf_ptr[ret1] = 0;
 
-        if ((ret = parse_chunk_header(buf, ret, &len)) == -1 && errno == EPROTO)
-            return -1;
-    } while (ret < 0);
+        if ((ret2 = parse_chunk_header(buf, (buf_ptr - buf) + ret1, &len)) == -1) {
+            if (errno == EPROTO) {
+                return -1;
+            } else {
+                if (sock_recv_x(s, buf_ptr, ret1, 0) == -1)
+                    return -1;
+            }
+        } else {
+            if (sock_recv_x(s, buf_ptr, len - (buf_ptr - buf), 0) == -1)
+                return -1;
+            break;
+        }
+        buf_ptr += ret1;
+    }
 
-    if (sock_recv_x(s, buf, len, 0) == -1)
-        return -1;
-
-    return ret;
+    return ret2;
 }
 
 int sock_send_chunk_header(sock *s, unsigned long size) {
