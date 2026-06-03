@@ -127,13 +127,12 @@ static void proxy_chunk_next_cb(chunk_ctx_t *ctx) {
 }
 
 static void proxy_chunk_err_cb(chunk_ctx_t *ctx) {
-    ctx->client->c_keep_alive = 0;
     proxy_close(ctx->client->proxy);
     proxy_unlock_ctx(ctx->client->proxy);
 
     ctx->client->proxy = NULL;
     request_complete(ctx->client);
-    handle_request(ctx->client);
+    tcp_close(ctx->client);
 }
 
 static int proxy_handler_2(client_ctx_t *ctx) {
