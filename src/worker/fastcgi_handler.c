@@ -34,6 +34,9 @@ void fastcgi_handler_func(client_ctx_t *ctx) {
         fastcgi_close(ctx->fcgi_ctx);
         ctx->fcgi_ctx = NULL;
     }
+
+    request_complete(ctx);
+    handle_request(ctx);
 }
 
 static int fastcgi_handler_1(client_ctx_t *ctx) {
