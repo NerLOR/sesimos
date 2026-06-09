@@ -12,17 +12,14 @@
 #include "worker/func.h"
 
 #define NUM_SOCKETS 2
-#define LISTEN_BACKLOG 16
-#define REQ_PER_CONNECTION 200
+#define LISTEN_BACKLOG 256
+#define REQ_PER_CONNECTION 256
 
 #define SOCKET_TIMEOUT 1
 #define CLIENT_TIMEOUT 3600
 #define SERVER_SOCKET_TIMEOUT_INIT 5
 #define SERVER_SOCKET_TIMEOUT_RES 60
 #define SERVER_TIMEOUT 3600
-
-#define CNX_HANDLER_WORKERS 8
-#define REQ_HANDLER_WORKERS 16
 
 void server_free_client(client_ctx_t *ctx);
 
