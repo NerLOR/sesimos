@@ -16,16 +16,26 @@ static mpmc_t tcp_acceptor_ctx, request_handler_ctx, local_handler_ctx, fastcgi_
               proxy_peer_handler_ctx, ws_frame_handler_ctx, chunk_handler_ctx, fastcgi_frame_handler_ctx;
 
 int workers_init(void) {
-    mpmc_init(&tcp_acceptor_ctx,          8, 64, (void (*)(void *)) tcp_acceptor_func,          "tcp");
-    mpmc_init(&request_handler_ctx,       8, 64, (void (*)(void *)) request_handler_func,       "req");
-    mpmc_init(&local_handler_ctx,         8, 64, (void (*)(void *)) local_handler_func,         "local");
-    mpmc_init(&fastcgi_handler_ctx,       8, 64, (void (*)(void *)) fastcgi_handler_func,       "fcgi");
-    mpmc_init(&proxy_handler_ctx,         8, 64, (void (*)(void *)) proxy_handler_func,         "proxy");
-    mpmc_init(&proxy_peer_handler_ctx,    1,  8, (void (*)(void *)) proxy_peer_handler_func,    "prxy_p");
-    mpmc_init(&ws_frame_handler_ctx,      8, 64, (void (*)(void *)) ws_frame_handler_func,      "ws");
-    mpmc_init(&chunk_handler_ctx,         8, 64, (void (*)(void *)) chunk_handler_func,         "chunk");
-    mpmc_init(&fastcgi_frame_handler_ctx, 8, 64, (void (*)(void *)) fastcgi_frame_handler_func, "fcgi_f");
-    return -1;
+    int ret;
+    if ((ret = mpmc_init(&tcp_acceptor_ctx,          8, 64, (void (*)(void *)) tcp_acceptor_func,          "tcp")) != 0)
+        return ret;
+    if ((ret = mpmc_init(&request_handler_ctx,       8, 64, (void (*)(void *)) request_handler_func,       "req")) != 0)
+        return ret;
+    if ((ret = mpmc_init(&local_handler_ctx,         8, 64, (void (*)(void *)) local_handler_func,         "local")) != 0)
+        return ret;
+    if ((ret = mpmc_init(&fastcgi_handler_ctx,       8, 64, (void (*)(void *)) fastcgi_handler_func,       "fcgi")) != 0)
+        return ret;
+    if ((ret = mpmc_init(&proxy_handler_ctx,         8, 64, (void (*)(void *)) proxy_handler_func,         "proxy")) != 0)
+        return ret;
+    if ((ret = mpmc_init(&proxy_peer_handler_ctx,    1,  8, (void (*)(void *)) proxy_peer_handler_func,    "prxy_p")) != 0)
+        return ret;
+    if ((ret = mpmc_init(&ws_frame_handler_ctx,      8, 64, (void (*)(void *)) ws_frame_handler_func,      "ws")) != 0)
+        return ret;
+    if ((ret = mpmc_init(&chunk_handler_ctx,         8, 64, (void (*)(void *)) chunk_handler_func,         "chunk")) != 0)
+        return ret;
+    if ((ret = mpmc_init(&fastcgi_frame_handler_ctx, 8, 64, (void (*)(void *)) fastcgi_frame_handler_func, "fcgi_f")) != 0)
+        return ret;
+    return 0;
 }
 
 void workers_stop(void) {

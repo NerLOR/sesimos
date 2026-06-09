@@ -411,7 +411,19 @@ int main(int argc, char *const argv[]) {
 
     logger_set_name("main");
 
-    workers_init();
+    if (workers_init() != 0) {
+        critical("Unable to initialize workers");
+        ssl_free();
+        list_free(clients);
+        sem_destroy(&sem_clients_lock);
+        geoip_free();
+        proxy_unload();
+        cache_join();
+        async_free();
+        logger_stop();
+        logger_join();
+        return 1;
+    }
 
     for (int i = 0; i < NUM_SOCKETS; i++) {
         async_fd(sockets[i], ASYNC_WAIT_READ, ASYNC_KEEP, &sockets[i], accept_cb, accept_err_cb, accept_err_cb);
