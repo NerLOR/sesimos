@@ -18,6 +18,12 @@
 #include "../lib/fastcgi.h"
 
 typedef struct {
+    unsigned char closed:4;
+    char log_prefix[128];
+    fastcgi_cnx_t cnx;
+} fastcgi_ctx_t;
+
+typedef struct {
     sock socket;
     int req_num;
     unsigned char s_keep_alive:1, c_keep_alive:1, use_fastcgi:4, use_proxy:2, ws_close:2, chunks_transferred:1;
@@ -36,7 +42,7 @@ typedef struct {
     long content_length, transferred_length;
     char *msg_buf, *msg_buf_ptr, msg_content[1024];
     proxy_ctx_t *proxy;
-    void *fcgi_ctx;
+    fastcgi_ctx_t *fcgi_ctx;
 } client_ctx_t;
 
 typedef struct {
@@ -44,12 +50,6 @@ typedef struct {
     sock *socket;
     void *other;
 } ws_ctx_t;
-
-typedef struct {
-    unsigned char closed:4;
-    char log_prefix[128];
-    fastcgi_cnx_t cnx;
-} fastcgi_ctx_t;
 
 typedef struct {
     client_ctx_t *client;

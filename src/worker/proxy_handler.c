@@ -118,6 +118,7 @@ static int proxy_handler_1(client_ctx_t *ctx) {
 }
 
 static void proxy_chunk_next_cb(chunk_ctx_t *ctx) {
+    logger_set_prefix("[%s%*s%s]%s", BLD_STR, ADDRSTRLEN, ctx->client->req_host, CLR_STR, ctx->client->log_prefix);
     if (proxy_unlock_ctx(ctx->client->proxy) == 1)
         proxy_peer_handle(ctx->client->proxy);
 
@@ -127,6 +128,8 @@ static void proxy_chunk_next_cb(chunk_ctx_t *ctx) {
 }
 
 static void proxy_chunk_err_cb(chunk_ctx_t *ctx) {
+    logger_set_prefix("[%s%*s%s]%s", BLD_STR, ADDRSTRLEN, ctx->client->req_host, CLR_STR, ctx->client->log_prefix);
+
     proxy_close(ctx->client->proxy);
     proxy_unlock_ctx(ctx->client->proxy);
 

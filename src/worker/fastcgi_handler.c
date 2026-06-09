@@ -16,30 +16,27 @@
 #include <errno.h>
 #include <unistd.h>
 
-static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx);
-static int fastcgi_handler_2(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx);
+static int fastcgi_handler_1(client_ctx_t *ctx);
+static int fastcgi_handler_2(client_ctx_t *ctx);
 
 void fastcgi_handler_func(client_ctx_t *ctx) {
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, ADDRSTRLEN, ctx->req_host, CLR_STR, ctx->log_prefix);
 
-    if (!ctx->chunks_transferred) {
-        fastcgi_cnx_t *fcgi_cnx = NULL;
-        int ret = fastcgi_handler_1(ctx, &fcgi_cnx);
-        respond(ctx);
-        if (ret == 0) {
-            fastcgi_handler_2(ctx, fcgi_cnx);
-            return;
-        } else if (ctx->fcgi_ctx != NULL) {
-            fastcgi_close(ctx->fcgi_ctx);
-            ctx->fcgi_ctx = NULL;
-        }
+    const int ret = fastcgi_handler_1(ctx);
+    respond(ctx);
+
+    if (ret == 0) {
+        fastcgi_handler_2(ctx);
+        return;
     }
 
-    request_complete(ctx);
-    handle_request(ctx);
+    if (ctx->fcgi_ctx != NULL) {
+        fastcgi_close(ctx->fcgi_ctx);
+        ctx->fcgi_ctx = NULL;
+    }
 }
 
-static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
+static int fastcgi_handler_1(client_ctx_t *ctx) {
     http_res *res = &ctx->res;
     http_req *req = &ctx->req;
     http_uri *uri = &ctx->uri;
@@ -69,8 +66,8 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
         return 3;
     }
 
-    (*fcgi_cnx) = &fcgi_cnx_buf;
-    fastcgi_handle_connection(ctx, fcgi_cnx);
+    fastcgi_cnx_t *fcgi_cnx = &fcgi_cnx_buf;
+    fastcgi_handle_connection(ctx, &fcgi_cnx);
 
     int expect_100_continue = 0;
     const char *client_expect = http_get_header_field(&req->hdr, "Expect");
@@ -89,13 +86,13 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
             http_send_100_continue(client);
         }
         unsigned long client_content_len = strtoul(client_content_length, NULL, 10);
-        ret = fastcgi_receive(*fcgi_cnx, client, client_content_len);
+        ret = fastcgi_receive(fcgi_cnx, client, client_content_len);
     } else if (strcontains(client_transfer_encoding, "chunked")) {
         if (expect_100_continue) {
             info(HTTP_1XX_STR "100 Continue" CLR_STR);
             http_send_100_continue(client);
         }
-        ret = fastcgi_receive_chunked(*fcgi_cnx, client);
+        ret = fastcgi_receive_chunked(fcgi_cnx, client);
     } else if (expect_100_continue) {
         fastcgi_close_cnx((&fcgi_cnx_buf));
         res->status = http_get_status(417);
@@ -112,9 +109,9 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
         res->status = http_get_status(502);
         return 2;
     }
-    fastcgi_close_stdin(*fcgi_cnx);
+    fastcgi_close_stdin(fcgi_cnx);
 
-    if ((ret = fastcgi_header(*fcgi_cnx, res, err_msg)) != 0) {
+    if ((ret = fastcgi_header(fcgi_cnx, res, err_msg)) != 0) {
         if (ret == -1) res->status = http_get_status(502);
         return ret;
     }
@@ -147,7 +144,7 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
         ctx->content_length != -1 &&
         ctx->content_length < sizeof(ctx->msg_content))
     {
-        fastcgi_dump(*fcgi_cnx, ctx->msg_content, ctx->content_length);
+        fastcgi_dump(fcgi_cnx, ctx->msg_content, ctx->content_length);
         ctx->msg_content[ctx->content_length] = 0;
         return 1;
     }
@@ -163,12 +160,15 @@ static int fastcgi_handler_1(client_ctx_t *ctx, fastcgi_cnx_t **fcgi_cnx) {
 }
 
 static void fastcgi_next_cb(chunk_ctx_t *ctx) {
+    logger_set_prefix("[%s%*s%s]%s", BLD_STR, ADDRSTRLEN, ctx->client->req_host, CLR_STR, ctx->client->log_prefix);
+
     if (ctx->client->fcgi_ctx) {
         fastcgi_close(ctx->client->fcgi_ctx);
         ctx->client->fcgi_ctx = NULL;
     }
 
-    fastcgi_handle(ctx->client);
+    request_complete(ctx->client);
+    handle_request(ctx->client);
 }
 
 static void fastcgi_error_cb(chunk_ctx_t *ctx) {
@@ -178,18 +178,19 @@ static void fastcgi_error_cb(chunk_ctx_t *ctx) {
     logger_set_prefix("[%s%*s%s]%s", BLD_STR, ADDRSTRLEN, ctx->client->req_host, CLR_STR, ctx->client->log_prefix);
 
     warning("Closing connection due to FastCGI error");
+    errno = 0;
+
     if(ctx->client->fcgi_ctx) {
         fastcgi_close_error(ctx->client->fcgi_ctx);
         ctx->client->fcgi_ctx = NULL;
     }
 
+    request_complete(ctx->client);
     tcp_close(ctx->client);
-
-    errno = 0;
 }
 
-static int fastcgi_handler_2(client_ctx_t *ctx, fastcgi_cnx_t *fcgi_cnx) {
-    int chunked = strcontains(http_get_header_field(&ctx->res.hdr, "Transfer-Encoding"), "chunked");
-    handle_chunks(ctx, &fcgi_cnx->out, chunked ? SOCK_CHUNKED : 0, fastcgi_next_cb, fastcgi_error_cb);
+static int fastcgi_handler_2(client_ctx_t *ctx) {
+    const int chunked = strcontains(http_get_header_field(&ctx->res.hdr, "Transfer-Encoding"), "chunked");
+    handle_chunks(ctx, &ctx->fcgi_ctx->cnx.out, chunked ? SOCK_CHUNKED : 0, fastcgi_next_cb, fastcgi_error_cb);
     return 1;
 }
