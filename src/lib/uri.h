@@ -42,7 +42,7 @@ typedef struct {
 } http_uri;
 
 
-int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mode);
+int uri_init(http_uri *uri, const char *webroot, char *uri_str, int dir_mode);
 
 int uri_init_cache(http_uri *uri);
 

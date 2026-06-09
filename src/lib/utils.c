@@ -193,7 +193,7 @@ int strcpy_rem_webroot(char *dst, const char *src, const char *webroot) {
     return 0;
 }
 
-int str_trim(char **start, char **end) {
+int str_trim(const char **start, const char **end) {
     if (start == NULL || end == NULL || *start == NULL || *end == NULL)
         return -1;
 
@@ -204,7 +204,7 @@ int str_trim(char **start, char **end) {
     return 0;
 }
 
-int str_trim_lws(char **start, char **end) {
+int str_trim_lws(const char **start, const char **end) {
     if (start == NULL || end == NULL || *start == NULL || *end == NULL)
         return -1;
 

@@ -132,7 +132,7 @@ int http_parse_header_field(http_hdr *hdr, const char *buf, const char *end_ptr,
     if (hdr->last_field_num > list_size(hdr->fields))
         return http_error(HTTP_ERROR_GENERAL);
 
-    char *pos1 = (char *) buf, *pos2 = (char *) end_ptr;
+    const char *pos1 = buf, *pos2 = end_ptr;
     if (buf[0] == ' ' || buf[0] == '\t') {
         if (hdr->last_field_num == -1)
             return http_error(HTTP_ERROR_GENERAL);

@@ -211,13 +211,13 @@ int proxy_request_header(http_req *req, sock *sock) {
         if (forwarded == NULL) {
             http_add_header_field(&req->hdr, "X-Forwarded-Host", http_get_header_field(&req->hdr, "Host"));
         } else {
-            char *ptr = strchr(forwarded, ',');
+            const char *ptr = strchr(forwarded, ',');
             unsigned long len;
             if (ptr != NULL) len = ptr - forwarded;
             else len = strlen(forwarded);
             ptr = strstr(forwarded, "host=");
             if ((ptr - forwarded) < len) {
-                char *end = strchr(ptr, ';');
+                const char *end = strchr(ptr, ';');
                 if (end == NULL) len -= (ptr - forwarded);
                 else len = (end - ptr);
                 len -= 5;
@@ -233,13 +233,13 @@ int proxy_request_header(http_req *req, sock *sock) {
         if (forwarded == NULL) {
             http_add_header_field(&req->hdr, "X-Forwarded-Proto", sock->enc ? "https" : "http");
         } else {
-            char *ptr = strchr(forwarded, ',');
+            const char *ptr = strchr(forwarded, ',');
             unsigned long len;
             if (ptr != NULL) len = ptr - forwarded;
             else len = strlen(forwarded);
             ptr = strstr(forwarded, "proto=");
             if ((ptr - forwarded) < len) {
-                char *end = strchr(ptr, ';');
+                const char *end = strchr(ptr, ';');
                 if (end == NULL) len -= (ptr - forwarded);
                 else len = (end - ptr);
                 len -= 6;

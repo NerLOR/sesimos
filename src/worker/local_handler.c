@@ -39,7 +39,7 @@ void local_handler_func(client_ctx_t *ctx) {
 static int range_handler(client_ctx_t *ctx) {
     char buf[64];
     long num0, num1, num2;
-    char *ptr;
+    const char *ptr;
     int mode;
     const char *range = http_get_header_field(&ctx->req.hdr, "Range");
 

@@ -33,9 +33,9 @@ int mime_is_text(const char *restrict type);
 
 int strcpy_rem_webroot(char *dst, const char *str, const char *webroot);
 
-int str_trim(char **start, char **end);
+int str_trim(const char **start, const char **end);
 
-int str_trim_lws(char **start, char **end);
+int str_trim_lws(const char **start, const char **end);
 
 int streq(const char *restrict str1, const char *restrict str2);
 

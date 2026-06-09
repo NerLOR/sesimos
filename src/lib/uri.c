@@ -38,7 +38,7 @@ int path_exists(const char *path) {
     return ret == 0;
 }
 
-int uri_init(http_uri *uri, const char *webroot, const char *uri_str, int dir_mode) {
+int uri_init(http_uri *uri, const char *webroot, char *uri_str, int dir_mode) {
     char buf0[1024], buf1[1024], buf2[1024], buf3[1024], buf4[1024];
     int p_len;
 
