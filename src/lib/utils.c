@@ -424,9 +424,9 @@ long ftelll(FILE *file) {
     return lines + 1;
 }
 
-long parse_chunk_header(const char *buf, size_t len, size_t *ret_len) {
+long parse_chunk_header(const char *buf, const size_t len, size_t *ret_len) {
     for (int i = 0; i < len; i++) {
-        char ch = buf[i];
+        const char ch = buf[i];
         if (ch == '\r') {
             continue;
         } else if (ch == '\n' && i > 1 && buf[i - 1] == '\r') {
@@ -437,5 +437,6 @@ long parse_chunk_header(const char *buf, size_t len, size_t *ret_len) {
             return -1;
         }
     }
+    errno = EAGAIN;
     return -1;
 }

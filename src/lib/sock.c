@@ -430,7 +430,7 @@ long sock_recv_chunk_header(sock *s) {
         buf_ptr[ret1] = 0;
 
         if ((ret2 = parse_chunk_header(buf, (buf_ptr - buf) + ret1, &len)) == -1) {
-            if (errno == EPROTO) {
+            if (errno != EAGAIN) {
                 return -1;
             } else {
                 if (sock_recv_x(s, buf_ptr, ret1, 0) == -1)
