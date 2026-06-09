@@ -21,7 +21,8 @@
 #include <unistd.h>
 #include <openssl/ssl.h>
 
-#define ASYNC_MAX_EVENTS 16
+#define ASYNC_QUEUE_MAX_EVENTS 256
+#define ASYNC_EPOLL_MAX_EVENTS 64
 
 typedef struct {
     int fd;
@@ -36,7 +37,7 @@ typedef struct {
 
 typedef struct {
     int n;
-    evt_listen_t *q[ASYNC_MAX_EVENTS];
+    evt_listen_t *q[ASYNC_QUEUE_MAX_EVENTS];
 } listen_queue_t;
 
 static volatile listen_queue_t listen1, listen2, *listen_q = &listen1;
@@ -123,7 +124,13 @@ static int async_add_to_queue(evt_listen_t *evt) {
         }
     }
 
-    evt_listen_t *ptr = malloc(sizeof(evt_listen_t));
+    if (listen_q->n >= ASYNC_QUEUE_MAX_EVENTS) {
+        sem_post(&lock);
+        errno = ENOBUFS;
+        return -1;
+    }
+
+    evt_listen_t *ptr = malloc(sizeof(*evt));
     if (ptr == NULL) {
         sem_post(&lock);
         return -1;
@@ -198,9 +205,12 @@ static int async_add(evt_listen_t *evt) {
     if (async_check(evt) == 1)
         return 0;
 
-    int ret = async_add_to_queue(evt);
-    if (ret == 0 && thread != -1)
+    int ret;
+    if ((ret = async_add_to_queue(evt)) != 0) {
+        alert("Unable to add event to async queue");
+    } else if (thread != -1) {
         pthread_kill(thread, SIGUSR1);
+    }
 
     return ret;
 }
@@ -257,7 +267,7 @@ void async_free(void) {
 }
 
 void async_thread(void) {
-    struct epoll_event ev, events[ASYNC_MAX_EVENTS];
+    struct epoll_event ev, events[ASYNC_EPOLL_MAX_EVENTS];
     int num_fds, idx;
     long ts, min_ts, cur_ts;
     volatile listen_queue_t *l;
@@ -343,7 +353,7 @@ void async_thread(void) {
         }
 
         // epoll is used in level-triggered mode, so buffers are taken into account
-        if ((num_fds = epoll_wait(epoll_fd, events, ASYNC_MAX_EVENTS, (int) (min_ts / 1000))) == -1) {
+        if ((num_fds = epoll_wait(epoll_fd, events, ASYNC_EPOLL_MAX_EVENTS, (int) (min_ts / 1000))) == -1) {
             if (errno == EINTR) {
                 // interrupt
                 errno = 0;
