@@ -5,18 +5,18 @@
 #include <semaphore.h>
 
 typedef struct {
-    unsigned char alive;
+    volatile unsigned int alive:1;
     int n_workers;
-    int rd, wr;
+    volatile int rd, wr;
     sem_t free, used, lck_rd, lck_wr;
     int size, max_size;
-    void **buffer;
+    volatile void **buffer;
     pthread_t *workers;
     void (*consumer)(void *obj);
     const char* name;
 } mpmc_t;
 
-int mpmc_init(mpmc_t *ctx, int n_workers, int buf_size, void (*consumer)(void *obj), const char *name);
+int mpmc_init(mpmc_t *ctx, int n_workers, int buf_size, void (*consumer)(void *), const char *name);
 
 int mpmc_queue(mpmc_t *ctx, void *obj);
 
