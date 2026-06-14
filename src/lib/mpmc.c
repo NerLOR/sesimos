@@ -35,8 +35,8 @@ int mpmc_init(mpmc_t *ctx, const int n_workers, const int buf_size, void (*consu
         return -1;
     }
 
-    memset(ctx->buffer,   0, ctx->size      * sizeof(void *));
-    memset(ctx->workers, -1, ctx->n_workers * sizeof(pthread_t));
+    memset((void *)ctx->buffer, 0, ctx->size      * sizeof(void *));
+    memset(ctx->workers,       -1, ctx->n_workers * sizeof(pthread_t));
 
     for (int i = 0; i < ctx->n_workers; i++) {
         int ret;
@@ -128,7 +128,7 @@ static void *mpmc_worker(void *arg) {
         sem_post(&ctx->lck_rd);
 
         // consume object
-        ctx->consumer((void *)ctx->buffer[p]);
+        ctx->consumer(ctx->buffer[p]);
         logger_set_prefix("");
 
         // unlock slot in buffer
@@ -158,7 +158,7 @@ void mpmc_destroy(mpmc_t *ctx) {
     sem_destroy(&ctx->used);
     sem_destroy(&ctx->lck_rd);
     sem_destroy(&ctx->lck_wr);
-    free(ctx->buffer);
+    free((void *)ctx->buffer);
     free(ctx->workers);
 
     // reset errno

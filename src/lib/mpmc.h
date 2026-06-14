@@ -10,7 +10,7 @@ typedef struct {
     volatile int rd, wr;
     sem_t free, used, lck_rd, lck_wr;
     int size, max_size;
-    volatile void **buffer;
+    void *volatile *buffer;
     pthread_t *workers;
     void (*consumer)(void *obj);
     const char* name;
