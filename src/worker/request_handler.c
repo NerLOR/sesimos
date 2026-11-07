@@ -191,6 +191,34 @@ static int request_handler(client_ctx_t *ctx) {
         return 0;
     }
 
+    if (ctx->conf->type == CONFIG_TYPE_REDIRECT) {
+        res->status = http_get_status(ctx->conf->redirect.status_code);
+        memset(buf0, 0, sizeof(buf0));
+        for (char v = -1, *ptr_src = ctx->conf->redirect.url, *ptr_dst = buf0; *ptr_src; ptr_src++) {
+            const char ch = *ptr_src;
+            if (v == -1) {
+                if (ch == '%') {
+                    *ptr_dst++ = '%';
+                } else if (ch == '$') {
+                    v = 0;
+                    continue;
+                }
+                *ptr_dst++ = ch;
+            } else if ((v == 0 && ch == 'u') || (v == 'u' && ch == 'r')) {
+                v = ch;
+            } else if (v == 'r' && ch == 'i') {
+                v = -1;
+                *ptr_dst++ = '%';
+                *ptr_dst++ = '1';
+                *ptr_dst++ = '$';
+                *ptr_dst++ = 's';
+            }
+        }
+        snprintf(buf1, sizeof(buf1), buf0, req->uri);
+        http_add_header_field(&res->hdr, "Location", buf1);
+        return 0;
+    }
+
     if (ctx->conf->type == CONFIG_TYPE_LOCAL && streq(req->method, "TRACE")) {
         return 1;
     } else if (dir_mode != URI_DIR_MODE_NO_VALIDATION) {

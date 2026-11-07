@@ -33,6 +33,8 @@ static int config_parse_line(char *line, char *section, int *i, int *j) {
     len = strlen(ptr);
     if (len == 0) return 0;
 
+    host_config_t *hc = &config.hosts[*i - 1];
+    cert_config_t *cc = &config.certs[*j - 1];
     if (ptr[0] == '[') {
         if (ptr[len - 1] != ']') return -1;
         ptr++;
@@ -65,7 +67,6 @@ static int config_parse_line(char *line, char *section, int *i, int *j) {
             return -1;
         }
     } else if (*section == 'c') {
-        cert_config_t *cc = &config.certs[*j - 1];
         if (len > 12 && strncmp(ptr, "certificate", 11) == 0 && (ptr[11] == ' ' || ptr[11] == '\t')) {
             source = ptr + 11;
             target = cc->full_chain;
@@ -76,7 +77,6 @@ static int config_parse_line(char *line, char *section, int *i, int *j) {
             return -1;
         }
     } else if (*section == 'h') {
-        host_config_t *hc = &config.hosts[*i - 1];
         if (len > 8 && strncmp(ptr, "webroot", 7) == 0 && (ptr[7] == ' ' || ptr[7] == '\t')) {
             source = ptr + 7;
             target = hc->local.webroot;
@@ -114,6 +114,15 @@ static int config_parse_line(char *line, char *section, int *i, int *j) {
             } else {
                 hc->type = CONFIG_TYPE_REVERSE_PROXY;
             }
+        } else if (len > 9 && strncmp(ptr, "redirect", 8) == 0 && (ptr[8] == ' ' || ptr[8] == '\t')) {
+            source = ptr + 8;
+            target = NULL;
+            mode = 3;
+            if (hc->type != 0 && hc->type != CONFIG_TYPE_REDIRECT) {
+                return -1;
+            } else {
+                hc->type = CONFIG_TYPE_REDIRECT;
+            }
         } else if (streq(ptr, "http")) {
             if (hc->type != 0 && hc->type != CONFIG_TYPE_REVERSE_PROXY) {
                 return -1;
@@ -144,16 +153,27 @@ static int config_parse_line(char *line, char *section, int *i, int *j) {
         strcpy(target, source);
     } else if (mode == 1) {
         if (streq(source, "forbidden")) {
-            config.hosts[*i - 1].local.dir_mode = URI_DIR_MODE_FORBIDDEN;
+            hc->local.dir_mode = URI_DIR_MODE_FORBIDDEN;
         } else if (streq(source, "info")) {
-            config.hosts[*i - 1].local.dir_mode = URI_DIR_MODE_INFO;
+            hc->local.dir_mode = URI_DIR_MODE_INFO;
         } else if (streq(source, "list")) {
-            config.hosts[*i - 1].local.dir_mode = URI_DIR_MODE_LIST;
+            hc->local.dir_mode = URI_DIR_MODE_LIST;
         } else {
             return -1;
         }
     } else if (mode == 2) {
-        config.hosts[*i - 1].proxy.port = (unsigned short) strtoul(source, NULL, 10);
+        hc->proxy.port = (unsigned short) strtoul(source, NULL, 10);
+    } else if (mode == 3) {
+        strcpy(hc->redirect.url, source);
+        len = strlen(hc->redirect.url);
+        if (hc->redirect.url[len - 4] == ' ' || hc->redirect.url[len - 4] == '\t') {
+            hc->redirect.status_code = (unsigned short) strtoul(source + len - 3, NULL, 10);
+            for (len -= 4; hc->redirect.url[len] == ' ' || hc->redirect.url[len] == '\t'; len--) {
+                hc->redirect.url[len] = '\0';
+            }
+        } else {
+            hc->redirect.status_code = 303;
+        }
     }
 
     return 0;

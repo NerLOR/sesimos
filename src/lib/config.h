@@ -18,6 +18,7 @@
 #define CONFIG_TYPE_UNSET 0
 #define CONFIG_TYPE_LOCAL 1
 #define CONFIG_TYPE_REVERSE_PROXY 2
+#define CONFIG_TYPE_REDIRECT 3
 
 #ifndef DEFAULT_CONFIG_FILE
 #   define DEFAULT_CONFIG_FILE "/etc/sesimos/server.conf"
@@ -40,6 +41,10 @@ typedef struct {
             char webroot[256];
             unsigned char dir_mode:2;
         } local;
+        struct {
+            char url[256];
+            unsigned short status_code;
+        } redirect;
     };
 } host_config_t;
 
