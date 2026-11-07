@@ -49,6 +49,7 @@ static int magic_init(void) {
         return 1;
     }
 
+    errno = 0;
     return 0;
 }
 
