@@ -7,6 +7,7 @@
  */
 
 #include "func.h"
+#include "../lib/error.h"
 #include "../logger.h"
 #include "../lib/utils.h"
 #include "../lib/compress.h"
@@ -112,7 +113,7 @@ static int local_handler(client_ctx_t *ctx) {
     http_uri *uri = &ctx->uri;
     char *err_msg = ctx->err_msg;
 
-    char buf1[1024], buf2[1024];
+    char buf1[1024], buf2[1024], err_buf[256];
     int accept_if_modified_since = 0;
 
     if (streq(req->method, "TRACE")) {
@@ -152,6 +153,9 @@ static int local_handler(client_ctx_t *ctx) {
         return 0;
     } else if (strlen(uri->pathinfo) != 0 && ctx->conf->local.dir_mode != URI_DIR_MODE_INFO) {
         res->status = http_get_status(404);
+        return 0;
+    } else if (access(uri->filename, R_OK) != 0) {
+        res->status = http_get_status(403);
         return 0;
     }
 
@@ -259,7 +263,13 @@ static int local_handler(client_ctx_t *ctx) {
         return 0;
     }
 
-    if (ctx->file == NULL) ctx->file = fopen(uri->filename, "rb");
+    if (ctx->file == NULL) {
+        if ((ctx->file = fopen(uri->filename, "rb")) == NULL) {
+            res->status = http_get_status(500);
+            sprintf(err_msg, "Unable to open file: %s.", error_str(errno, err_buf, sizeof(err_buf)));
+            return 0;
+        }
+    }
     ctx->content_length = fsize(ctx->file);
 
     return 0;

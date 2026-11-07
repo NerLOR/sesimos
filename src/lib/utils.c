@@ -293,7 +293,8 @@ long clock_cpu(void) {
 
 long stat_mtime(const char *filename) {
     struct stat stat_buf;
-    stat(filename, &stat_buf);
+    if (stat(filename, &stat_buf) != 0)
+        return 0;  // FIXME use actual error value
     return stat_buf.st_mtime;
 }
 
