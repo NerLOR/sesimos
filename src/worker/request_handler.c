@@ -427,7 +427,7 @@ void request_complete(client_ctx_t *ctx) {
     ctx->req_e = clock_micros();
     info("Transfer complete: %s", format_duration(ctx->req_e - ctx->req_s, buf));
 
-    bouncer_record(ctx->cid, ctx->res.status->code);
+    bouncer_record(ctx->cid, ctx->req.method, ctx->res.status->code);
 
     if (ctx->conf) {
         char path[256];

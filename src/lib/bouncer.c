@@ -1,9 +1,11 @@
 
+#include "utils.h"
 #include "bouncer.h"
 
 #include <errno.h>
 #include <semaphore.h>
 #include <string.h>
+
 
 static const unsigned char IP4_BLOCKS[256] = {
      0 , 'P', 'E', 'N', 'n', 'E', 'D', 'D', 'n', 'n',  0 , 'D', 'n', 'n', 'P', 'n',
@@ -116,7 +118,7 @@ int bouncer_authorize(const int cid) {
         }
     }
     const long diff = slot - start;
-    const int mult = diff > 35 ? 1 : diff > 25 ? 2 : diff > 15 ? 3 : 4;
+    const int mult = diff < 15 ? 4 : diff < 25 ? 3 : diff < 35 ? 2 : 1;
     const int net_total_1h = (net_success_1h + net_redirect_1h + net_fail_1h + net_other_1h) * mult;
     const int total_1h = (success_1h + redirect_1h + fail_1h + other_1h) * mult;
     if (net_total_1h > 2000 || total_1h > 1000) {
@@ -128,11 +130,14 @@ int bouncer_authorize(const int cid) {
     }
 }
 
-void bouncer_record(const int cid, const status_code_t status_code) {
+void bouncer_record(const int cid, const char *method, const status_code_t status_code) {
     const int slot = bouncer_slot();
     if (cid < 0) return;
     const int m = status_code / 100;
     const int i = m == 2 || status_code == 304 ? 0 : m == 3 ? 1 : m == 4 ? 2 : 3;
+
+    if (m == 0 && !streq(method, "GET") && !streq(method, "HEAD"))
+        return;
 
     while (sem_wait(&sem) != 0) {
         if (errno != EINTR) return;

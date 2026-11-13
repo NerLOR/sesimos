@@ -16,6 +16,6 @@ int bouncer_get_cid(const struct sockaddr_in6 *addr);
 
 int bouncer_authorize(int cid);
 
-void bouncer_record(int cid, status_code_t status_code);
+void bouncer_record(int cid, const char *method, status_code_t status_code);
 
 #endif //SESIMOS_BOUNCER_H
