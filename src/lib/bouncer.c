@@ -93,17 +93,19 @@ static int bouncer_slot(void) {
 
 int bouncer_authorize(const int cid) {
     const int slot = bouncer_slot();
-    if (cid < 0) return 1;
+    if (cid < 0) return 0;
     const int net = cid & 0xfff00;
     int net_success_1h = 0, net_redirect_1h = 0, net_fail_1h = 0, net_other_1h = 0;
     int success_1h = 0, redirect_1h = 0, fail_1h = 0, other_1h = 0;
     int success_5m = 0, redirect_5m = 0, fail_5m = 0, other_5m = 0;
+    int altering_success = 0;
     for (int i = 0; i < BOUNCER_SLOTS; i++) {
         const int s = (slot - i + BOUNCER_SLOTS) % BOUNCER_SLOTS;
         success_1h += visits[s][cid][0];
         redirect_1h += visits[s][cid][1];
         fail_1h += visits[s][cid][2];
         other_1h += visits[s][cid][3];
+        if (visits[s][cid][3] & 0x80) altering_success = 1;
         for (int j = 0; j < 256; j++) {
             net_success_1h += visits[s][net | j][0];
             net_redirect_1h += visits[s][net | j][1];
@@ -121,7 +123,9 @@ int bouncer_authorize(const int cid) {
     const int mult = diff < 15 ? 4 : diff < 25 ? 3 : diff < 35 ? 2 : 1;
     const int net_total_1h = (net_success_1h + net_redirect_1h + net_fail_1h + net_other_1h) * mult;
     const int total_1h = (success_1h + redirect_1h + fail_1h + other_1h) * mult;
-    if (net_total_1h > 2000 || total_1h > 1000) {
+    if (altering_success) {
+        return 0;
+    } else if (net_total_1h > 1000 || total_1h > 600) {
         return 3600;
     } else if (fail_5m > 10 && fail_5m > success_5m * 2) {
         return 300;
@@ -136,13 +140,14 @@ void bouncer_record(const int cid, const char *method, const status_code_t statu
     const int m = status_code / 100;
     const int i = m == 2 || status_code == 304 ? 0 : m == 3 ? 1 : m == 4 ? 2 : 3;
 
-    if (m == 0 && !streq(method, "GET") && !streq(method, "HEAD"))
-        return;
-
     while (sem_wait(&sem) != 0) {
         if (errno != EINTR) return;
         errno = 0;
     }
-    if (visits[slot][cid][i] != 255) visits[slot][cid][i]++;
+    if (i == 0 && !streq(method, "GET") && !streq(method, "HEAD") && !streq(method, "TRACE")) {
+        visits[slot][cid][3] |= 0x80;
+    } else {
+        if (visits[slot][cid][i] != 255) visits[slot][cid][i]++;
+    }
     sem_post(&sem);
 }
