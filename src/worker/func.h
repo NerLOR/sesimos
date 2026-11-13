@@ -30,7 +30,8 @@ typedef struct {
     char cc[3], host[256];
     char req_host[256], err_msg[256];
     char log_prefix[128];
-    char _c_addr[INET6_ADDRSTRLEN + 1], _s_addr[INET6_ADDRSTRLEN + 1];
+    int cid;
+    char _c_addr[INET6_ADDRSTRLEN + 1], _s_addr[INET6_ADDRSTRLEN + 1], cid_str[6];
     long cnx_s, cnx_e, req_s, res_ts, req_e;
     http_req req;
     http_res res;

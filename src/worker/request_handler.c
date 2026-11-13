@@ -15,6 +15,7 @@
 #include "../server.h"
 #include "../lib/res.h"
 #include "../lib/error.h"
+#include "../lib/bouncer.h"
 
 #include <string.h>
 #include <arpa/inet.h>
@@ -162,6 +163,19 @@ static int request_handler(client_ctx_t *ctx) {
             }
         }
 
+        return 0;
+    }
+
+    int retry_after;
+    if ((retry_after = bouncer_authorize(ctx->cid)) != 0) {
+        debug("Client rejected");
+        res->status = http_get_status(429);
+        if (retry_after > 0) {
+            snprintf(buf0, sizeof(buf0), "%i", retry_after);
+            http_add_header_field(&res->hdr, "Retry-After", buf0);
+            snprintf(ctx->err_msg, sizeof(ctx->err_msg), "Try again in %i minutes.", retry_after / 60);
+        }
+        ctx->s_keep_alive = 0;
         return 0;
     }
 
@@ -373,8 +387,6 @@ int respond(client_ctx_t *ctx) {
          res->status->msg, location != NULL ? " -> " : "", location != NULL ? location : "",
          format_duration(ctx->res_ts - ctx->req_s, buf0), CLR_STR);
 
-    // TODO access/error log file
-
     if (ctx->use_proxy) {
         // reverse proxy
         return 3;
@@ -414,6 +426,8 @@ void request_complete(client_ctx_t *ctx) {
     char buf[64];
     ctx->req_e = clock_micros();
     info("Transfer complete: %s", format_duration(ctx->req_e - ctx->req_s, buf));
+
+    bouncer_record(ctx->cid, ctx->res.status->code);
 
     if (ctx->conf) {
         char path[256];

@@ -19,6 +19,7 @@
 #include "worker/func.h"
 #include "lib/list.h"
 #include "lib/utils.h"
+#include "lib/bouncer.h"
 
 #include <stdio.h>
 #include <getopt.h>
@@ -395,6 +396,7 @@ int main(int argc, char *const argv[]) {
     }
 
     logger_init();
+    bouncer_init();
 
     if ((ret = cache_init()) != 0) {
         if (ret == -1) critical("Unable to initialize cache");
@@ -406,6 +408,7 @@ int main(int argc, char *const argv[]) {
         proxy_unload();
         logger_stop();
         logger_join();
+        bouncer_destroy();
         return 1;
     }
 
@@ -422,6 +425,7 @@ int main(int argc, char *const argv[]) {
         async_free();
         logger_stop();
         logger_join();
+        bouncer_destroy();
         return 1;
     }
 
@@ -451,6 +455,7 @@ int main(int argc, char *const argv[]) {
     async_free();
     logger_stop();
     logger_join();
+    bouncer_destroy();
 
     return error;
 }

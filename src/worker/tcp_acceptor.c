@@ -13,6 +13,7 @@
 #include "../workers.h"
 #include "../server.h"
 #include "../lib/error.h"
+#include "../lib/bouncer.h"
 
 #include <string.h>
 #include <errno.h>
@@ -39,6 +40,17 @@ static int tcp_acceptor(client_ctx_t *ctx) {
     } else {
         ctx->socket.addr = ctx->_c_addr;
     }
+    ctx->cid = bouncer_get_cid(&ctx->socket._addr.ipv6);
+    if (ctx->cid == -1) {
+        ctx->cid_str[0] = ' ';
+        ctx->cid_str[1] = ' ';
+        ctx->cid_str[2] = ' ';
+        ctx->cid_str[3] = ' ';
+        ctx->cid_str[4] = ' ';
+        ctx->cid_str[5] = 0;
+    } else {
+        snprintf(ctx->cid_str, sizeof(ctx->cid_str), "%05x", ctx->cid);
+    }
 
     socklen_t len = sizeof(server_addr);
     getsockname(ctx->socket.socket, (struct sockaddr *) &server_addr, &len);
@@ -49,8 +61,8 @@ static int tcp_acceptor(client_ctx_t *ctx) {
         ctx->socket.s_addr = ctx->_s_addr;
     }
 
-    sprintf(ctx->log_prefix, "[%s%4i%s]%s[%*s][%5i]%s", (int) ctx->socket.enc ? HTTPS_STR : HTTP_STR,
-            ntohs(server_addr.sin6_port), CLR_STR, /*color_table[0]*/ "", ADDRSTRLEN, ctx->socket.addr,
+    sprintf(ctx->log_prefix, "[%s%4i%s][%s][%*s][%5i]%s", (int) ctx->socket.enc ? HTTPS_STR : HTTP_STR,
+            ntohs(server_addr.sin6_port), CLR_STR, ctx->cid_str, ADDRSTRLEN, ctx->socket.addr,
             ntohs(ctx->socket._addr.ipv6.sin6_port), CLR_STR);
 
     logger_set_prefix("[%*s]%s", ADDRSTRLEN, ctx->socket.s_addr, ctx->log_prefix);

@@ -66,7 +66,8 @@ bin/sesimos: bin/server.o bin/logger.o bin/cache_handler.o bin/async.o bin/worke
              bin/res/globe.o \
              bin/lib/compress.o bin/lib/config.o bin/lib/fastcgi.o bin/lib/geoip.o bin/lib/error.o \
              bin/lib/http.o  bin/lib/proxy.o bin/lib/sock.o bin/lib/uri.o \
-             bin/lib/utils.o bin/lib/websocket.o bin/lib/mpmc.o bin/lib/list.o
+             bin/lib/utils.o bin/lib/websocket.o bin/lib/mpmc.o bin/lib/list.o \
+             bin/lib/bouncer.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
 
 
@@ -83,7 +84,7 @@ bin/workers.o: src/workers.h src/lib/mpmc.h src/worker/func.h
 
 bin/worker/request_handler.o: src/worker/func.h
 
-bin/worker/tcp_acceptor.o: src/worker/func.h
+bin/worker/tcp_acceptor.o: src/worker/func.h src/lib/bouncer.h
 
 bin/worker/fastcgi_handler.o: src/worker/func.h
 
@@ -98,6 +99,8 @@ bin/worker/ws_frame_handler.o: src/worker/func.h
 bin/worker/fastcgi_frame_handler.o: src/worker/func.h
 
 bin/worker/chunk_handler.o: src/worker/func.h
+
+bin/lib/bouncer.o: src/lib/bouncer.h
 
 bin/lib/compress.o: src/lib/compress.h
 
