@@ -50,14 +50,18 @@ int bouncer_get_cid(const struct sockaddr_in6 *addr) {
     }
 }
 
-volatile static time_t last = 0;
+static long start = 0;
+volatile static long last = 0;
 volatile static unsigned char visits[BOUNCER_SLOTS][1048576][4];
 static sem_t sem;
+
+static int bouncer_slot(void);
 
 int bouncer_init(void) {
     if (sem_init(&sem, 0, 1) != 0) {
         return -1;
     }
+    start = time(NULL) / BOUNCER_SECONDS_PER_SLOT;
     return 0;
 }
 
@@ -65,8 +69,8 @@ void bouncer_destroy(void) {
     sem_destroy(&sem);
 }
 
-static int bouncer_slot() {
-    const int slot = time(NULL) / BOUNCER_SECONDS_PER_SLOT;
+static int bouncer_slot(void) {
+    const long slot = time(NULL) / BOUNCER_SECONDS_PER_SLOT;
 
     while (sem_wait(&sem) != 0) {
         if (errno != EINTR) return -1;
@@ -75,8 +79,8 @@ static int bouncer_slot() {
     if (slot - last > BOUNCER_SLOTS) {
         memset((void *)visits, 0, sizeof(visits));
     } else  {
-        for (int i = last + 1; i <= slot; i++) {
-            memset((void *)visits[i % 60], 0, sizeof(visits[0]));
+        for (long i = last + 1; i <= slot; i++) {
+            memset((void *)visits[i % BOUNCER_SLOTS], 0, sizeof(visits[0]));
         }
     }
     sem_post(&sem);
@@ -88,22 +92,34 @@ static int bouncer_slot() {
 int bouncer_authorize(const int cid) {
     const int slot = bouncer_slot();
     if (cid < 0) return 1;
+    const int net = cid & 0xfff00;
+    int net_success_1h = 0, net_redirect_1h = 0, net_fail_1h = 0, net_other_1h = 0;
     int success_1h = 0, redirect_1h = 0, fail_1h = 0, other_1h = 0;
     int success_5m = 0, redirect_5m = 0, fail_5m = 0, other_5m = 0;
     for (int i = 0; i < BOUNCER_SLOTS; i++) {
-        success_1h += visits[(slot - i + BOUNCER_SLOTS) % BOUNCER_SLOTS][cid][0];
-        redirect_1h += visits[(slot - i + BOUNCER_SLOTS) % BOUNCER_SLOTS][cid][1];
-        fail_1h += visits[(slot - i + BOUNCER_SLOTS) % BOUNCER_SLOTS][cid][2];
-        other_1h += visits[(slot - i + BOUNCER_SLOTS) % BOUNCER_SLOTS][cid][3];
+        const int s = (slot - i + BOUNCER_SLOTS) % BOUNCER_SLOTS;
+        success_1h += visits[s][cid][0];
+        redirect_1h += visits[s][cid][1];
+        fail_1h += visits[s][cid][2];
+        other_1h += visits[s][cid][3];
+        for (int j = 0; j < 256; j++) {
+            net_success_1h += visits[s][net | j][0];
+            net_redirect_1h += visits[s][net | j][1];
+            net_fail_1h += visits[s][net | j][2];
+            net_other_1h += visits[s][net | j][3];
+        }
         if (i <= 5) {
-            success_5m += visits[(slot - i + BOUNCER_SLOTS) % BOUNCER_SLOTS][cid][0];
-            redirect_5m += visits[(slot - i + BOUNCER_SLOTS) % BOUNCER_SLOTS][cid][1];
-            fail_5m += visits[(slot - i + BOUNCER_SLOTS) % BOUNCER_SLOTS][cid][2];
-            other_5m += visits[(slot - i + BOUNCER_SLOTS) % BOUNCER_SLOTS][cid][3];
+            success_5m += visits[s][cid][0];
+            redirect_5m += visits[s][cid][1];
+            fail_5m += visits[s][cid][2];
+            other_5m += visits[s][cid][3];
         }
     }
-    const int total_1h = success_1h + redirect_1h + fail_1h + other_1h;
-    if (total_1h > 1000) {
+    const long diff = slot - start;
+    const int mult = diff > 35 ? 1 : diff > 25 ? 2 : diff > 15 ? 3 : 4;
+    const int net_total_1h = (net_success_1h + net_redirect_1h + net_fail_1h + net_other_1h) * mult;
+    const int total_1h = (success_1h + redirect_1h + fail_1h + other_1h) * mult;
+    if (net_total_1h > 2000 || total_1h > 1000) {
         return 3600;
     } else if (fail_5m > 10 && fail_5m > success_5m * 2) {
         return 300;
