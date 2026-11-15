@@ -104,19 +104,19 @@ int bouncer_authorize(const int cid) {
         success_1h += visits[s][cid][0];
         redirect_1h += visits[s][cid][1];
         fail_1h += visits[s][cid][2];
-        other_1h += visits[s][cid][3];
+        other_1h += visits[s][cid][3] & 0x7f;
         if (visits[s][cid][3] & 0x80) altering_success = 1;
         for (int j = 0; j < 256; j++) {
             net_success_1h += visits[s][net | j][0];
             net_redirect_1h += visits[s][net | j][1];
             net_fail_1h += visits[s][net | j][2];
-            net_other_1h += visits[s][net | j][3];
+            net_other_1h += visits[s][net | j][3] & 0x7f;
         }
         if (i <= 5) {
             success_5m += visits[s][cid][0];
             redirect_5m += visits[s][cid][1];
             fail_5m += visits[s][cid][2];
-            other_5m += visits[s][cid][3];
+            other_5m += visits[s][cid][3] & 0x7f;
         }
     }
     const long diff = slot - start;
@@ -144,7 +144,7 @@ void bouncer_record(const int cid, const char *method, const status_code_t statu
         if (errno != EINTR) return;
         errno = 0;
     }
-    if (i == 0 && !streq(method, "GET") && !streq(method, "HEAD") && !streq(method, "TRACE")) {
+    if ((i == 0 && !streq(method, "GET") && !streq(method, "HEAD") && !streq(method, "TRACE")) || status_code == 101) {
         visits[slot][cid][3] |= 0x80;
     } else {
         if (visits[slot][cid][i] != 255) visits[slot][cid][i]++;
